@@ -1,0 +1,717 @@
+{
+  "info": {
+    "name": "Praychain API",
+    "description": "Complete API collection for Praychain - Prayer transcription and charity token system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "test_user_123",
+      "type": "string"
+    },
+    {
+      "key": "transcriptionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "analysisId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "charityId",
+      "value": "charity_001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "API Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Transcription",
+      "item": [
+        {
+          "name": "Transcribe Audio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('transcriptionId', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "/path/to/audio.mp3"
+                },
+                {
+                  "key": "language",
+                  "value": "en",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/transcribe",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "transcribe"]
+            },
+            "description": "Upload audio file for transcription. Supported formats: mp3, mp4, wav, webm, ogg"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transcription by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/transcriptions/{{transcriptionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "transcriptions", "{{transcriptionId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Transcriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/transcriptions?skip=0&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "transcriptions"],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Whisper Model",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/change-model?model_name=base",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "change-model"],
+              "query": [
+                {
+                  "key": "model_name",
+                  "value": "base",
+                  "description": "Options: tiny, base, small, medium, large"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analysis",
+      "item": [
+        {
+          "name": "Analyze Transcription",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.collectionVariables.set('analysisId', jsonData.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/{{transcriptionId}}?reference_text=In the beginning God created the heaven and the earth",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "{{transcriptionId}}"],
+              "query": [
+                {
+                  "key": "reference_text",
+                  "value": "In the beginning God created the heaven and the earth",
+                  "description": "Bible text to compare with"
+                }
+              ]
+            },
+            "description": "Analyze transcription with emotion detection, focus score, and text accuracy"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Analysis by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis/{{analysisId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis", "{{analysisId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Analyses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analysis?skip=0&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analysis"],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bible",
+      "item": [
+        {
+          "name": "Get Random Quote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bible/random-quote",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bible", "random-quote"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Short Quote",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bible/short-quote",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bible", "short-quote"]
+            },
+            "description": "Get a short inspirational Bible quote"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Prayer by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bible/prayer/our_father",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bible", "prayer", "our_father"]
+            },
+            "description": "Get a specific prayer (our_father, hail_mary, glory_be, apostles_creed)"
+          },
+          "response": []
+        },
+        {
+          "name": "List All Prayers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bible/prayers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bible", "prayers"]
+            },
+            "description": "Get list of all available prayers"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Specific Verse",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bible/verse/John 3:16",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "bible", "verse", "John 3:16"]
+            },
+            "description": "Get a specific Bible verse by reference (e.g., 'John 3:16', 'Genesis 1:1')"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Prayer",
+      "item": [
+        {
+          "name": "Analyze Prayer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bible_text\": \"In the beginning God created the heaven and the earth. And the earth was without form, and void; and darkness was upon the face of the deep.\",\n  \"user_id\": \"{{userId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prayer/analyze/{{transcriptionId}}?bible_reference=Genesis 1:1-2",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prayer", "analyze", "{{transcriptionId}}"],
+              "query": [
+                {
+                  "key": "bible_reference",
+                  "value": "Genesis 1:1-2"
+                }
+              ]
+            },
+            "description": "Analyze prayer reading with token calculation based on accuracy, emotional stability, and fluency"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Prayer History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/prayer/history?skip=0&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prayer", "history"],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Prayer Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/prayer/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prayer", "stats"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tokens",
+      "item": [
+        {
+          "name": "Get Token Balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tokens/balance/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tokens", "balance", "{{userId}}"]
+            },
+            "description": "Get current token balance for a user"
+          },
+          "response": []
+        },
+        {
+          "name": "🎁 ADMIN: Give Tokens to User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"amount\": 1000,\n  \"source\": \"admin:gift\",\n  \"description\": \"Welcome bonus - 1000 tokens!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tokens/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tokens", "add"]
+            },
+            "description": "🔑 ADMIN ONLY: Manually add tokens to any user account"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tokens/transactions/{{userId}}?skip=0&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tokens", "transactions", "{{userId}}"],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get transaction history for a user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tokens/leaderboard?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tokens", "leaderboard"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get top token earners"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Charity",
+      "item": [
+        {
+          "name": "List Charity Actions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/actions?skip=0&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "actions"],
+              "query": [
+                {
+                  "key": "skip",
+                  "value": "0"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "category",
+                  "value": "humanitarian",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get list of available charity actions"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Charity Action by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/actions/{{charityId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "actions", "{{charityId}}"]
+            },
+            "description": "Get details of a specific charity action"
+          },
+          "response": []
+        },
+        {
+          "name": "💰 Donate Tokens to Charity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"charity_id\": \"charity_001\",\n  \"tokens_amount\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/donate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "donate"]
+            },
+            "description": "✅ Donate your earned tokens to a charity action\n\nRequired fields:\n- user_id: Your user ID\n- charity_id: ID of the charity (get from /api/charity/actions)\n- tokens_amount: How many tokens to donate (must be positive integer)\n\nExample charities:\n- charity_001: Feed a Family (50 tokens)\n- charity_002: School Supplies (100 tokens)\n- charity_003: Clean Water (75 tokens)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Donation Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/user/{{userId}}/donations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "user", "{{userId}}", "donations"]
+            },
+            "description": "Get donation statistics and history for a specific user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Charity Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/actions/{{charityId}}/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "actions", "{{charityId}}", "stats"]
+            },
+            "description": "Get statistics for a specific charity (total donations, supporters)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Charity Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "categories"]
+            },
+            "description": "Get list of all charity categories"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Overall Charity Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "stats"]
+            },
+            "description": "Get overall charity statistics across all actions"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🎯 Quick Test Scenarios",
+      "item": [
+        {
+          "name": "Scenario 1: Give 1000 Tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"test_user_123\",\n  \"amount\": 1000,\n  \"source\": \"admin:welcome_bonus\",\n  \"description\": \"Welcome to PrayChain! 🙏\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tokens/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tokens", "add"]
+            },
+            "description": "Step 1: Give user 1000 tokens"
+          },
+          "response": []
+        },
+        {
+          "name": "Scenario 2: Check Balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tokens/balance/test_user_123",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tokens", "balance", "test_user_123"]
+            },
+            "description": "Step 2: Verify user has 1000 tokens"
+          },
+          "response": []
+        },
+        {
+          "name": "Scenario 3: Donate 100 Tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"test_user_123\",\n  \"charity_id\": \"charity_001\",\n  \"tokens_amount\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/donate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "donate"]
+            },
+            "description": "Step 3: Donate 100 tokens to charity"
+          },
+          "response": []
+        },
+        {
+          "name": "Scenario 4: Check New Balance",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/tokens/balance/test_user_123",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tokens", "balance", "test_user_123"]
+            },
+            "description": "Step 4: Verify balance is now 900 tokens"
+          },
+          "response": []
+        },
+        {
+          "name": "Scenario 5: View Donation Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/charity/user/test_user_123/donations",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "charity", "user", "test_user_123", "donations"]
+            },
+            "description": "Step 5: See user's donation history"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

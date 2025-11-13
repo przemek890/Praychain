@@ -1,0 +1,14 @@
+.venv/
+.vscode/
+.idea/
+venv/
+.DS_Store
+.git/
+__pycache__/
+*.pyc
+.env
+uploads/
+*.mp3
+*.wav
+*.m4a
+*.flac
