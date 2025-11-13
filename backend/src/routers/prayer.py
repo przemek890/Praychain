@@ -1,31 +1,22 @@
 from fastapi import APIRouter, HTTPException
 import logging
-from typing import Optional, Dict, Any  # ✅ Dodaj Any
-from pydantic import BaseModel
+from typing import Optional
+from difflib import SequenceMatcher
 
 from src.utils.mongodb import get_database
+from src.models.prayer import PrayerAnalysisRequest, DualAnalysisRequest, DualAnalysisResponse
+from src.config.settings import (
+    CAPTCHA_ACCURACY_THRESHOLD,
+    LOW_TEXT_ACCURACY_THRESHOLD,
+    LOW_TEXT_ACCURACY_PENALTY,
+    ACCURACY_POINTS_MULTIPLIER,
+    STABILITY_POINTS_MULTIPLIER,
+    FLUENCY_POINTS_MULTIPLIER,
+    FOCUS_POINTS_MULTIPLIER
+)
 
 router = APIRouter(prefix="/api/prayer", tags=["prayer"])
 logger = logging.getLogger(__name__)
-
-class PrayerAnalysisRequest(BaseModel):
-    bible_text: str
-    captcha_text: str
-    user_id: str = "default_user"
-
-class DualAnalysisRequest(BaseModel):
-    prayer_transcription_id: str
-    captcha_transcription_id: str
-    bible_text: str
-    captcha_text: str
-    user_id: str = "default_user"
-
-# ✅ POPRAWIONY MODEL - Dict[str, Any] zamiast Dict[str, float]
-class DualAnalysisResponse(BaseModel):
-    analysis: Dict[str, Any]  # ✅ Any - bo sentiment to str, reszta to float
-    captcha_passed: bool
-    user_id: str
-    message: str
 
 @router.post("/analyze/{transcription_id}")
 async def analyze_prayer_reading(
@@ -33,7 +24,6 @@ async def analyze_prayer_reading(
     request: PrayerAnalysisRequest,
     bible_reference: Optional[str] = None
 ):
-    """Stara wersja - jedno nagranie (modlitwa + captcha razem)"""
     try:
         db = get_database()
         transcription = await db.transcriptions.find_one({"_id": transcription_id})
@@ -76,14 +66,12 @@ async def analyze_prayer_reading(
         speech_fluency = getattr(analysis_response, 'speech_fluency', 0.0)
         focus_score = analysis_response.focus_score
         
-        from difflib import SequenceMatcher
-        
         captcha_transcribed = transcribed_text.split()[-len(request.captcha_text.split()):]
         captcha_transcribed_text = " ".join(captcha_transcribed).lower()
         captcha_reference = request.captcha_text.lower()
         
         captcha_accuracy = SequenceMatcher(None, captcha_transcribed_text, captcha_reference).ratio()
-        captcha_passed = captcha_accuracy >= 0.5
+        captcha_passed = captcha_accuracy >= CAPTCHA_ACCURACY_THRESHOLD
         
         return {
             "analysis": {
@@ -99,7 +87,7 @@ async def analyze_prayer_reading(
             "bible_reference": bible_reference,
             "user_id": request.user_id,
             "captcha_passed": captcha_passed,
-            "captcha_threshold": 0.5,
+            "captcha_threshold": CAPTCHA_ACCURACY_THRESHOLD,
             "message": "Captcha passed - call /tokens/award to earn tokens" if captcha_passed else f"Captcha failed ({captcha_accuracy * 100:.0f}%) - 0 tokens"
         }
         
@@ -111,15 +99,12 @@ async def analyze_prayer_reading(
 
 @router.get("/history")
 async def get_prayer_history(skip: int = 0, limit: int = 10):
-    """Get user's prayer history with token earnings"""
     db = get_database()
     
-    # This would be filtered by user_id in production
     analyses = await db.analyses.find().skip(skip).limit(limit).to_list(length=limit)
     
     history = []
     for analysis in analyses:
-        # Recalculate tokens for display
         focus_bonus = int(analysis["focus_score"] * 20)
         engagement_bonus = int(analysis["engagement_score"] * 15)
         sentiment_bonus = 5 if analysis["sentiment"] == "positive" else 0
@@ -139,12 +124,10 @@ async def get_prayer_history(skip: int = 0, limit: int = 10):
 
 @router.get("/stats")
 async def get_prayer_stats():
-    """Get overall prayer statistics"""
     db = get_database()
     
     total_prayers = await db.analyses.count_documents({})
     
-    # Calculate total tokens earned
     analyses = await db.analyses.find().to_list(length=None)
     total_tokens = sum(
         10 + int(a["focus_score"] * 20) + int(a["engagement_score"] * 15) + 
@@ -152,7 +135,6 @@ async def get_prayer_stats():
         for a in analyses
     )
     
-    # Average scores
     avg_focus = sum(a["focus_score"] for a in analyses) / len(analyses) if analyses else 0
     avg_engagement = sum(a["engagement_score"] for a in analyses) / len(analyses) if analyses else 0
     
@@ -165,10 +147,6 @@ async def get_prayer_stats():
 
 @router.post("/analyze-dual", response_model=DualAnalysisResponse)
 async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalysisResponse:
-    """
-    ✅ Analizuje DWA osobne nagrania: modlitwę + captcha
-    ✅ Przyznaje tokeny bezpośrednio (0-100)
-    """
     try:
         db = get_database()
         
@@ -185,7 +163,6 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
         logger.info(f"Captcha transcribed: {captcha_transcribed}")
         logger.info(f"Captcha reference: {request.captcha_text}")
         
-        # Analiza modlitwy
         from src.routers.analysis import analyze_transcription_with_reference
         
         try:
@@ -213,33 +190,27 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
             sentiment = "neutral"
             is_focused = False
         
-        # Sprawdź CAPTCHA
-        from difflib import SequenceMatcher
         captcha_accuracy = SequenceMatcher(
             None, 
             captcha_transcribed.lower(), 
             request.captcha_text.lower()
         ).ratio()
         
-        captcha_passed = captcha_accuracy >= 0.5
+        captcha_passed = captcha_accuracy >= CAPTCHA_ACCURACY_THRESHOLD
         
         logger.info(f"Captcha accuracy: {captcha_accuracy:.2f} - {'PASSED' if captcha_passed else 'FAILED'}")
         
-        # ✅ OBLICZ TOKENY (0-100) + CAPTCHA CHECK
         if captcha_passed:
-            # Algorytm tokenów
-            accuracy_points = text_accuracy * 50      # Max 50
-            stability_points = emotional_stability * 25   # Max 25
-            fluency_points = speech_fluency * 15      # Max 15
-            focus_points = focus_score * 10           # Max 10
+            accuracy_points = text_accuracy * ACCURACY_POINTS_MULTIPLIER
+            stability_points = emotional_stability * STABILITY_POINTS_MULTIPLIER
+            fluency_points = speech_fluency * FLUENCY_POINTS_MULTIPLIER
+            focus_points = focus_score * FOCUS_POINTS_MULTIPLIER
             
             tokens_earned = int(accuracy_points + stability_points + fluency_points + focus_points)
             
-            # Kara za słabe czytanie
-            if text_accuracy < 0.3:
-                tokens_earned = max(0, tokens_earned - 20)
+            if text_accuracy < LOW_TEXT_ACCURACY_THRESHOLD:
+                tokens_earned = max(0, tokens_earned - LOW_TEXT_ACCURACY_PENALTY)
             
-            # ✅ Zapisz transakcję tokenów
             from src.routers.tokens import award_tokens_internal
             
             await award_tokens_internal(
@@ -254,11 +225,11 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
                 focus_score=focus_score
             )
             
-            logger.info(f"✅ Awarded {tokens_earned} tokens to user {request.user_id}")
-            message = f"Success! You earned {tokens_earned} tokens 🎉"
+            logger.info(f"Awarded {tokens_earned} tokens to user {request.user_id}")
+            message = f"Success! You earned {tokens_earned} tokens"
         else:
             tokens_earned = 0
-            logger.info(f"❌ CAPTCHA failed - 0 tokens awarded")
+            logger.info(f"CAPTCHA failed - 0 tokens awarded")
             message = f"Captcha failed ({captcha_accuracy * 100:.0f}%) - 0 tokens"
         
         return DualAnalysisResponse(
@@ -271,7 +242,7 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
                 "emotional_stability": float(emotional_stability),
                 "speech_fluency": float(speech_fluency),
                 "is_focused": bool(is_focused),
-                "tokens_earned": tokens_earned,  # ✅ Dodaj tokeny do response
+                "tokens_earned": tokens_earned,
             },
             captcha_passed=captcha_passed,
             user_id=request.user_id,

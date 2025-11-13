@@ -7,18 +7,16 @@ import logging
 import whisper
 import torch
 
-from src.config import settings
+from src.config.settings import (
+    UPLOAD_DIR,
+    ALLOWED_EXTENSIONS,
+    MAX_FILE_SIZE
+)
 from src.utils.mongodb import get_database
 from src.models.transcription import TranscriptionResponse, AudioUploadResponse
 
 router = APIRouter(prefix="/api", tags=["transcription"])
 logger = logging.getLogger(__name__)
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm", ".ogg"}
-MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 
 logger.info("Loading Whisper model...")
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -28,11 +26,8 @@ logger.info(f"Whisper model loaded on {device}")
 @router.post("/transcribe", response_model=AudioUploadResponse)
 async def transcribe_audio(
     file: UploadFile = File(...),
-    audio_type: str = "prayer"  # ✅ NOWE: "prayer" lub "captcha"
+    audio_type: str = "prayer"
 ):
-    """
-    Transkrybuje audio (modlitwę LUB captcha)
-    """
     db = get_database()
     
     try:
@@ -60,9 +55,9 @@ async def transcribe_audio(
             "_id": transcription_id,
             "text": result["text"].strip(),
             "language": result.get("language", "en"),
-            "duration": result.get("duration", 0.0),  # ✅ Default 0.0
-            "file_path": file_path,  # ✅ Dodane
-            "audio_type": audio_type,  # ✅ "prayer" lub "captcha"
+            "duration": result.get("duration", 0.0),
+            "file_path": file_path,
+            "audio_type": audio_type,
             "created_at": datetime.utcnow()
         }
         
@@ -75,7 +70,7 @@ async def transcribe_audio(
                 text=transcription_data["text"],
                 language=transcription_data["language"],
                 duration=transcription_data["duration"],
-                file_path=file_path,  # ✅ Dodane
+                file_path=file_path,
                 created_at=transcription_data["created_at"]
             ),
             message=f"{audio_type.capitalize()} transcribed successfully"

@@ -83,16 +83,6 @@ def calculate_text_accuracy(transcribed_text: str, reference_text: str) -> float
     return round(accuracy_score, 2)
 
 def analyze_emotional_stability(emotions: Dict[str, float]) -> Dict[str, float]:
-    """
-    Analizuje stabilność emocjonalną na podstawie wykrytych emocji
-    
-    Returns:
-    {
-        "stability_score": 0.75,
-        "positive_ratio": 0.6,
-        "dominant_emotion": "joy"
-    }
-    """
     positive_emotions = ['joy', 'love']
     negative_emotions = ['anger', 'fear', 'sadness']
     
@@ -100,21 +90,18 @@ def analyze_emotional_stability(emotions: Dict[str, float]) -> Dict[str, float]:
     negative_sum = sum(emotions.get(e, 0.0) for e in negative_emotions)
     total = positive_sum + negative_sum
     
-    # ✅ POPRAWIONE - zawsze zwróć positive_ratio
     if total > 0:
         positive_ratio = positive_sum / total
     else:
-        positive_ratio = 0.5  # Default neutralny
+        positive_ratio = 0.5
     
-    # Stabilność = różnorodność emocji (nie za wysokie ekstremum)
     emotion_values = list(emotions.values())
     if emotion_values:
         max_emotion = max(emotion_values)
-        stability_score = 1.0 - (max_emotion * 0.5)  # Im wyższe ekstremum, tym niższa stabilność
+        stability_score = 1.0 - (max_emotion * 0.5)
     else:
         stability_score = 0.5
     
-    # Dominant emotion
     if emotions:
         dominant_emotion = max(emotions.items(), key=lambda x: x[1])[0]
     else:
@@ -180,10 +167,6 @@ async def analyze_transcription_with_reference(
     reference_text: str,
     user_id: str = "default_user"
 ):
-    """
-    ✅ Analizuje transkrypcję i porównuje z referencją
-    Returns: DICT (nie AnalysisResponse model!)
-    """
     try:
         db = get_database()
         transcription = await db.transcriptions.find_one({"_id": transcription_id})
@@ -195,7 +178,6 @@ async def analyze_transcription_with_reference(
         
         logger.info(f"Analyzing transcription {transcription_id} with reference")
         
-        # Analiza emocji
         sentiment_result = get_sentiment_analyzer()(transcribed_text)[0]
         emotion_results = get_emotion_analyzer()(transcribed_text)
         
@@ -205,22 +187,20 @@ async def analyze_transcription_with_reference(
         
         logger.info(f"Emotions detected: {emotions}")
         
-        # Oblicz metryki
         text_accuracy = calculate_text_accuracy(transcribed_text, reference_text)
-        emotional_stability_dict = analyze_emotional_stability(emotions)  # ✅ Zwraca dict
+        emotional_stability_dict = analyze_emotional_stability(emotions)
         speech_fluency = analyze_speech_fluency(transcribed_text)
         
         logger.info(f"Text accuracy: {text_accuracy:.2f}")
         
         focus_score = calculate_prayer_focus_score(
             text_accuracy,
-            emotional_stability_dict["stability_score"],  # ✅ Pobierz ze słownika
+            emotional_stability_dict["stability_score"],
             speech_fluency
         )
         
-        engagement_score = (emotional_stability_dict["positive_ratio"] + speech_fluency) / 2  # ✅ Pobierz ze słownika
+        engagement_score = (emotional_stability_dict["positive_ratio"] + speech_fluency) / 2
         
-        # ✅ ZWRÓĆ PROSTY DICT
         result = {
             "id": str(uuid.uuid4()),
             "transcription_id": transcription_id,
@@ -237,7 +217,6 @@ async def analyze_transcription_with_reference(
             "created_at": datetime.utcnow()
         }
         
-        # Zapisz w bazie
         await db.analyses.insert_one(result)
         logger.info(f"Analysis saved: accuracy={text_accuracy:.2f}, focus={focus_score:.2f}")
         
