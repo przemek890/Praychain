@@ -6,31 +6,15 @@ import uuid
 import logging
 
 from src.utils.mongodb import get_database
-from src.models.token import TokenBalance
+from src.models.token import TokenBalance, AddTokensRequest, AwardTokensRequest
 
 router = APIRouter(prefix="/api/tokens", tags=["tokens"])
 logger = logging.getLogger(__name__)
 
-class AddTokensRequest(BaseModel):
-    user_id: str
-    amount: int
-    source: str = "admin:manual"
-    description: str = ""
-
-class AwardTokensRequest(BaseModel):
-    user_id: str
-    transcription_id: str
-    text_accuracy: float  # 0.0 - 1.0
-    emotional_stability: float  # 0.0 - 1.0
-    speech_fluency: float  # 0.0 - 1.0
-    captcha_accuracy: float  # 0.0 - 1.0 - NOWE!
-    focus_score: float  # 0.0 - 1.0
-
 @router.get("/balance/{user_id}")
 async def get_token_balance(user_id: str):
-    """Get current token balance for a user"""
     try:
-        db = get_database()  # ✅ Usuń await
+        db = get_database()
         balance = await db.token_balances.find_one({"user_id": user_id})
         
         if not balance:
@@ -51,9 +35,8 @@ async def get_token_balance(user_id: str):
 
 @router.post("/add")
 async def add_tokens_manually(request: AddTokensRequest):
-    """🔑 ADMIN ONLY: Manually add tokens to a user account"""
     try:
-        db = get_database()  # ✅ Usuń await
+        db = get_database()
         
         balance_doc = await db.token_balances.find_one({"user_id": request.user_id})
         
@@ -107,9 +90,8 @@ async def add_tokens_manually(request: AddTokensRequest):
 
 @router.get("/transactions/{user_id}")
 async def get_transactions(user_id: str, skip: int = 0, limit: int = 20):
-    """Get transaction history for a user"""
     try:
-        db = get_database()  # ✅ Usuń await
+        db = get_database()
         
         transactions = await db.token_transactions.find(
             {"user_id": user_id}
@@ -129,9 +111,8 @@ async def get_transactions(user_id: str, skip: int = 0, limit: int = 20):
 
 @router.get("/leaderboard")
 async def get_leaderboard(limit: int = 10):
-    """Get top token earners"""
     try:
-        db = get_database()  # ✅ Usuń await
+        db = get_database()
         
         top_users = await db.token_balances.find().sort(
             "total_earned", -1
@@ -148,25 +129,12 @@ async def get_leaderboard(limit: int = 10):
 
 @router.post("/award")
 async def award_tokens_for_prayer(request: AwardTokensRequest):
-    """
-    🎯 Przyznaje tokeny na podstawie analizy modlitwy
-    
-    ⚠️ CAPTCHA: Jeśli captcha_accuracy < 0.5 (50%) → 0 tokenów
-    
-    Wagi:
-    - Text Accuracy: 50%
-    - Emotional Stability: 25%
-    - Speech Fluency: 15%
-    - Focus Score: 10%
-    """
     try:
         db = get_database()
         
-        # ✅ CAPTCHA CHECK - jeśli poniżej 50%, to 0 tokenów
         if request.captcha_accuracy < 0.5:
             logger.warning(f"CAPTCHA failed for user {request.user_id}: {request.captcha_accuracy}")
             
-            # Zapisz transakcję z 0 tokenami
             transaction = {
                 "id": str(uuid.uuid4()),
                 "user_id": request.user_id,
@@ -186,15 +154,13 @@ async def award_tokens_for_prayer(request: AwardTokensRequest):
                 "current_balance": (await db.token_balances.find_one({"user_id": request.user_id}))["current_balance"] if await db.token_balances.find_one({"user_id": request.user_id}) else 0
             }
         
-        # ✅ Oblicz tokeny (0-100)
-        accuracy_points = request.text_accuracy * 50  # 0-50 punktów
-        stability_points = request.emotional_stability * 25  # 0-25 punktów
-        fluency_points = request.speech_fluency * 15  # 0-15 punktów
-        focus_points = request.focus_score * 10  # 0-10 punktów
+        accuracy_points = request.text_accuracy * 50
+        stability_points = request.emotional_stability * 25
+        fluency_points = request.speech_fluency * 15
+        focus_points = request.focus_score * 10
         
         total_tokens = int(accuracy_points + stability_points + fluency_points + focus_points)
         
-        # ✅ KARA za bardzo słabe czytanie (accuracy < 0.3)
         penalty_applied = False
         if request.text_accuracy < 0.3:
             total_tokens = max(0, total_tokens - 20)
@@ -202,7 +168,6 @@ async def award_tokens_for_prayer(request: AwardTokensRequest):
         
         total_tokens = max(0, min(100, total_tokens))
         
-        # ✅ Dodaj tokeny do salda użytkownika
         balance_doc = await db.token_balances.find_one({"user_id": request.user_id})
         
         if not balance_doc:
@@ -229,7 +194,6 @@ async def award_tokens_for_prayer(request: AwardTokensRequest):
                 }
             )
         
-        # ✅ Zapisz transakcję
         transaction = {
             "id": str(uuid.uuid4()),
             "user_id": request.user_id,
@@ -276,11 +240,7 @@ async def award_tokens_internal(
     captcha_accuracy: float,
     focus_score: float
 ):
-    """
-    ✅ Wewnętrzna funkcja przyznawania tokenów (bez HTTP endpoint)
-    """
     try:
-        # Update user balance
         balance = await db.token_balances.find_one({"user_id": user_id})
         
         if balance:
@@ -303,7 +263,6 @@ async def award_tokens_internal(
                 "last_updated": datetime.utcnow()
             })
         
-        # Create transaction record
         accuracy_points = text_accuracy * 50
         stability_points = emotional_stability * 25
         fluency_points = speech_fluency * 15

@@ -6,8 +6,8 @@ load_dotenv()
 class Settings(BaseSettings):
     MONGO_DB_NAME: str
     MONGODB_URL: str
-    BACKEND_HOST: str = "0.0.0.0"  # ✅ Nowe
-    BACKEND_PORT: int = 8000        # ✅ Nowe
+    BACKEND_HOST: str = "0.0.0.0"
+    BACKEND_PORT: int = 8000
 
     class Config:
         env_file = ".env"

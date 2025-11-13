@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import datetime
 
 class DonationRequest(BaseModel):
@@ -13,7 +13,7 @@ class CharityDonation(BaseModel):
     charity_title: str
     tokens_spent: int
     created_at: datetime
-    status: str  # "pending", "completed", "failed"
+    status: str 
 
 class DonationResponse(BaseModel):
     success: bool

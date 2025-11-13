@@ -29,10 +29,10 @@ class CharityDonation(BaseModel):
     tokens_spent: int
     charity_title: str
     created_at: datetime
-    status: str  # "pending", "completed", "failed"
+    status: str 
 
 class TranscriptionRequest(BaseModel):
-    language: Optional[str] = None  # np. "pl", "en"
+    language: Optional[str] = None
     
 class TranscriptionResponse(BaseModel):
     id: str
@@ -44,14 +44,13 @@ class TranscriptionResponse(BaseModel):
 class AnalysisResponse(BaseModel):
     id: str
     transcription_id: str
-    emotions: Dict[str, float]  # np. {"happy": 0.8, "sad": 0.2}
-    focus_score: float  # 0-1
-    engagement_score: float  # 0-1
-    sentiment: str  # "positive", "negative", "neutral"
+    emotions: Dict[str, float]
+    focus_score: float
+    engagement_score: float
+    sentiment: str
     key_phrases: List[str]
     created_at: datetime
     
-    # Nowe pola
     text_accuracy: Optional[float] = None
     emotional_stability: Optional[float] = None
     speech_fluency: Optional[float] = None
