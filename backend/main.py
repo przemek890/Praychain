@@ -17,26 +17,26 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         await connect_to_mongo()
-        logger.info("✅ MongoDB connected successfully")
+        logger.info("MongoDB connected successfully")
         
         # Initialize ML models in background (non-blocking)
         try:
             from src.routers.analysis import initialize_models
             initialize_models()
-            logger.info("✅ ML models initialized")
+            logger.info("ML models initialized")
         except Exception as e:
-            logger.error(f"⚠️ Failed to initialize ML models: {e}")
-            logger.warning("🔄 Application will start without ML models. They will be loaded on first use.")
+            logger.error(f"Failed to initialize ML models: {e}")
+            logger.warning("Application will start without ML models. They will be loaded on first use.")
         
         yield
         
     except Exception as e:
-        logger.error(f"❌ Startup failed: {e}")
+        logger.error(f"Startup failed: {e}")
         raise
     finally:
         # Shutdown
         await close_mongo_connection()
-        logger.info("🔌 Application shutdown complete")
+        logger.info("Application shutdown complete")
 
 app = FastAPI(
     title="Praychain API",

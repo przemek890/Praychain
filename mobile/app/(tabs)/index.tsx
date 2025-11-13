@@ -8,56 +8,71 @@ import {
   Alert,
   ScrollView,
   SafeAreaView,
-  TextInput,
-  Modal,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import * as SecureStore from 'expo-secure-store';
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto'; // ✅ Zmienione z uuid
 import { API_CONFIG, ENDPOINTS } from '@/config/api';
 
-interface BibleQuote {
+interface PrayerContent {
   text: string;
   reference: string;
-  book_name: string;
-  chapter: number;
-  verse: number;
+  title?: string;
+  captcha?: string;  // ✅ NOWE - losowy cytat jako captcha
 }
 
 interface AnalysisResult {
-  tokens_earned: number;
   analysis: {
     focus_score: number;
     engagement_score: number;
     sentiment: string;
     text_accuracy: number;
+    captcha_accuracy: number;  // ✅ NOWE
     emotional_stability: number;
     speech_fluency: number;
   };
-  breakdown: {
-    accuracy_points: number;
-    stability_points: number;
-    fluency_points: number;
-    focus_points: number;
-  };
+  captcha_passed: boolean;  // ✅ NOWE
+  message: string;
 }
 
-type ReadingType = 'prayer' | 'short_quote' | 'random_verse';
+type ReadingType = 'our_father' | 'hail_mary' | 'glory_be' | 'apostles_creed';
+
+const PRAYERS: { [key in ReadingType]: { title: string; emoji: string } } = {
+  our_father: { title: 'Our Father', emoji: '🙏' },
+  hail_mary: { title: 'Hail Mary', emoji: '✨' },
+  glory_be: { title: 'Glory Be', emoji: '🌟' },
+  apostles_creed: { title: "Apostles' Creed", emoji: '📖' },
+};
+
+// ✅ Krótkie cytaty na CAPTCHA (łatwe do zapamiętania)
+const CAPTCHA_QUOTES = [
+  "Be still, and know that I am God.",
+  "I can do all things through Christ.",
+  "The Lord is my shepherd.",
+  "Trust in the Lord with all your heart.",
+  "Cast all your anxiety on him.",
+  "The Lord is my light and my salvation.",
+  "Come to me, all you who are weary.",
+  "This is the day the Lord has made.",
+];
 
 export default function HomeScreen() {
-  const [quote, setQuote] = useState<BibleQuote | null>(null);
+  const [prayer, setPrayer] = useState<PrayerContent | null>(null);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [tokensEarned, setTokensEarned] = useState<number>(0);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [userId, setUserId] = useState<string>('');
   const [tokenBalance, setTokenBalance] = useState<number>(0);
-  const [userName, setUserName] = useState<string>('');
-  const [showNameModal, setShowNameModal] = useState(false);
-  const [tempName, setTempName] = useState('');
-  const [readingType, setReadingType] = useState<ReadingType>('prayer');
-  const [availablePrayers, setAvailablePrayers] = useState<string[]>([]);
+  const [readingType, setReadingType] = useState<ReadingType>('our_father');
+  const [prayerRecording, setPrayerRecording] = useState<Audio.Recording | null>(null);
+  const [captchaRecording, setCaptchaRecording] = useState<Audio.Recording | null>(null);
+  const [isPrayerRecording, setIsPrayerRecording] = useState(false);
+  const [isCaptchaRecording, setIsCaptchaRecording] = useState(false);
+  const [prayerTranscriptionId, setPrayerTranscriptionId] = useState<string>('');
+  const [captchaTranscriptionId, setCaptchaTranscriptionId] = useState<string>('');
 
   // Połączenie przez ENV
   useEffect(() => {
@@ -82,12 +97,13 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    (async () => {
+    const requestPermissions = async () => {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please enable microphone access');
+        Alert.alert('Permission Required', 'Please grant microphone permissions to use this app');
       }
-    })();
+    };
+    requestPermissions();
   }, []);
 
   useEffect(() => {
@@ -103,28 +119,32 @@ export default function HomeScreen() {
   }, [isRecording]);
 
   useEffect(() => {
-    const getUserData = async () => {
+    const getUserId = async () => {
       try {
         let storedUserId = await SecureStore.getItemAsync('user_id');
         if (!storedUserId) {
-          storedUserId = uuidv4();
+          // ✅ Użyj expo-crypto zamiast uuid
+          storedUserId = Crypto.randomUUID();
           await SecureStore.setItemAsync('user_id', storedUserId);
         }
         setUserId(storedUserId);
-
-        const storedName = await SecureStore.getItemAsync('user_name');
-        if (storedName) {
-          setUserName(storedName);
-        } else {
-          setShowNameModal(true);
-        }
+        
+        await SecureStore.setItemAsync('user_name', 'test');
       } catch (error) {
-        console.error('Error managing user data:', error);
-        setUserId(uuidv4());
+        console.error('Error managing user ID:', error);
+        // ✅ Użyj expo-crypto
+        const newUserId = Crypto.randomUUID();
+        setUserId(newUserId);
       }
     };
-    getUserData();
+    getUserId();
   }, []);
+
+  useEffect(() => {
+    if (userId) {
+      fetchTokenBalance();
+    }
+  }, [userId]);
 
   const fetchTokenBalance = async () => {
     if (!userId) return;
@@ -139,71 +159,14 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    if (userId) {
-      fetchTokenBalance();
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    if (result) {
-      fetchTokenBalance();
-    }
-  }, [result]);
-
-  const saveUserName = async () => {
-    if (!tempName.trim()) {
-      Alert.alert('Error', 'Please enter a name');
-      return;
-    }
-    try {
-      await SecureStore.setItemAsync('user_name', tempName.trim());
-      setUserName(tempName.trim());
-      setShowNameModal(false);
-      Alert.alert('Welcome!', `Nice to meet you, ${tempName.trim()}! 🙏`);
-    } catch (error) {
-      console.error('Error saving name:', error);
-      Alert.alert('Error', 'Failed to save your name');
-    }
-  };
-
-  useEffect(() => {
-    const fetchPrayers = async () => {
-      try {
-        const response = await fetch(`${API_CONFIG.BASE_URL}/bible/prayers`);
-        if (response.ok) {
-          const data = await response.json();
-          setAvailablePrayers(data.prayers.map((p: any) => p.id));
-        }
-      } catch (error) {
-        console.error('Error fetching prayers:', error);
-      }
-    };
-    fetchPrayers();
-  }, []);
-
-  const fetchQuote = async () => {
+  const fetchPrayer = async () => {
     setIsLoading(true);
     setResult(null);
-    setQuote(null);
+    setPrayer(null);
+    setTokensEarned(0);
 
     try {
-      let endpoint = '';
-      
-      switch (readingType) {
-        case 'prayer':
-          const randomPrayer = availablePrayers[Math.floor(Math.random() * availablePrayers.length)] || 'our_father';
-          endpoint = `/bible/prayer/${randomPrayer}`;
-          break;
-        case 'short_quote':
-          endpoint = '/bible/short-quote';
-          break;
-        case 'random_verse':
-          endpoint = '/bible/random-quote';
-          break;
-      }
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`);
+      const response = await fetch(`${API_CONFIG.BASE_URL}${ENDPOINTS.BIBLE_PRAYER(readingType)}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -211,16 +174,17 @@ export default function HomeScreen() {
 
       const data = await response.json();
       
-      setQuote({
+      const randomCaptcha = CAPTCHA_QUOTES[Math.floor(Math.random() * CAPTCHA_QUOTES.length)];
+      
+      setPrayer({
         text: data.text,
         reference: data.reference,
-        book_name: data.title || data.reference,
-        chapter: 0,
-        verse: 0
+        title: data.title,
+        captcha: randomCaptcha,
       });
     } catch (error: any) {
       console.error('Fetch error:', error);
-      Alert.alert('Error', `Failed to fetch: ${error.message}`);
+      Alert.alert('Error', `Failed to fetch prayer: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -246,7 +210,7 @@ export default function HomeScreen() {
   };
 
   const stopRecording = async () => {
-    if (!recording) return;
+    if (!recording || !prayer) return;
 
     setIsRecording(false);
     setIsLoading(true);
@@ -260,6 +224,7 @@ export default function HomeScreen() {
       const uri = recording.getURI();
       if (!uri) throw new Error('No recording URI');
 
+      // 1. Upload audio
       const formData = new FormData();
       formData.append('file', {
         uri,
@@ -281,6 +246,7 @@ export default function HomeScreen() {
 
       const transcriptionData = await uploadResponse.json();
 
+      // 2. Analyze (bez przyznawania tokenów)
       const analysisResponse = await fetch(
         `${API_CONFIG.BASE_URL}${ENDPOINTS.PRAYER_ANALYZE(transcriptionData.id)}`,
         {
@@ -289,7 +255,8 @@ export default function HomeScreen() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            bible_text: quote?.text || '',
+            bible_text: prayer.text,
+            captcha_text: prayer.captcha,  // ✅ CAPTCHA
             user_id: userId
           })
         }
@@ -301,13 +268,45 @@ export default function HomeScreen() {
 
       const analysisData = await analysisResponse.json();
       setResult(analysisData);
-      setRecording(null);
 
-      Alert.alert(
-        'Success!',
-        `You earned ${analysisData.tokens_earned} tokens!`,
-        [{ text: 'OK' }]
-      );
+      // 3. ✅ Przyznaj tokeny (jeśli captcha passed)
+      if (analysisData.captcha_passed) {
+        const tokenResponse = await fetch(`${API_CONFIG.BASE_URL}/api/tokens/award`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            transcription_id: transcriptionData.id,
+            text_accuracy: analysisData.analysis.text_accuracy,
+            emotional_stability: analysisData.analysis.emotional_stability,
+            speech_fluency: analysisData.analysis.speech_fluency,
+            captcha_accuracy: analysisData.analysis.captcha_accuracy,
+            focus_score: analysisData.analysis.focus_score,
+          })
+        });
+
+        if (tokenResponse.ok) {
+          const tokenData = await tokenResponse.json();
+          setTokensEarned(tokenData.tokens_earned);
+          
+          Alert.alert(
+            'Success! 🎉',
+            `You earned ${tokenData.tokens_earned} tokens!`,
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        setTokensEarned(0);
+        Alert.alert(
+          'Captcha Failed ❌',
+          `Captcha accuracy: ${(analysisData.analysis.captcha_accuracy * 100).toFixed(0)}%\n\nRequired: 50%+\n\nYou earned 0 tokens.`,
+          [{ text: 'Try Again' }]
+        );
+      }
+
+      setRecording(null);
     } catch (error: any) {
       console.error('Processing error:', error);
       Alert.alert('Error', `Failed to process: ${error.message}`);
@@ -316,35 +315,211 @@ export default function HomeScreen() {
     }
   };
 
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const startPrayerRecording = async () => {
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      
+      setPrayerRecording(recording);
+      setIsPrayerRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      Alert.alert('Error', 'Failed to start recording');
+    }
+  };
+
+  const stopPrayerRecording = async () => {
+    if (!prayerRecording) return;
+
+    setIsPrayerRecording(false);
+    setIsLoading(true);
+
+    try {
+      await prayerRecording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+      
+      const uri = prayerRecording.getURI();
+      if (!uri) throw new Error('No recording URI');
+
+      // Upload prayer
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        type: 'audio/m4a',
+        name: 'prayer.m4a',
+      } as any);
+
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}${ENDPOINTS.TRANSCRIBE}?audio_type=prayer`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
+
+      const data = await response.json();
+      setPrayerTranscriptionId(data.transcription.id);
+      
+      Alert.alert('Success', 'Prayer recorded! Now read the CAPTCHA quote.');
+      setPrayerRecording(null);
+    } catch (error: any) {
+      console.error('Processing error:', error);
+      Alert.alert('Error', `Failed to process: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startCaptchaRecording = async () => {
+    if (!prayerTranscriptionId) {
+      Alert.alert('Error', 'Please record the prayer first!');
+      return;
+    }
+
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      
+      setCaptchaRecording(recording);
+      setIsCaptchaRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      Alert.alert('Error', 'Failed to start recording');
+    }
+  };
+
+  const stopCaptchaRecording = async () => {
+    if (!captchaRecording || !prayer) return;
+
+    setIsCaptchaRecording(false);
+    setIsLoading(true);
+
+    try {
+      await captchaRecording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+      });
+      
+      const uri = captchaRecording.getURI();
+      if (!uri) throw new Error('No recording URI');
+
+      // Upload captcha
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        type: 'audio/m4a',
+        name: 'captcha.m4a',
+      } as any);
+
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}${ENDPOINTS.TRANSCRIBE}?audio_type=captcha`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
+
+      const data = await response.json();
+      setCaptchaTranscriptionId(data.transcription.id);
+
+      // ✅ Teraz wywołaj analizę z OBOMA ID
+      await analyzeWithBothTranscriptions(prayerTranscriptionId, data.transcription.id);
+
+      setCaptchaRecording(null);
+    } catch (error: any) {
+      console.error('Processing error:', error);
+      Alert.alert('Error', `Failed to process: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const analyzeWithBothTranscriptions = async (
+    prayerId: string,
+    captchaId: string
+  ) => {
+    try {
+      const analysisResponse = await fetch(
+        `${API_CONFIG.BASE_URL}/api/prayer/analyze-dual`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            prayer_transcription_id: prayerId,
+            captcha_transcription_id: captchaId,
+            bible_text: prayer!.text,
+            captcha_text: prayer!.captcha,
+            user_id: userId || 'test'
+          })
+        }
+      );
+
+      if (!analysisResponse.ok) {
+        const errorData = await analysisResponse.text();
+        throw new Error(`Analysis failed: ${analysisResponse.status} - ${errorData}`);
+      }
+
+      const analysisData = await analysisResponse.json();
+      console.log('Analysis result:', analysisData);
+      
+      setResult(analysisData);
+
+      // ✅ Tokeny już przyznane przez backend!
+      const tokensEarned = analysisData.analysis.tokens_earned || 0;
+      setTokensEarned(tokensEarned);
+
+      if (analysisData.captcha_passed) {
+        Alert.alert(
+          'Success! 🎉',
+          `You earned ${tokensEarned} tokens!\n\nAccuracy: ${(analysisData.analysis.text_accuracy * 100).toFixed(0)}%\nCaptcha: ${(analysisData.analysis.captcha_accuracy * 100).toFixed(0)}%`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Captcha Failed ❌',
+          `Captcha accuracy: ${(analysisData.analysis.captcha_accuracy * 100).toFixed(0)}%\n\nRequired: 50%+\n\nYou earned 0 tokens.`,
+          [{ text: 'Try Again' }]
+        );
+      }
+      
+      // Odśwież saldo
+      fetchTokenBalance();
+      
+    } catch (error: any) {
+      console.error('Analysis error:', error);
+      Alert.alert('Error', `Failed to analyze: ${error.message}`);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* ✅ UPROSZCZONE - bez przycisku edycji nazwy */}
         <View style={styles.userHeader}>
           <View style={styles.userInfo}>
-            <Text style={styles.greeting}>
-              {userName ? `Hello, ${userName}!` : 'Welcome!'}
-            </Text>
-            {!userName && (
-              <TouchableOpacity onPress={() => setShowNameModal(true)}>
-                <Text style={styles.addNameLink}>+ Add your name</Text>
-              </TouchableOpacity>
-            )}
+            <Text style={styles.greeting}>Hello, test! 🙏</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.avatarButton}
-            onPress={() => {
-              setTempName(userName);
-              setShowNameModal(true);
-            }}
-          >
-            <Text style={styles.userAvatar}>🙏</Text>
-          </TouchableOpacity>
+          <Text style={styles.userAvatar}>🙏</Text>
         </View>
 
         <Text style={styles.title}>PrayChain</Text>
@@ -355,116 +530,117 @@ export default function HomeScreen() {
           <Text style={styles.tokenBalanceValue}>{tokenBalance} 🪙</Text>
         </View>
 
-        {!quote && (
+        {!prayer && (
           <View style={styles.readingTypeSection}>
-            <Text style={styles.sectionTitle}>Choose what to read:</Text>
+            <Text style={styles.sectionTitle}>Choose a prayer:</Text>
             
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                readingType === 'prayer' && styles.typeButtonActive
-              ]}
-              onPress={() => setReadingType('prayer')}
-            >
-              <View style={styles.typeContent}>
-                <Text style={styles.typeEmoji}>🙏</Text>
-                <View style={styles.typeTextContainer}>
-                  <Text style={[styles.typeTitle, readingType === 'prayer' && styles.typeTextActive]}>
-                    Classic Prayers
-                  </Text>
-                  <Text style={[styles.typeDescription, readingType === 'prayer' && styles.typeDescActive]}>
-                    Our Father, Hail Mary...
+            {(Object.keys(PRAYERS) as ReadingType[]).map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.typeButton,
+                  readingType === type && styles.typeButtonActive
+                ]}
+                onPress={() => setReadingType(type)}
+              >
+                <View style={styles.typeContent}>
+                  <Text style={styles.typeEmoji}>{PRAYERS[type].emoji}</Text>
+                  <Text style={[styles.typeTitle, readingType === type && styles.typeTextActive]}>
+                    {PRAYERS[type].title}
                   </Text>
                 </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                readingType === 'short_quote' && styles.typeButtonActive
-              ]}
-              onPress={() => setReadingType('short_quote')}
-            >
-              <View style={styles.typeContent}>
-                <Text style={styles.typeEmoji}>✨</Text>
-                <View style={styles.typeTextContainer}>
-                  <Text style={[styles.typeTitle, readingType === 'short_quote' && styles.typeTextActive]}>
-                    Short Bible Quote
-                  </Text>
-                  <Text style={[styles.typeDescription, readingType === 'short_quote' && styles.typeDescActive]}>
-                    Inspiring verse for today
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.typeButton,
-                readingType === 'random_verse' && styles.typeButtonActive
-              ]}
-              onPress={() => setReadingType('random_verse')}
-            >
-              <View style={styles.typeContent}>
-                <Text style={styles.typeEmoji}>📖</Text>
-                <View style={styles.typeTextContainer}>
-                  <Text style={[styles.typeTitle, readingType === 'random_verse' && styles.typeTextActive]}>
-                    Random Bible Verse
-                  </Text>
-                  <Text style={[styles.typeDescription, readingType === 'random_verse' && styles.typeDescActive]}>
-                    Discover God's word
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
           </View>
         )}
 
-        {!quote ? (
+        {!prayer ? (
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={fetchQuote}
+            onPress={fetchPrayer}
             disabled={isLoading}
           >
             <Text style={styles.buttonText}>
-              {isLoading ? 'Loading...' : 'Get Reading'}
+              {isLoading ? 'Loading...' : 'Get Prayer'}
             </Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.quoteContainer}>
-            <Text style={styles.quoteText}>{quote.text}</Text>
-            <Text style={styles.reference}>— {quote.reference}</Text>
+            <Text style={styles.prayerTitle}>{prayer.title}</Text>
+            <Text style={styles.quoteText}>{prayer.text}</Text>
+            <Text style={styles.reference}>— {prayer.reference}</Text>
 
-            {isRecording && (
-              <View style={styles.recordingIndicator}>
-                <View style={styles.recordingDot} />
-                <Text style={styles.recordingText}>
-                  Recording: {formatDuration(recordingDuration)}
+            {/* STEP 1: Record Prayer */}
+            <View style={styles.step}>
+              <Text style={styles.stepTitle}>
+                ✅ Step 1: Record the prayer
+              </Text>
+              
+              {isPrayerRecording && (
+                <View style={styles.recordingIndicator}>
+                  <View style={styles.recordingDot} />
+                  <Text style={styles.recordingText}>Recording prayer...</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.recordButton,
+                  isPrayerRecording && styles.recordButtonActive,
+                  prayerTranscriptionId && styles.recordButtonDisabled,
+                ]}
+                onPress={isPrayerRecording ? stopPrayerRecording : startPrayerRecording}
+                disabled={isLoading || !!prayerTranscriptionId}
+              >
+                <Text style={styles.recordButtonText}>
+                  {prayerTranscriptionId 
+                    ? '✅ Prayer Recorded' 
+                    : isPrayerRecording 
+                    ? 'Stop Recording' 
+                    : 'Start Recording Prayer'}
                 </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* STEP 2: Record CAPTCHA */}
+            {prayerTranscriptionId && (
+              <View style={styles.captchaSection}>
+                <Text style={styles.captchaTitle}>📝 Step 2: Now read this quote:</Text>
+                <Text style={styles.captchaText}>{prayer.captcha}</Text>
+
+                {isCaptchaRecording && (
+                  <View style={styles.recordingIndicator}>
+                    <View style={styles.recordingDot} />
+                    <Text style={styles.recordingText}>Recording CAPTCHA...</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.recordButton,
+                    isCaptchaRecording && styles.recordButtonActive,
+                  ]}
+                  onPress={isCaptchaRecording ? stopCaptchaRecording : startCaptchaRecording}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.recordButtonText}>
+                    {isCaptchaRecording ? 'Stop Recording' : 'Start Recording CAPTCHA'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
             <TouchableOpacity
-              style={[
-                styles.recordButton,
-                isRecording && styles.recordButtonActive,
-                isLoading && styles.buttonDisabled,
-              ]}
-              onPress={isRecording ? stopRecording : startRecording}
-              disabled={isLoading}
-            >
-              <Text style={styles.recordButtonText}>
-                {isRecording ? 'Stop Reading' : 'Start Reading'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
               style={[styles.newQuoteButton, isLoading && styles.buttonDisabled]}
-              onPress={fetchQuote}
-              disabled={isLoading || isRecording}
+              onPress={() => {
+                setPrayer(null);
+                setPrayerTranscriptionId('');
+                setCaptchaTranscriptionId('');
+                fetchPrayer();
+              }}
+              disabled={isLoading || isPrayerRecording || isCaptchaRecording}
             >
-              <Text style={styles.buttonText}>New Reading</Text>
+              <Text style={styles.buttonText}>New Prayer</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -478,24 +654,31 @@ export default function HomeScreen() {
 
         {result && (
           <View style={styles.resultContainer}>
-            <Text style={styles.resultTitle}>Analysis Complete!</Text>
+            <Text style={styles.resultTitle}>
+              {result.captcha_passed ? 'Success! ✅' : 'Captcha Failed ❌'}
+            </Text>
             <Text style={styles.tokensEarned}>
-              +{result.tokens_earned} Tokens
+              {tokensEarned > 0 ? `+${tokensEarned}` : '0'} Tokens
             </Text>
 
             <View style={styles.breakdown}>
               <Text style={styles.breakdownTitle}>Performance:</Text>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Accuracy:</Text>
+                <Text style={styles.breakdownLabel}>Prayer Accuracy:</Text>
                 <Text style={styles.breakdownValue}>{(result.analysis.text_accuracy * 100).toFixed(0)}%</Text>
               </View>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Stability:</Text>
-                <Text style={styles.breakdownValue}>{(result.analysis.emotional_stability * 100).toFixed(0)}%</Text>
+                <Text style={styles.breakdownLabel}>Captcha Accuracy:</Text>
+                <Text style={[
+                  styles.breakdownValue,
+                  { color: result.captcha_passed ? '#4CAF50' : '#E74C3C' }
+                ]}>
+                  {(result.analysis.captcha_accuracy * 100).toFixed(0)}%
+                </Text>
               </View>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>Fluency:</Text>
-                <Text style={styles.breakdownValue}>{(result.analysis.speech_fluency * 100).toFixed(0)}%</Text>
+                <Text style={styles.breakdownLabel}>Emotional Stability:</Text>
+                <Text style={styles.breakdownValue}>{(result.analysis.emotional_stability * 100).toFixed(0)}%</Text>
               </View>
             </View>
 
@@ -503,7 +686,8 @@ export default function HomeScreen() {
               style={styles.continueButton}
               onPress={() => {
                 setResult(null);
-                setQuote(null);
+                setPrayer(null);
+                fetchTokenBalance();
               }}
             >
               <Text style={styles.buttonText}>Continue</Text>
@@ -511,142 +695,35 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
-
-      <Modal
-        visible={showNameModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          if (userName) {
-            setShowNameModal(false);
-          }
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.profileModalContent}>
-            <Text style={styles.profileModalTitle}>
-              {userName ? 'Edit Your Name' : 'Welcome to PrayChain! 🙏'}
-            </Text>
-            <Text style={styles.profileModalSubtitle}>
-              {userName ? 'Update your name' : "What should we call you?"}
-            </Text>
-
-            <TextInput
-              style={styles.profileInput}
-              placeholder="Enter your name"
-              value={tempName}
-              onChangeText={setTempName}
-              autoFocus
-              maxLength={30}
-            />
-
-            <View style={styles.profileModalButtons}>
-              {userName && (
-                <TouchableOpacity
-                  style={[styles.profileModalButton, styles.cancelButton]}
-                  onPress={() => setShowNameModal(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={[
-                  styles.profileModalButton,
-                  styles.saveButton,
-                  !userName && styles.saveButtonFull,
-                ]}
-                onPress={saveUserName}
-              >
-                <Text style={styles.saveButtonText}>
-                  {userName ? 'Save' : "Let's Start!"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  scrollContent: { padding: 20, paddingTop: 60 },
-  
+  container: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  scrollContent: {
+    padding: 20,
+  },
   userHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
   },
-  userInfo: { flex: 1 },
-  greeting: { fontSize: 24, fontWeight: 'bold', color: '#333' },
-  addNameLink: { fontSize: 14, color: '#4A90E2', marginTop: 5 },
-  avatarButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userAvatar: { fontSize: 30 },
-  
-  modalOverlay: {
+  userInfo: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  profileModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 30,
-    width: '85%',
-    maxWidth: 400,
-  },
-  profileModalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
+  greeting: {
+    fontSize: 18,
+    fontWeight: '600',
     color: '#333',
   },
-  profileModalSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#666',
-    marginBottom: 20,
+  userAvatar: {
+    fontSize: 32,
   },
-  profileInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    padding: 15,
-    fontSize: 18,
-    marginBottom: 20,
-  },
-  profileModalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  profileModalButton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginHorizontal: 5,
-  },
-  cancelButton: { backgroundColor: '#f0f0f0' },
-  cancelButtonText: { color: '#666', fontSize: 16, fontWeight: 'bold' },
-  saveButton: { backgroundColor: '#4A90E2' },
-  saveButtonFull: { marginHorizontal: 0 },
-  saveButtonText: { color: 'white', fontSize: 16, fontWeight: 'bold' },
-
   title: { fontSize: 32, fontWeight: 'bold', textAlign: 'center', marginBottom: 10, color: '#333' },
   subtitle: { fontSize: 16, textAlign: 'center', marginBottom: 20, color: '#666' },
   tokenBalanceContainer: {
@@ -742,5 +819,56 @@ const styles = StyleSheet.create({
   },
   typeDescActive: {
     color: '#1976D2',
+  },
+  prayerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#4A90E2',
+    marginBottom: 15,
+  },
+  captchaSection: {
+    backgroundColor: '#FFF9C4',
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 15,
+    borderWidth: 2,
+    borderColor: '#FFD54F',
+  },
+  captchaTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#F57C00',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  captchaText: {
+    fontSize: 18,
+    fontStyle: 'italic',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  captchaHint: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  step: {
+    backgroundColor: '#E3F2FD',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1976D2',
+    marginBottom: 10,
+  },
+  recordButtonDisabled: {
+    backgroundColor: '#4CAF50',
+    opacity: 0.7,
   },
 });

@@ -1,21 +1,20 @@
 // ✅ Centralna konfiguracja API
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST || 'MacBook-Pro-A2141.local';
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '8000';
+const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
 
 export const API_CONFIG = {
-  BASE_URL: `http://${API_HOST}:${API_PORT}/api`,
+  BASE_URL: `http://${API_HOST}:${API_PORT}`, // dynamicznie używa API_HOST i API_PORT
   HEALTH_URL: `http://${API_HOST}:${API_PORT}/health`,
-  TIMEOUT: 5000,
+  TIMEOUT: 10000,
 };
 
 export const ENDPOINTS = {
-  BIBLE_RANDOM: '/bible/random-quote',
-  TRANSCRIBE: '/transcribe',
-  PRAYER_ANALYZE: (id: string) => `/prayer/analyze/${id}`,
-  TOKEN_BALANCE: (userId: string) => `/tokens/balance/${userId}`,
-  TOKEN_TRANSACTIONS: (userId: string) => `/tokens/transactions/${userId}`,
-  CHARITY_ACTIONS: '/charity/actions',
-  CHARITY_DONATE: '/charity/donate',
-  CHARITY_STATS: (charityId: string) => `/charity/actions/${charityId}/stats`,
-  CHARITY_USER_DONATIONS: (userId: string) => `/charity/user/${userId}/donations`,
+  TRANSCRIBE: '/api/transcribe',
+  PRAYER_ANALYZE: (transcriptionId: string) => `/api/prayer/analyze/${transcriptionId}`,
+  TOKEN_BALANCE: (userId: string) => `/api/tokens/balance/${userId}`,
+  TOKEN_TRANSACTIONS: (userId: string) => `/api/tokens/transactions/${userId}`,
+  CHARITY_ACTIONS: '/api/charity/actions',
+  CHARITY_DONATE: '/api/charity/donate',
+  CHARITY_USER_DONATIONS: (userId: string) => `/api/charity/user/${userId}/donations`,
+  BIBLE_PRAYER: (type: string) => `/api/bible/prayer/${type}`, // ✅ POPRAWIONE (bez podwójnego /api)
 };

@@ -1,11 +1,11 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import Optional
 from datetime import datetime
+import uuid
+import os
+import logging
 import whisper
 import torch
-import os
-import uuid
-import logging
 
 from src.config import settings
 from src.utils.mongodb import get_database
@@ -20,85 +20,74 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm", ".ogg"}
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 
-# tiny - fastest, least accurate
-# base - good balance (default)
-# small - better, but slower
-# medium/large - best, but very slow
 logger.info("Loading Whisper model...")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 whisper_model = whisper.load_model("base", device=device)
 logger.info(f"Whisper model loaded on {device}")
 
-@router.post("/transcribe", response_model=TranscriptionResponse)
+@router.post("/transcribe", response_model=AudioUploadResponse)
 async def transcribe_audio(
     file: UploadFile = File(...),
-    language: Optional[str] = None
+    audio_type: str = "prayer"  # ✅ NOWE: "prayer" lub "captcha"
 ):
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file format. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
-        )
-    
-    file_id = str(uuid.uuid4())
-    temp_file_path = os.path.join(UPLOAD_DIR, f"{file_id}{file_ext}")
+    """
+    Transkrybuje audio (modlitwę LUB captcha)
+    """
+    db = get_database()
     
     try:
-        content = await file.read()
-        
-        if len(content) > MAX_FILE_SIZE:
+        file_ext = os.path.splitext(file.filename or "")[1].lower()
+        if file_ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(
                 status_code=400,
-                detail=f"The file is too large. Maximum size: {MAX_FILE_SIZE / 1024 / 1024}MB"
+                detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
             )
         
-        with open(temp_file_path, "wb") as f:
+        transcription_id = str(uuid.uuid4())
+        file_path = os.path.join(UPLOAD_DIR, f"{transcription_id}{file_ext}")
+        
+        with open(file_path, "wb") as f:
+            content = await file.read()
+            if len(content) > MAX_FILE_SIZE:
+                os.remove(file_path)
+                raise HTTPException(status_code=400, detail="File too large (max 100MB)")
             f.write(content)
         
-        logger.info(f"Processing audio file: {file.filename} ({len(content)} bytes)")
-        
-        transcribe_options = {
-            "language": language,
-            "task": "transcribe",
-            "verbose": False
-        }
-        
-        if language is None:
-            transcribe_options.pop("language")
-        
-        result = whisper_model.transcribe(temp_file_path, **transcribe_options)
+        logger.info(f"Transcribing {audio_type}: {file_path}")
+        result = whisper_model.transcribe(file_path, language="en")
         
         transcription_data = {
-            "_id": file_id,
+            "_id": transcription_id,
             "text": result["text"].strip(),
-            "language": result.get("language", language),
-            "duration": None,
-            "original_filename": file.filename,
-            "created_at": datetime.utcnow(),
-            "segments": len(result.get("segments", [])),
+            "language": result.get("language", "en"),
+            "duration": result.get("duration", 0.0),  # ✅ Default 0.0
+            "file_path": file_path,  # ✅ Dodane
+            "audio_type": audio_type,  # ✅ "prayer" lub "captcha"
+            "created_at": datetime.utcnow()
         }
         
-        db = get_database()
         await db.transcriptions.insert_one(transcription_data)
+        logger.info(f"Transcription saved with ID: {transcription_id} ({audio_type})")
         
-        logger.info(f"Transcription saved with ID: {file_id}")
-        
-        return TranscriptionResponse(
-            id=file_id,
-            text=result["text"].strip(),
-            language=transcription_data["language"],
-            duration=transcription_data["duration"],
-            created_at=transcription_data["created_at"]
+        return AudioUploadResponse(
+            transcription=TranscriptionResponse(
+                id=transcription_id,
+                text=transcription_data["text"],
+                language=transcription_data["language"],
+                duration=transcription_data["duration"],
+                file_path=file_path,  # ✅ Dodane
+                created_at=transcription_data["created_at"]
+            ),
+            message=f"{audio_type.capitalize()} transcribed successfully"
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error transcribing audio: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error during transcription: {str(e)}")
-    
-    finally:
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 @router.get("/transcriptions/{transcription_id}", response_model=TranscriptionResponse)
 async def get_transcription(transcription_id: str):

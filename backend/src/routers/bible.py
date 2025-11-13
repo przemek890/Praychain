@@ -138,29 +138,38 @@ async def get_short_quote():
         "type": "short_quote"
     }
 
-@router.get("/prayer/{prayer_name}")
-async def get_prayer(prayer_name: str):
+@router.get("/prayer/{prayer_type}")
+async def get_prayer(prayer_type: str):
     """
-    ✅ NOWE: Pobierz klasyczną modlitwę chrześcijańską
-    
-    Dostępne modlitwy:
-    - our_father: Ojcze Nasz (The Lord's Prayer)
-    - hail_mary: Zdrowaś Mario
-    - glory_be: Chwała Ojcu
-    - apostles_creed: Skład Apostolski
+    Zwraca tekst wybranej modlitwy
     """
-    prayer = CLASSIC_PRAYERS.get(prayer_name.lower())
-    
-    if not prayer:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Prayer not found. Available: {', '.join(CLASSIC_PRAYERS.keys())}"
-        )
-    
-    return {
-        **prayer,
-        "type": "prayer"
+    prayers = {
+        "our_father": {
+            "title": "Our Father",
+            "text": "Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil. Amen.",
+            "reference": "Matthew 6:9-13"
+        },
+        "hail_mary": {
+            "title": "Hail Mary",
+            "text": "Hail Mary, full of grace, the Lord is with thee; blessed art thou among women, and blessed is the fruit of thy womb, Jesus. Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen.",
+            "reference": "Luke 1:28, 42"
+        },
+        "glory_be": {
+            "title": "Glory Be",
+            "text": "Glory be to the Father, and to the Son, and to the Holy Spirit. As it was in the beginning, is now, and ever shall be, world without end. Amen.",
+            "reference": "Traditional Prayer"
+        },
+        "apostles_creed": {
+            "title": "Apostles' Creed",
+            "text": "I believe in God, the Father almighty, Creator of heaven and earth, and in Jesus Christ, his only Son, our Lord, who was conceived by the Holy Spirit, born of the Virgin Mary, suffered under Pontius Pilate, was crucified, died and was buried; he descended into hell; on the third day he rose again from the dead; he ascended into heaven, and is seated at the right hand of God the Father almighty; from there he will come to judge the living and the dead. I believe in the Holy Spirit, the holy catholic Church, the communion of saints, the forgiveness of sins, the resurrection of the body, and life everlasting. Amen.",
+            "reference": "Ancient Christian Creed"
+        }
     }
+    
+    if prayer_type not in prayers:
+        raise HTTPException(status_code=404, detail="Prayer not found")
+    
+    return prayers[prayer_type]
 
 @router.get("/prayers")
 async def list_prayers():

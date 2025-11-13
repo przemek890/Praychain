@@ -1,37 +1,39 @@
 from fastapi import APIRouter, HTTPException
 from typing import Optional
 from datetime import datetime
-import uuid
 import logging
+import uuid
 
 from src.utils.mongodb import get_database
-from src.models.charity import CharityAction  # ✅ Tylko CharityAction
-from src.models.donation import DonationRequest, CharityDonation, DonationResponse  # ✅ Donacje osobno
+from src.models.charity import CharityAction
+from src.models.donation import DonationRequest, DonationResponse
 
 router = APIRouter(prefix="/api/charity", tags=["charity"])
 logger = logging.getLogger(__name__)
 
 
 @router.get("/actions")
-async def list_charity_actions(
-    category: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 20
-):
-    """Pobierz listę dostępnych akcji charytatywnych"""
-    db = get_database()
-    
-    query = {"is_active": True}
-    if category:
-        query["category"] = category
-    
-    actions = await db.charity_actions.find(query).skip(skip).limit(limit).to_list(length=limit)
-    total = await db.charity_actions.count_documents(query)
-    
-    return {
-        "total": total,
-        "actions": actions
-    }
+async def get_charity_actions():
+    """
+    Pobierz wszystkie aktywne akcje charytatywne
+    """
+    try:
+        db = get_database()
+        
+        actions = await db.charity_actions.find({"is_active": True}).to_list(length=100)
+        
+        # ✅ Konwertuj _id na string i dodaj brakujące pola
+        for action in actions:
+            action["_id"] = str(action["_id"])  # ✅ Upewnij się że _id to string
+            if "total_tokens_raised" not in action:
+                action["total_tokens_raised"] = 0
+            if "total_supported" not in action:
+                action["total_supported"] = 0
+        
+        return {"actions": actions}
+    except Exception as e:
+        logger.error(f"Error fetching charity actions: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch charity actions")
 
 @router.get("/actions/{charity_id}")
 async def get_charity_action(charity_id: str):
@@ -45,49 +47,51 @@ async def get_charity_action(charity_id: str):
     
     return action
 
-@router.post("/donate")
+@router.post("/donate", response_model=DonationResponse)
 async def donate_to_charity(request: DonationRequest):
     """
-    ✅ User przekazuje tokeny na zbiórkę charytatywną
-    - Sprawdza saldo użytkownika
-    - Odejmuje tokeny
-    - Zapisuje transakcję
+    Wpłać tokeny na akcję charytatywną
     """
-    db = get_database()
-    
-    # 1. Sprawdź czy akcja istnieje
-    charity = await db.charity_actions.find_one({"_id": request.charity_id})
-    if not charity:
-        raise HTTPException(status_code=404, detail="Charity action not found")
-    
-    if not charity.get("is_active", False):
-        raise HTTPException(status_code=400, detail="Charity action is not active")
-    
-    # 2. ✅ Sprawdź czy user ma wystarczająco tokenów
-    balance = await db.token_balances.find_one({"user_id": request.user_id})
-    if not balance or balance["current_balance"] < request.tokens_amount:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Insufficient tokens. Required: {request.tokens_amount}, Available: {balance['current_balance'] if balance else 0}"
-        )
-    
-    if request.tokens_amount <= 0:
-        raise HTTPException(status_code=400, detail="Token amount must be positive")
-    
     try:
-        # 3. ✅ Odejmij tokeny użytkownikowi
+        db = get_database()
+        
+        # 1. Sprawdź, czy akcja charytatywna istnieje
+        charity = await db.charity_actions.find_one({"_id": request.charity_id})
+        if not charity:
+            raise HTTPException(status_code=404, detail="Charity action not found")
+        
+        if not charity.get("is_active", False):
+            raise HTTPException(status_code=400, detail="Charity action is not active")
+        
+        # 2. Sprawdź saldo użytkownika
+        user_balance = await db.token_balances.find_one({"user_id": request.user_id})
+        if not user_balance:
+            raise HTTPException(status_code=404, detail="User balance not found")
+        
+        current_balance = user_balance.get("current_balance", 0)
+        if current_balance < request.tokens_amount:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Insufficient tokens. You have {current_balance}, need {request.tokens_amount}"
+            )
+        
+        # 3. Odejmij tokeny od użytkownika
+        new_balance = current_balance - request.tokens_amount
         await db.token_balances.update_one(
             {"user_id": request.user_id},
             {
-                "$inc": {
-                    "total_spent": request.tokens_amount,
-                    "current_balance": -request.tokens_amount
-                },
-                "$set": {"last_updated": datetime.utcnow()}
+                "$set": {"current_balance": new_balance},
+                "$inc": {"total_spent": request.tokens_amount}
             }
         )
         
-        # 4. ✅ Zapisz donację
+        # 4. Dodaj tokeny do zbiórki
+        await db.charity_actions.update_one(
+            {"_id": request.charity_id},
+            {"$inc": {"total_supported": request.tokens_amount}}
+        )
+        
+        # 5. Zapisz donację
         donation_id = str(uuid.uuid4())
         donation = {
             "_id": donation_id,
@@ -95,45 +99,41 @@ async def donate_to_charity(request: DonationRequest):
             "charity_id": request.charity_id,
             "charity_title": charity["title"],
             "tokens_spent": request.tokens_amount,
-            "created_at": datetime.utcnow(),
-            "status": "completed"
+            "status": "completed",
+            "created_at": datetime.utcnow()
         }
+        
         await db.charity_donations.insert_one(donation)
         
-        # 5. ✅ Zaktualizuj statystyki zbiórki
-        await db.charity_actions.update_one(
-            {"_id": request.charity_id},
-            {
-                "$inc": {
-                    "total_supported": 1,
-                    "total_tokens_raised": request.tokens_amount  # ✅ Nowe pole
-                }
-            }
-        )
-        
-        # 6. Dodaj transakcję tokenów
+        # 6. Zapisz transakcję tokenów
         transaction = {
+            "_id": str(uuid.uuid4()),
             "user_id": request.user_id,
             "type": "spend",
             "amount": request.tokens_amount,
             "source": f"charity:{request.charity_id}",
-            "charity_title": charity["title"],
+            "description": f"Donated to: {charity['title']}",
             "created_at": datetime.utcnow()
         }
+        
         await db.token_transactions.insert_one(transaction)
         
         logger.info(f"User {request.user_id} donated {request.tokens_amount} tokens to {charity['title']}")
         
-        return {
-            "success": True,
-            "donation_id": donation_id,
-            "tokens_spent": request.tokens_amount,
-            "charity_title": charity["title"],
-            "new_balance": balance["current_balance"] - request.tokens_amount
-        }
+        # ✅ POPRAWIONE: Zwróć poprawną strukturę DonationResponse
+        return DonationResponse(
+            success=True,
+            donation_id=donation_id,
+            tokens_spent=request.tokens_amount,
+            charity_title=charity["title"],
+            new_balance=new_balance,
+            message=f"Successfully donated {request.tokens_amount} tokens to {charity['title']}"
+        )
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error processing donation: {str(e)}")
+        logger.error(f"Error processing donation: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing donation: {str(e)}")
 
 @router.get("/donations/{user_id}")

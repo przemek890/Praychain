@@ -11,123 +11,65 @@ import numpy as np
 
 from src.config import settings
 from src.utils.mongodb import get_database
-from src.models.analysis import AnalysisResponse  # ✅ Zmieniony import
+from src.models.analysis import AnalysisResponse
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
 
 _sentiment_analyzer = None
 _emotion_analyzer = None
+_models_loaded = False
 
-# Disable torch security warnings
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "0"
 
 def get_sentiment_analyzer():
     global _sentiment_analyzer
     if _sentiment_analyzer is None:
-        logger.info("Loading sentiment analysis model...")
+        logger.info("Loading sentiment model (distilbert-base)...")
         try:
             _sentiment_analyzer = pipeline(
                 "sentiment-analysis",
-                model="cardiffnlp/twitter-xlm-roberta-base-sentiment",
-                device=-1
-                # Usuń use_safetensors - ten model nie ma safetensors
-            )
-        except Exception as e:
-            logger.warning(f"Failed to load primary sentiment model: {e}")
-            # Fallback to simpler model with safetensors support
-            _sentiment_analyzer = pipeline(
-                "sentiment-analysis",
                 model="distilbert-base-uncased-finetuned-sst-2-english",
-                device=-1
+                device=-1,
+                framework="pt"
             )
+            logger.info("Sentiment model loaded")
+        except Exception as e:
+            logger.error(f"Failed to load sentiment model: {e}")
+            _sentiment_analyzer = None
     return _sentiment_analyzer
 
 def get_emotion_analyzer():
     global _emotion_analyzer
     if _emotion_analyzer is None:
-        logger.info("Loading emotion analysis model...")
+        logger.info("Loading emotion model (distilbert)...")
         try:
             _emotion_analyzer = pipeline(
                 "text-classification",
-                model="j-hartmann/emotion-english-distilroberta-base",
-                top_k=None,
-                device=-1
-                # Usuń use_safetensors - sprawdź czy ten model go ma
+                model="bhadresh-savani/distilbert-base-uncased-emotion",
+                device=-1,
+                framework="pt",
+                top_k=None
             )
+            logger.info("Emotion model loaded")
         except Exception as e:
-            logger.warning(f"Failed to load emotion model: {e}")
-            # Fallback to sentiment as emotion
-            _emotion_analyzer = get_sentiment_analyzer()
+            logger.error(f"Failed to load emotion model: {e}")
+            _emotion_analyzer = None
     return _emotion_analyzer
 
-def calculate_focus_score(text: str) -> float:
-    """Calculate focus score based on text structure and coherence"""
-    if not text:
-        return 0.0
-    
-    sentences = re.split(r'[.!?]+', text)
-    sentences = [s.strip() for s in sentences if s.strip()]
-    
-    if len(sentences) == 0:
-        return 0.0
-    
-    # Average sentence length
-    avg_sentence_length = sum(len(s.split()) for s in sentences) / len(sentences)
-    length_score = min(1.0, avg_sentence_length / 20.0) if avg_sentence_length < 20 else max(0.5, 1.0 - (avg_sentence_length - 20) / 30.0)
-    
-    # Filler words detection
-    filler_words = ['um', 'uh', 'like', 'you know', 'hmm', 'eee', 'yyy']
-    text_lower = text.lower()
-    filler_count = sum(text_lower.count(word) for word in filler_words)
-    coherence_score = max(0.0, 1.0 - (filler_count / len(text.split())) * 10)
-    
-    # Structure score
-    structure_score = min(1.0, len(sentences) / 10.0)
-    
-    focus_score = (length_score * 0.3 + coherence_score * 0.5 + structure_score * 0.2)
-    return round(focus_score, 2)
-
-def calculate_engagement_score(emotions: Dict[str, float], sentiment: str) -> float:
-    """Calculate engagement score based on emotional intensity"""
-    emotion_values = list(emotions.values())
-    if not emotion_values:
-        return 0.5
-    
-    max_emotion = max(emotion_values)
-    sentiment_bonus = 0.1 if sentiment == "positive" else 0.0
-    engagement = min(1.0, max_emotion + sentiment_bonus)
-    
-    return round(engagement, 2)
-
-def extract_key_phrases(text: str, max_phrases: int = 5) -> List[str]:
-    """Extract key phrases from text"""
-    sentences = re.split(r'[.!?]+', text)
-    sentences = [s.strip() for s in sentences if s.strip() and len(s.split()) > 3]
-    sentences.sort(key=lambda x: len(x.split()), reverse=True)
-    return sentences[:max_phrases]
-
 def calculate_text_accuracy(transcribed_text: str, reference_text: str) -> float:
-    """
-    Porównuje transkrypcję z tekstem referencyjnym (biblijnym)
-    Zwraca score 0.0-1.0 bazując na podobieństwie
-    """
     if not reference_text or not transcribed_text:
         return 0.0
     
-    # Normalizacja tekstów
     trans_normalized = transcribed_text.lower().strip()
     ref_normalized = reference_text.lower().strip()
     
-    # Similarity ratio
     similarity = SequenceMatcher(None, trans_normalized, ref_normalized).ratio()
     
-    # Sprawdź czy wszystkie kluczowe słowa z referencji są w transkrypcji
     ref_words = set(ref_normalized.split())
     trans_words = set(trans_normalized.split())
     
-    # Usuń stopwords
     stopwords = {'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'}
     ref_keywords = ref_words - stopwords
     trans_keywords = trans_words - stopwords
@@ -137,62 +79,54 @@ def calculate_text_accuracy(transcribed_text: str, reference_text: str) -> float
     else:
         keyword_coverage = 1.0
     
-    # Weighted score
     accuracy_score = (similarity * 0.7) + (keyword_coverage * 0.3)
-    
     return round(accuracy_score, 2)
 
-def analyze_emotional_stability(emotions: Dict[str, float]) -> dict:
+def analyze_emotional_stability(emotions: Dict[str, float]) -> Dict[str, float]:
     """
-    Analizuje emocje pod kątem stabilności i skupienia na modlitwie
+    Analizuje stabilność emocjonalną na podstawie wykrytych emocji
     
-    Pożądane emocje: joy, neutral, contentment
-    Niepożądane: anger, fear, sadness, disgust
+    Returns:
+    {
+        "stability_score": 0.75,
+        "positive_ratio": 0.6,
+        "dominant_emotion": "joy"
+    }
     """
-    # Pożądane emocje przy modlitwie
-    positive_emotions = ["joy", "neutral", "admiration", "optimism", "gratitude", "love"]
-    negative_emotions = ["anger", "fear", "sadness", "disgust", "annoyance", "disappointment"]
+    positive_emotions = ['joy', 'love']
+    negative_emotions = ['anger', 'fear', 'sadness']
     
-    positive_score = sum(emotions.get(e, 0) for e in positive_emotions)
-    negative_score = sum(emotions.get(e, 0) for e in negative_emotions)
+    positive_sum = sum(emotions.get(e, 0.0) for e in positive_emotions)
+    negative_sum = sum(emotions.get(e, 0.0) for e in negative_emotions)
+    total = positive_sum + negative_sum
     
-    # Im więcej pozytywnych i mniej negatywnych, tym lepiej
-    if positive_score + negative_score > 0:
-        stability = positive_score / (positive_score + negative_score)
+    # ✅ POPRAWIONE - zawsze zwróć positive_ratio
+    if total > 0:
+        positive_ratio = positive_sum / total
     else:
-        stability = 0.5
+        positive_ratio = 0.5  # Default neutralny
     
-    # Sprawdź czy nie ma nadmiernej dominacji jednej negatywnej emocji
-    max_negative = max([emotions.get(e, 0) for e in negative_emotions]) if negative_emotions else 0
+    # Stabilność = różnorodność emocji (nie za wysokie ekstremum)
+    emotion_values = list(emotions.values())
+    if emotion_values:
+        max_emotion = max(emotion_values)
+        stability_score = 1.0 - (max_emotion * 0.5)  # Im wyższe ekstremum, tym niższa stabilność
+    else:
+        stability_score = 0.5
     
-    if max_negative > 0.5:  # Silna negatywna emocja
-        stability *= 0.5
+    # Dominant emotion
+    if emotions:
+        dominant_emotion = max(emotions.items(), key=lambda x: x[1])[0]
+    else:
+        dominant_emotion = "neutral"
     
     return {
-        "stability_score": round(stability, 2),
-        "positive_emotions": round(positive_score, 2),
-        "negative_emotions": round(negative_score, 2),
-        "is_focused": stability > 0.6 and max_negative < 0.4
+        "stability_score": max(0.0, min(1.0, stability_score)),
+        "positive_ratio": max(0.0, min(1.0, positive_ratio)),
+        "dominant_emotion": dominant_emotion
     }
 
-def calculate_prayer_focus_score(
-    text_accuracy: float,
-    emotional_stability: float,
-    speech_fluency: float
-) -> float:
-    """
-    Nowy focus score bazujący na:
-    - Poprawności czytania (40%)
-    - Stabilności emocjonalnej (40%)
-    - Płynności mowy (20%)
-    """
-    focus = (text_accuracy * 0.4) + (emotional_stability * 0.4) + (speech_fluency * 0.2)
-    return round(focus, 2)
-
 def analyze_speech_fluency(text: str) -> float:
-    """
-    Analizuje płynność mowy - mniej przerw i filler words = lepszy score
-    """
     if not text:
         return 0.0
     
@@ -200,244 +134,123 @@ def analyze_speech_fluency(text: str) -> float:
     if len(words) == 0:
         return 0.0
     
-    # Filler words i pauzy
     fillers = ['um', 'uh', 'er', 'hmm', 'like', 'you know', 'eee', 'yyy', 'mmm']
     filler_count = sum(text.lower().count(f) for f in fillers)
     
-    # Im mniej fillers, tym lepiej
     filler_ratio = filler_count / len(words)
-    fluency = max(0.0, 1.0 - (filler_ratio * 5))  # Każdy filler obniża o 5%
+    fluency = max(0.0, 1.0 - (filler_ratio * 5))
     
     return round(fluency, 2)
 
+def calculate_prayer_focus_score(
+    text_accuracy: float,
+    emotional_stability: float,
+    speech_fluency: float
+) -> float:
+    focus = (text_accuracy * 0.4) + (emotional_stability * 0.4) + (speech_fluency * 0.2)
+    return round(focus, 2)
+
+def extract_key_phrases(text: str, max_phrases: int = 5) -> List[str]:
+    sentences = re.split(r'[.!?]+', text)
+    sentences = [s.strip() for s in sentences if s.strip() and len(s.split()) > 3]
+    sentences.sort(key=lambda x: len(x.split()), reverse=True)
+    return sentences[:max_phrases]
+
 def initialize_models():
-    """
-    Pre-load AI models during startup to avoid slow first request
-    """
-    global _sentiment_analyzer, _emotion_analyzer
-    logger.info("Initializing sentiment analyzer...")
-    _sentiment_analyzer = get_sentiment_analyzer()
-    logger.info("Initializing emotion analyzer...")
-    _emotion_analyzer = get_emotion_analyzer()
-    logger.info("All AI models initialized successfully")
-
-@router.post("/{transcription_id}", response_model=AnalysisResponse)
-async def analyze_transcription(
-    transcription_id: str,
-    reference_text: Optional[str] = None  # Tekst biblijny do porównania
-):
-    """
-    Ulepszona analiza skupiona na:
-    1. Porównaniu transkrypcji z tekstem biblijnym
-    2. Analizie stabilności emocjonalnej
-    3. Płynności mowy
-    """
-    db = get_database()
-    transcription = await db.transcriptions.find_one({"_id": transcription_id})
-    
-    if not transcription:
-        raise HTTPException(status_code=404, detail="Transcription not found")
-    
-    text = transcription["text"]
-    
+    global _sentiment_analyzer, _emotion_analyzer, _models_loaded
     try:
-        logger.info(f"Analyzing transcription {transcription_id}")
+        logger.info("Initializing models...")
+        _sentiment_analyzer = get_sentiment_analyzer()
+        _emotion_analyzer = get_emotion_analyzer()
         
-        # 1. Analiza emocji
-        emotion_analyzer = get_emotion_analyzer()
-        emotion_results = emotion_analyzer(text[:512])
-        
-        if isinstance(emotion_results[0], list):
-            emotions = {result["label"]: round(result["score"], 2) for result in emotion_results[0]}
+        if _sentiment_analyzer and _emotion_analyzer:
+            logger.info("All models initialized successfully")
+            _models_loaded = True
         else:
-            emotions = {emotion_results[0]["label"]: round(emotion_results[0]["score"], 2)}
-        
-        # 2. Analiza stabilności emocjonalnej
-        emotional_analysis = analyze_emotional_stability(emotions)
-        
-        # 3. Analiza poprawności czytania (jeśli jest tekst referencyjny)
-        text_accuracy = 1.0  # Default jeśli brak referencji
-        if reference_text:
-            text_accuracy = calculate_text_accuracy(text, reference_text)
-        
-        # 4. Analiza płynności mowy
-        speech_fluency = analyze_speech_fluency(text)
-        
-        # 5. Nowy focus score
-        focus_score = calculate_prayer_focus_score(
-            text_accuracy,
-            emotional_analysis["stability_score"],
-            speech_fluency
-        )
-        
-        # 6. Engagement score (jak bardzo zaangażowany)
-        sentiment_analyzer = get_sentiment_analyzer()
-        sentiment_result = sentiment_analyzer(text[:512])[0]
-        sentiment_map = {
-            "positive": "positive", "negative": "negative", "neutral": "neutral",
-            "Positive": "positive", "Negative": "negative", "Neutral": "neutral",
-            "POSITIVE": "positive", "NEGATIVE": "negative", "NEUTRAL": "neutral"
-        }
-        sentiment = sentiment_map.get(sentiment_result["label"], "neutral")
-        
-        engagement_score = emotional_analysis["positive_emotions"]
-        
-        # 7. Key phrases
-        key_phrases = extract_key_phrases(text)
-        
-        # 8. Zapisz do bazy
-        analysis_id = str(uuid.uuid4())
-        analysis_data = {
-            "_id": analysis_id,
-            "transcription_id": transcription_id,
-            "emotions": emotions,
-            "focus_score": focus_score,
-            "engagement_score": engagement_score,
-            "sentiment": sentiment,
-            "key_phrases": key_phrases,
-            "created_at": datetime.utcnow(),
-            # Dodatkowe metryki
-            "text_accuracy": text_accuracy,
-            "emotional_stability": emotional_analysis["stability_score"],
-            "speech_fluency": speech_fluency,
-            "is_focused": emotional_analysis["is_focused"],
-            "positive_emotions": emotional_analysis["positive_emotions"],
-            "negative_emotions": emotional_analysis["negative_emotions"]
-        }
-        
-        await db.analyses.insert_one(analysis_data)
-        logger.info(f"Analysis saved with ID: {analysis_id}")
-        
-        return AnalysisResponse(
-            id=analysis_id,
-            transcription_id=transcription_id,
-            emotions=emotions,
-            focus_score=focus_score,
-            engagement_score=engagement_score,
-            sentiment=sentiment,
-            key_phrases=key_phrases,
-            created_at=analysis_data["created_at"]
-        )
-        
+            logger.warning("Some models failed to load")
+            _models_loaded = False
+            
     except Exception as e:
-        logger.error(f"Error analyzing transcription: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error during analysis: {str(e)}")
+        logger.error(f"Could not load models: {e}")
+        _models_loaded = False
 
-@router.post("/{transcription_id}/reference", response_model=AnalysisResponse)
+@router.post("/analyze/{transcription_id}/with-reference")
 async def analyze_transcription_with_reference(
     transcription_id: str,
-    reference_text: Optional[str] = None,
-    user_id: Optional[str] = None
-) -> AnalysisResponse:
+    reference_text: str,
+    user_id: str = "default_user"
+):
     """
-    NOWA funkcja - analizuje transkrypcję z tekstem referencyjnym
+    ✅ Analizuje transkrypcję i porównuje z referencją
+    Returns: DICT (nie AnalysisResponse model!)
     """
-    db = get_database()
-    transcription = await db.transcriptions.find_one({"_id": transcription_id})
-    
-    if not transcription:
-        raise HTTPException(status_code=404, detail="Transcription not found")
-    
-    text = transcription["text"]
-    
     try:
+        db = get_database()
+        transcription = await db.transcriptions.find_one({"_id": transcription_id})
+        
+        if not transcription:
+            raise HTTPException(status_code=404, detail="Transcription not found")
+        
+        transcribed_text = transcription.get("text", "")
+        
         logger.info(f"Analyzing transcription {transcription_id} with reference")
         
-        # 1. Analiza emocji
-        emotion_analyzer = get_emotion_analyzer()
-        emotion_results = emotion_analyzer(text[:512])
+        # Analiza emocji
+        sentiment_result = get_sentiment_analyzer()(transcribed_text)[0]
+        emotion_results = get_emotion_analyzer()(transcribed_text)
         
-        if isinstance(emotion_results[0], list):
-            emotions = {result["label"]: round(result["score"], 2) for result in emotion_results[0]}
-        else:
-            emotions = {emotion_results[0]["label"]: round(emotion_results[0]["score"], 2)}
+        emotions = {}
+        for emotion in emotion_results[0]:
+            emotions[emotion['label']] = round(emotion['score'], 2)
         
-        # 2. Stabilność emocjonalna
-        emotional_analysis = analyze_emotional_stability(emotions)
+        logger.info(f"Emotions detected: {emotions}")
         
-        # 3. ✅ POPRAWKA: Użyj przekazanego reference_text
-        text_accuracy = 1.0
-        if reference_text:
-            text_accuracy = calculate_text_accuracy(text, reference_text)
-            logger.info(f"Text accuracy: {text_accuracy} (compared to reference)")
+        # Oblicz metryki
+        text_accuracy = calculate_text_accuracy(transcribed_text, reference_text)
+        emotional_stability_dict = analyze_emotional_stability(emotions)  # ✅ Zwraca dict
+        speech_fluency = analyze_speech_fluency(transcribed_text)
         
-        # 4. Płynność mowy
-        speech_fluency = analyze_speech_fluency(text)
+        logger.info(f"Text accuracy: {text_accuracy:.2f}")
         
-        # 5. Focus score
         focus_score = calculate_prayer_focus_score(
             text_accuracy,
-            emotional_analysis["stability_score"],
+            emotional_stability_dict["stability_score"],  # ✅ Pobierz ze słownika
             speech_fluency
         )
         
-        # 6. Sentiment i engagement
-        sentiment_analyzer = get_sentiment_analyzer()
-        sentiment_result = sentiment_analyzer(text[:512])[0]
-        sentiment_map = {
-            "positive": "positive", "negative": "negative", "neutral": "neutral",
-            "Positive": "positive", "Negative": "negative", "Neutral": "neutral",
-            "POSITIVE": "positive", "NEGATIVE": "negative", "NEUTRAL": "neutral"
-        }
-        sentiment = sentiment_map.get(sentiment_result["label"], "neutral")
+        engagement_score = (emotional_stability_dict["positive_ratio"] + speech_fluency) / 2  # ✅ Pobierz ze słownika
         
-        # ✅ NOWA INTERPRETACJA
-        prayer_mood = interpret_prayer_sentiment(sentiment, emotions)
-        
-        engagement_score = emotional_analysis["positive_emotions"]
-        
-        # 7. Key phrases
-        key_phrases = extract_key_phrases(text)
-        
-        # 8. ✅ Zapisz z user_id
-        analysis_id = str(uuid.uuid4())
-        analysis_data = {
-            "_id": analysis_id,
+        # ✅ ZWRÓĆ PROSTY DICT
+        result = {
+            "id": str(uuid.uuid4()),
             "transcription_id": transcription_id,
-            "user_id": user_id,  # ✅ Dodaj user_id
+            "user_id": user_id,
+            "focus_score": round(focus_score, 2),
+            "engagement_score": round(engagement_score, 2),
+            "sentiment": sentiment_result['label'].lower(),
+            "sentiment_score": round(sentiment_result['score'], 2),
             "emotions": emotions,
-            "focus_score": focus_score,
-            "engagement_score": engagement_score,
-            "sentiment": sentiment,
-            "prayer_mood": prayer_mood["mood"],  # ✅ Nowe pole
-            "mood_interpretation": prayer_mood["interpretation"],  # ✅ Opis
-            "is_appropriate_mood": prayer_mood["is_appropriate"],  # ✅ Czy OK
-            "key_phrases": key_phrases,
-            "created_at": datetime.utcnow(),
-            "text_accuracy": text_accuracy,
-            "emotional_stability": emotional_analysis["stability_score"],
-            "speech_fluency": speech_fluency,
-            "is_focused": emotional_analysis["is_focused"],
-            "positive_emotions": emotional_analysis["positive_emotions"],
-            "negative_emotions": emotional_analysis["negative_emotions"],
-            "reference_provided": reference_text is not None  # ✅ Czy był tekst referencyjny
+            "text_accuracy": round(text_accuracy, 2),
+            "emotional_stability": round(emotional_stability_dict["stability_score"], 2),
+            "speech_fluency": round(speech_fluency, 2),
+            "is_focused": focus_score > 0.6,
+            "created_at": datetime.utcnow()
         }
         
-        await db.analyses.insert_one(analysis_data)
-        logger.info(f"Analysis saved: accuracy={text_accuracy}, focus={focus_score}")
+        # Zapisz w bazie
+        await db.analyses.insert_one(result)
+        logger.info(f"Analysis saved: accuracy={text_accuracy:.2f}, focus={focus_score:.2f}")
         
-        return AnalysisResponse(
-            id=analysis_id,
-            transcription_id=transcription_id,
-            emotions=emotions,
-            focus_score=focus_score,
-            engagement_score=engagement_score,
-            sentiment=sentiment,
-            key_phrases=key_phrases,
-            created_at=analysis_data["created_at"],
-            text_accuracy=text_accuracy,
-            emotional_stability=emotional_analysis["stability_score"],
-            speech_fluency=speech_fluency,
-            is_focused=emotional_analysis["is_focused"]
-        )
+        return result
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error analyzing transcription: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error during analysis: {str(e)}")
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
 async def get_analysis(analysis_id: str):
-    """Get analysis by ID"""
     db = get_database()
     analysis = await db.analyses.find_one({"_id": analysis_id})
     
@@ -457,7 +270,6 @@ async def get_analysis(analysis_id: str):
 
 @router.get("/")
 async def list_analyses(skip: int = 0, limit: int = 10):
-    """List all analyses with pagination"""
     db = get_database()
     analyses = await db.analyses.find().skip(skip).limit(limit).to_list(length=limit)
     
@@ -479,16 +291,6 @@ async def list_analyses(skip: int = 0, limit: int = 10):
     }
 
 def interpret_prayer_sentiment(sentiment: str, emotions: Dict[str, float]) -> dict:
-    """
-    Interpretuje sentiment w kontekście modlitwy - NIE jako ocenę jakości!
-    
-    Returns:
-        - mood: "joyful", "contemplative", "penitent", "peaceful"
-        - is_appropriate: bool (czy emocje pasują do modlitwy)
-    """
-    # W modlitwie zarówno pozytywne jak i negatywne emocje są OK
-    # Ważne to stabilność i szczerość
-    
     negative_emotions = ["anger", "disgust", "annoyance"]
     peaceful_emotions = ["neutral", "joy", "admiration"]
     penitent_emotions = ["sadness", "fear", "disappointment"]
@@ -497,17 +299,15 @@ def interpret_prayer_sentiment(sentiment: str, emotions: Dict[str, float]) -> di
     max_peaceful = max([emotions.get(e, 0) for e in peaceful_emotions])
     max_penitent = max([emotions.get(e, 0) for e in penitent_emotions])
     
-    # Interpretacja nastroju modlitwy
     if max_peaceful > 0.5:
-        mood = "peaceful"  # Spokojna modlitwa
+        mood = "peaceful"
     elif max_penitent > 0.5:
-        mood = "penitent"  # Pokutna modlitwa
+        mood = "penitent"
     elif sentiment == "positive":
-        mood = "joyful"    # Radosna modlitwa
+        mood = "joyful"
     else:
-        mood = "contemplative"  # Rozważająca
+        mood = "contemplative"
     
-    # Sprawdź czy NIE ma destrukcyjnych emocji (gniew, wściekłość)
     is_appropriate = max_negative < 0.6
     
     return {
