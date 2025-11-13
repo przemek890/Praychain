@@ -1,0 +1,86 @@
+# dependencies
+**/node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# Python
+**/venv/
+**/.venv/
+**/__pycache__/
+.ipynb_checkpoints/
+*checkpoint.ipynb
+
+# IDE
+.idea/
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+
+# misc
+.DS_Store
+*.pem
+*.key
+*.pub
+*.pfx
+*.log
+*.temp
+*.tmp
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+env
+.env
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# terraform
+terraform.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# node
+**/runtime-env.js
+
+# redis
+*.rdb
+*.aof
+*.dump
+*.rdb
+*.rdb.manifest
+*.aof.manifest
+
+# data
+**/data/
+mongo_data/
+
+# Xcode
+DerivedData/
+*.xcworkspace
+
+# htpasswd
+.htpasswd
+
+# terraform
+*.tfvars
+*.tfstate.*
