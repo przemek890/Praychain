@@ -1,17 +1,31 @@
 from fastapi import APIRouter, HTTPException
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any  # ✅ Dodaj Any
 from pydantic import BaseModel
 
 from src.utils.mongodb import get_database
-from src.routers.analysis import analyze_transcription
 
 router = APIRouter(prefix="/api/prayer", tags=["prayer"])
 logger = logging.getLogger(__name__)
 
 class PrayerAnalysisRequest(BaseModel):
-    bible_text: Optional[str] = None
+    bible_text: str
+    captcha_text: str
     user_id: str = "default_user"
+
+class DualAnalysisRequest(BaseModel):
+    prayer_transcription_id: str
+    captcha_transcription_id: str
+    bible_text: str
+    captcha_text: str
+    user_id: str = "default_user"
+
+# ✅ POPRAWIONY MODEL - Dict[str, Any] zamiast Dict[str, float]
+class DualAnalysisResponse(BaseModel):
+    analysis: Dict[str, Any]  # ✅ Any - bo sentiment to str, reszta to float
+    captcha_passed: bool
+    user_id: str
+    message: str
 
 @router.post("/analyze/{transcription_id}")
 async def analyze_prayer_reading(
@@ -19,10 +33,7 @@ async def analyze_prayer_reading(
     request: PrayerAnalysisRequest,
     bible_reference: Optional[str] = None
 ):
-    """
-    Analizuje modlitwę z uwzględnieniem tekstu biblijnego
-    Tokeny: 0 (brak czytania) -> 100 (perfekcja)
-    """
+    """Stara wersja - jedno nagranie (modlitwa + captcha razem)"""
     try:
         db = get_database()
         transcription = await db.transcriptions.find_one({"_id": transcription_id})
@@ -30,80 +41,49 @@ async def analyze_prayer_reading(
         if not transcription:
             raise HTTPException(status_code=404, detail="Transcription not found")
         
-        # ✅ SPRAWDŹ CZY JEST TRANSKRYPCJA
         transcribed_text = transcription.get("text", "").strip()
         
         if not transcribed_text or len(transcribed_text) < 10:
-            # Brak czytania = 0 tokenów
-            logger.warning(f"Empty transcription for {transcription_id}")
             return {
                 "analysis": {
                     "focus_score": 0.0,
                     "engagement_score": 0.0,
                     "sentiment": "neutral",
                     "text_accuracy": 0.0,
+                    "captcha_accuracy": 0.0,
                     "emotional_stability": 0.0,
                     "speech_fluency": 0.0,
                     "is_focused": False,
                     "reason": "No prayer detected - silence or too short"
                 },
-                "tokens_earned": 0,
                 "bible_reference": bible_reference,
                 "user_id": request.user_id,
-                "breakdown": {
-                    "base": 0,
-                    "accuracy_bonus": 0,
-                    "stability_bonus": 0,
-                    "fluency_bonus": 0,
-                    "focus_bonus": 0,
-                    "reason": "No transcription - 0 tokens"
-                }
+                "captcha_passed": False
             }
         
-        # ✅ MUSI BYĆ TEKST BIBLIJNY DO PORÓWNANIA
-        if not request.bible_text:
-            raise HTTPException(
-                status_code=400,
-                detail="Bible text reference is required for prayer analysis"
-            )
+        full_text = f"{request.bible_text}\n{request.captcha_text}"
         
-        # Wywołaj analizę Z tekstem biblijnym
         from src.routers.analysis import analyze_transcription_with_reference
         
         analysis_response = await analyze_transcription_with_reference(
             transcription_id=transcription_id,
-            reference_text=request.bible_text,
+            reference_text=full_text,
             user_id=request.user_id
         )
-        
-        # ✅ NOWY SYSTEM TOKENÓW: 0-100
-        # Wagi: accuracy (50%), stability (25%), fluency (15%), focus (10%)
         
         text_accuracy = getattr(analysis_response, 'text_accuracy', 0.0)
         emotional_stability = getattr(analysis_response, 'emotional_stability', 0.0)
         speech_fluency = getattr(analysis_response, 'speech_fluency', 0.0)
         focus_score = analysis_response.focus_score
         
-        # Oblicz tokeny (0-100)
-        accuracy_points = text_accuracy * 50  # 0-50 punktów
-        stability_points = emotional_stability * 25  # 0-25 punktów
-        fluency_points = speech_fluency * 15  # 0-15 punktów
-        focus_points = focus_score * 10  # 0-10 punktów
+        from difflib import SequenceMatcher
         
-        total_tokens = int(accuracy_points + stability_points + fluency_points + focus_points)
+        captcha_transcribed = transcribed_text.split()[-len(request.captcha_text.split()):]
+        captcha_transcribed_text = " ".join(captcha_transcribed).lower()
+        captcha_reference = request.captcha_text.lower()
         
-        # ✅ KARA za bardzo słabe czytanie (accuracy < 0.3)
-        if text_accuracy < 0.3:
-            total_tokens = max(0, total_tokens - 20)
-            penalty_applied = True
-        else:
-            penalty_applied = False
-        
-        total_tokens = max(0, min(100, total_tokens))  # Ogranicz do 0-100
-        
-        # DODAJ TOKENY DO KONTA UŻYTKOWNIKA
-        from src.routers.tokens import add_tokens
-        await add_tokens(request.user_id, total_tokens, f"prayer:{transcription_id}")
+        captcha_accuracy = SequenceMatcher(None, captcha_transcribed_text, captcha_reference).ratio()
+        captcha_passed = captcha_accuracy >= 0.5
         
         return {
             "analysis": {
@@ -111,23 +91,18 @@ async def analyze_prayer_reading(
                 "engagement_score": analysis_response.engagement_score,
                 "sentiment": analysis_response.sentiment,
                 "text_accuracy": text_accuracy,
+                "captcha_accuracy": captcha_accuracy,
                 "emotional_stability": emotional_stability,
                 "speech_fluency": speech_fluency,
                 "is_focused": getattr(analysis_response, 'is_focused', False),
             },
-            "tokens_earned": total_tokens,
-            "max_possible": 100,
             "bible_reference": bible_reference,
             "user_id": request.user_id,
-            "breakdown": {
-                "accuracy_points": round(accuracy_points, 1),
-                "stability_points": round(stability_points, 1),
-                "fluency_points": round(fluency_points, 1),
-                "focus_points": round(focus_points, 1),
-                "penalty_applied": penalty_applied,
-                "explanation": "Perfect reading = 100 tokens, silence/no reading = 0 tokens"
-            }
+            "captcha_passed": captcha_passed,
+            "captcha_threshold": 0.5,
+            "message": "Captcha passed - call /tokens/award to earn tokens" if captcha_passed else f"Captcha failed ({captcha_accuracy * 100:.0f}%) - 0 tokens"
         }
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -187,3 +162,124 @@ async def get_prayer_stats():
         "average_focus_score": round(avg_focus, 2),
         "average_engagement_score": round(avg_engagement, 2)
     }
+
+@router.post("/analyze-dual", response_model=DualAnalysisResponse)
+async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalysisResponse:
+    """
+    ✅ Analizuje DWA osobne nagrania: modlitwę + captcha
+    ✅ Przyznaje tokeny bezpośrednio (0-100)
+    """
+    try:
+        db = get_database()
+        
+        prayer_trans = await db.transcriptions.find_one({"_id": request.prayer_transcription_id})
+        captcha_trans = await db.transcriptions.find_one({"_id": request.captcha_transcription_id})
+        
+        if not prayer_trans or not captcha_trans:
+            raise HTTPException(status_code=404, detail="Transcription not found")
+        
+        prayer_text = prayer_trans.get("text", "").strip()
+        captcha_transcribed = captcha_trans.get("text", "").strip()
+        
+        logger.info(f"Prayer text: {prayer_text[:100]}...")
+        logger.info(f"Captcha transcribed: {captcha_transcribed}")
+        logger.info(f"Captcha reference: {request.captcha_text}")
+        
+        # Analiza modlitwy
+        from src.routers.analysis import analyze_transcription_with_reference
+        
+        try:
+            analysis_dict = await analyze_transcription_with_reference(
+                transcription_id=request.prayer_transcription_id,
+                reference_text=request.bible_text,
+                user_id=request.user_id
+            )
+            
+            text_accuracy = analysis_dict.get('text_accuracy', 0.0)
+            emotional_stability = analysis_dict.get('emotional_stability', 0.0)
+            speech_fluency = analysis_dict.get('speech_fluency', 0.0)
+            focus_score = analysis_dict.get('focus_score', 0.0)
+            engagement_score = analysis_dict.get('engagement_score', 0.0)
+            sentiment = analysis_dict.get('sentiment', 'neutral')
+            is_focused = analysis_dict.get('is_focused', False)
+            
+        except Exception as e:
+            logger.error(f"Error in prayer analysis: {e}")
+            text_accuracy = 0.0
+            emotional_stability = 0.0
+            speech_fluency = 0.0
+            focus_score = 0.0
+            engagement_score = 0.0
+            sentiment = "neutral"
+            is_focused = False
+        
+        # Sprawdź CAPTCHA
+        from difflib import SequenceMatcher
+        captcha_accuracy = SequenceMatcher(
+            None, 
+            captcha_transcribed.lower(), 
+            request.captcha_text.lower()
+        ).ratio()
+        
+        captcha_passed = captcha_accuracy >= 0.5
+        
+        logger.info(f"Captcha accuracy: {captcha_accuracy:.2f} - {'PASSED' if captcha_passed else 'FAILED'}")
+        
+        # ✅ OBLICZ TOKENY (0-100) + CAPTCHA CHECK
+        if captcha_passed:
+            # Algorytm tokenów
+            accuracy_points = text_accuracy * 50      # Max 50
+            stability_points = emotional_stability * 25   # Max 25
+            fluency_points = speech_fluency * 15      # Max 15
+            focus_points = focus_score * 10           # Max 10
+            
+            tokens_earned = int(accuracy_points + stability_points + fluency_points + focus_points)
+            
+            # Kara za słabe czytanie
+            if text_accuracy < 0.3:
+                tokens_earned = max(0, tokens_earned - 20)
+            
+            # ✅ Zapisz transakcję tokenów
+            from src.routers.tokens import award_tokens_internal
+            
+            await award_tokens_internal(
+                db=db,
+                user_id=request.user_id,
+                transcription_id=request.prayer_transcription_id,
+                tokens_earned=tokens_earned,
+                text_accuracy=text_accuracy,
+                emotional_stability=emotional_stability,
+                speech_fluency=speech_fluency,
+                captcha_accuracy=captcha_accuracy,
+                focus_score=focus_score
+            )
+            
+            logger.info(f"✅ Awarded {tokens_earned} tokens to user {request.user_id}")
+            message = f"Success! You earned {tokens_earned} tokens 🎉"
+        else:
+            tokens_earned = 0
+            logger.info(f"❌ CAPTCHA failed - 0 tokens awarded")
+            message = f"Captcha failed ({captcha_accuracy * 100:.0f}%) - 0 tokens"
+        
+        return DualAnalysisResponse(
+            analysis={
+                "focus_score": float(focus_score),
+                "engagement_score": float(engagement_score),
+                "sentiment": str(sentiment),
+                "text_accuracy": float(text_accuracy),
+                "captcha_accuracy": float(captcha_accuracy),
+                "emotional_stability": float(emotional_stability),
+                "speech_fluency": float(speech_fluency),
+                "is_focused": bool(is_focused),
+                "tokens_earned": tokens_earned,  # ✅ Dodaj tokeny do response
+            },
+            captcha_passed=captcha_passed,
+            user_id=request.user_id,
+            message=message
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in dual analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error analyzing prayer: {str(e)}")

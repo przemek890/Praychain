@@ -15,7 +15,7 @@ import * as SecureStore from 'expo-secure-store';
 import { API_CONFIG, ENDPOINTS } from '@/config/api';
 
 interface CharityAction {
-  id: string;
+  _id: string;  // ✅ Zmień z 'id' na '_id'
   title: string;
   description: string;
   cost_tokens: number;
@@ -25,7 +25,7 @@ interface CharityAction {
   image_url: string;
   is_active: boolean;
   total_supported: number;
-  total_tokens_raised: number;
+  total_tokens_raised?: number;  // ✅ Opcjonalne (może nie być w starych danych)
 }
 
 interface CharityStats {
@@ -127,7 +127,7 @@ export default function CharityScreen() {
         },
         body: JSON.stringify({
           user_id: userId,
-          charity_id: selectedCharity.id,
+          charity_id: selectedCharity._id,  // ✅ Zmień na _id
           tokens_amount: amount,
         }),
       });
@@ -206,7 +206,7 @@ export default function CharityScreen() {
         </View>
       ) : (
         charities.map((charity) => (
-          <View key={charity.id} style={styles.charityCard}>
+          <View key={charity._id} style={styles.charityCard}>
             <View style={styles.charityHeader}>
               <Text style={styles.charityEmoji}>{getCategoryEmoji(charity.category)}</Text>
               <View style={styles.charityTitleContainer}>
@@ -219,11 +219,11 @@ export default function CharityScreen() {
             
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{charity.total_tokens_raised}</Text>
+                <Text style={styles.statValue}>{charity.total_tokens_raised || 0}</Text>
                 <Text style={styles.statLabel}>Tokens Raised</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{charity.total_supported}</Text>
+                <Text style={styles.statValue}>{charity.total_supported || 0}</Text>
                 <Text style={styles.statLabel}>Supporters</Text>
               </View>
             </View>
@@ -232,9 +232,7 @@ export default function CharityScreen() {
               style={styles.donateButton}
               onPress={() => setSelectedCharity(charity)}
             >
-              <Text style={styles.donateButtonText}>
-                Donate Tokens
-              </Text>
+              <Text style={styles.donateButtonText}>Donate Tokens</Text>
             </TouchableOpacity>
           </View>
         ))

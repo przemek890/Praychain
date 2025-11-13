@@ -4,7 +4,7 @@ from datetime import datetime
 class DonationRequest(BaseModel):
     user_id: str
     charity_id: str
-    tokens_amount: int = Field(..., gt=0, description="Amount of tokens to donate (must be positive)")
+    tokens_amount: int
 
 class CharityDonation(BaseModel):
     id: str
@@ -21,3 +21,4 @@ class DonationResponse(BaseModel):
     tokens_spent: int
     charity_title: str
     new_balance: int
+    message: str
