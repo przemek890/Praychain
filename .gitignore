@@ -71,7 +71,6 @@ terraform.tfvars
 *.aof.manifest
 
 # data
-**/data/
 mongo_data/
 
 # Xcode
