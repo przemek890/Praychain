@@ -4,6 +4,7 @@ from datetime import datetime
 import logging
 import uuid
 
+from src.utils.celo import send_pray_back_to_treasury
 from src.utils.mongodb import get_database
 from src.models.donation import DonationRequest, DonationResponse
 
@@ -38,32 +39,43 @@ async def get_charity_action(charity_id: str):
 async def donate_to_charity(request: DonationRequest):
     try:
         db = get_database()
+
         charity = await db.charity_actions.find_one({"_id": request.charity_id})
         if not charity:
             raise HTTPException(status_code=404, detail="Charity action not found")
         if not charity.get("is_active", False):
             raise HTTPException(status_code=400, detail="Charity action is not active")
+
         user_balance = await db.token_balances.find_one({"user_id": request.user_id})
         if not user_balance:
             raise HTTPException(status_code=404, detail="User balance not found")
+
         current_balance = user_balance.get("current_balance", 0)
         if current_balance < request.tokens_amount:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Insufficient tokens. You have {current_balance}, need {request.tokens_amount}"
             )
+
+        try:
+            tx_hash = send_pray_back_to_treasury(request.tokens_amount)
+        except Exception:
+            raise HTTPException(status_code=500, detail="On-chain PRAY transfer failed")
+
         new_balance = current_balance - request.tokens_amount
         await db.token_balances.update_one(
             {"user_id": request.user_id},
             {
-                "$set": {"current_balance": new_balance},
+                "$set": {"current_balance": new_balance, "last_updated": datetime.utcnow()},
                 "$inc": {"total_spent": request.tokens_amount}
             }
         )
+
         await db.charity_actions.update_one(
             {"_id": request.charity_id},
             {"$inc": {"total_supported": request.tokens_amount}}
         )
+
         donation_id = str(uuid.uuid4())
         donation = {
             "_id": donation_id,
@@ -72,9 +84,12 @@ async def donate_to_charity(request: DonationRequest):
             "charity_title": charity["title"],
             "tokens_spent": request.tokens_amount,
             "status": "completed",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
+            "tx_hash": tx_hash,
+            "on_chain": True
         }
         await db.charity_donations.insert_one(donation)
+
         transaction = {
             "_id": str(uuid.uuid4()),
             "user_id": request.user_id,
@@ -82,18 +97,22 @@ async def donate_to_charity(request: DonationRequest):
             "amount": request.tokens_amount,
             "source": f"charity:{request.charity_id}",
             "description": f"Donated to: {charity['title']}",
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
+            "tx_hash": tx_hash,
+            "on_chain": True
         }
         await db.token_transactions.insert_one(transaction)
-        logger.info(f"User {request.user_id} donated {request.tokens_amount} tokens to {charity['title']}")
+
         return DonationResponse(
             success=True,
             donation_id=donation_id,
             tokens_spent=request.tokens_amount,
             charity_title=charity["title"],
             new_balance=new_balance,
+            tx_hash=tx_hash,
             message=f"Successfully donated {request.tokens_amount} tokens to {charity['title']}"
         )
+
     except HTTPException:
         raise
     except Exception as e:

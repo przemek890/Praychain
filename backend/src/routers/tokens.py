@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import uuid
 import logging
 
+from src.utils.celo import send_pray_to_user
 from src.utils.mongodb import get_database
 from src.models.token import TokenBalance, AddTokensRequest, AwardTokensRequest
 
@@ -241,6 +242,7 @@ async def award_tokens_internal(
     focus_score: float
 ):
     try:
+        # 🔹 1. Aktualizacja off-chain salda użytkownika w Mongo
         balance = await db.token_balances.find_one({"user_id": user_id})
         
         if balance:
@@ -263,6 +265,7 @@ async def award_tokens_internal(
                 "last_updated": datetime.utcnow()
             })
         
+        # 🔹 2. Wyliczenie breakdown’u do historii
         accuracy_points = text_accuracy * 50
         stability_points = emotional_stability * 25
         fluency_points = speech_fluency * 15
@@ -274,7 +277,10 @@ async def award_tokens_internal(
             "type": "earn",
             "amount": tokens_earned,
             "source": f"prayer:{transcription_id}",
-            "description": f"Prayer reading (accuracy: {int(text_accuracy*100)}%, captcha: {int(captcha_accuracy*100)}%)",
+            "description": (
+                f"Prayer reading (accuracy: {int(text_accuracy * 100)}%, "
+                f"captcha: {int(captcha_accuracy * 100)}%)"
+            ),
             "created_at": datetime.utcnow(),
             "breakdown": {
                 "accuracy_points": round(accuracy_points, 1),
@@ -287,8 +293,29 @@ async def award_tokens_internal(
         }
         
         await db.token_transactions.insert_one(transaction)
-        
-        logger.info(f"Awarded {tokens_earned} tokens to user {user_id} (captcha: {int(captcha_accuracy*100)}%)")
+
+        # 🔹 3. Wysłanie PRAY on-chain (demo: zawsze na jeden user wallet z .env)
+        try:
+            if tokens_earned > 0:
+                tx_hash = send_pray_to_user(tokens_earned)
+                # Możemy dopisać info o on-chain tx do transakcji
+                await db.token_transactions.update_one(
+                    {"_id": transaction["_id"]},
+                    {"$set": {"tx_hash": tx_hash, "on_chain": True}}
+                )
+                logger.info(
+                    f"On-chain: sent {tokens_earned} PRAY to demo user wallet (tx: {tx_hash})"
+                )
+            else:
+                logger.info("No tokens_earned, skipping on-chain transfer")
+        except Exception as onchain_err:
+            # Nie blokujemy całej logiki przez błąd on-chain – logujemy i lecimy dalej
+            logger.error(f"Error sending on-chain PRAY: {onchain_err}")
+
+        logger.info(
+            f"Awarded {tokens_earned} tokens to user {user_id} "
+            f"(captcha: {int(captcha_accuracy * 100)}%)"
+        )
         
         return tokens_earned
         
