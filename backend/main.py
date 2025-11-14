@@ -21,9 +21,9 @@ async def lifespan(app: FastAPI):
         
         # Initialize ML models in background (non-blocking)
         try:
-            from src.routers.analysis import initialize_models
-            initialize_models()
-            logger.info("ML models initialized")
+            from src.routers.analysis import initialize_models #to
+            initialize_models() # jak cos to komentowac
+            logger.info("ML models initialized") #to
         except Exception as e:
             logger.error(f"Failed to initialize ML models: {e}")
             logger.warning("Application will start without ML models. They will be loaded on first use.")
