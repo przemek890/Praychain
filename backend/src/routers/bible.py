@@ -6,12 +6,10 @@ from datetime import datetime
 from ..data.prayers import CLASSIC_PRAYERS
 from ..data.quotes import SHORT_BIBLE_QUOTES
 from ..data.bible_structure import BIBLE_BOOKS_ORDER, CHAPTERS_PER_BOOK
+from src.config import BIBLE_API_TIMEOUT, BIBLE_API_ENABLED
 
 router = APIRouter(prefix="/api/bible", tags=["bible"])
 logger = logging.getLogger(__name__)
-
-BIBLE_API_TIMEOUT = 5.0
-BIBLE_API_ENABLED = True
 
 @router.get("/random-quote")
 async def get_random_bible_quote():

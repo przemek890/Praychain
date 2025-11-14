@@ -5,7 +5,7 @@ from difflib import SequenceMatcher
 
 from src.utils.mongodb import get_database
 from src.models.prayer import PrayerAnalysisRequest, DualAnalysisRequest, DualAnalysisResponse
-from src.config.settings import (
+from src.config import (
     CAPTCHA_ACCURACY_THRESHOLD,
     LOW_TEXT_ACCURACY_THRESHOLD,
     LOW_TEXT_ACCURACY_PENALTY,
