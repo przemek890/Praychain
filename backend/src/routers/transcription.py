@@ -7,7 +7,7 @@ import logging
 import whisper
 import torch
 
-from src.config.settings import (
+from src.config import (
     UPLOAD_DIR,
     ALLOWED_EXTENSIONS,
     MAX_FILE_SIZE

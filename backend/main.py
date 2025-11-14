@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from src.utils.mongodb import connect_to_mongo, close_mongo_connection
-from src.routers import base, transcription, analysis, bible, prayer, tokens, charity
+from src.routers import base, transcription, analysis, bible, prayer, tokens, charity, users
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,6 +61,7 @@ app.include_router(bible.router)
 app.include_router(prayer.router)
 app.include_router(tokens.router)
 app.include_router(charity.router)
+app.include_router(users.router)
 
 if __name__ == "__main__":
     import uvicorn
