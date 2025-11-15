@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Sparkles, BookOpen, Quote, Calendar, RefreshCw } from 'lucide-react-native';
+import { User, Sparkles, BookOpen, Quote, Calendar, RefreshCw, Flame } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { router } from 'expo-router';
@@ -42,13 +42,43 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       
-      // Load user data
-      const userId = await AsyncStorage.getItem('userId');
-      if (userId) {
+      // Always try to load user "test" first
+      let userId = 'test';
+      
+      try {
         const userResponse = await fetch(`${API_URL}/api/users/${userId}`);
         if (userResponse.ok) {
           const user = await userResponse.json();
           setUserData(user);
+          await AsyncStorage.setItem('userId', userId);
+        } else if (userResponse.status === 404) {
+          // User "test" doesn't exist, create it
+          const createResponse = await fetch(`${API_URL}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: 'test',
+              email: 'test@example.com'
+            })
+          });
+          
+          if (createResponse.ok) {
+            const newUser = await createResponse.json();
+            await AsyncStorage.setItem('userId', newUser.id);
+            setUserData(newUser);
+          }
+        }
+      } catch (userError) {
+        console.error('Error with user "test":', userError);
+        
+        // Fallback: check if there's a stored userId
+        const storedUserId = await AsyncStorage.getItem('userId');
+        if (storedUserId && storedUserId !== 'test') {
+          const fallbackResponse = await fetch(`${API_URL}/api/users/${storedUserId}`);
+          if (fallbackResponse.ok) {
+            const user = await fallbackResponse.json();
+            setUserData(user);
+          }
         }
       }
 
@@ -68,7 +98,7 @@ export default function HomeScreen() {
   const refreshQuote = async () => {
     try {
       setRefreshing(true);
-      const response = await fetch(`${API_URL}/api/bible/short-quote`);
+      const response = await fetch(`${API_URL}/api/bible/random-quote`);
       if (response.ok) {
         const quote = await response.json();
         setDailyQuote(quote);
@@ -84,6 +114,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#92400e" />
+        <Text style={styles.loadingText}>Loading your spiritual journey...</Text>
       </View>
     );
   }
@@ -94,163 +125,158 @@ export default function HomeScreen() {
   const prayersCount = userData?.prayers_count || 0;
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
       <LinearGradient
         colors={['#78350f20', '#44403c30', '#78350f25']}
         style={styles.gradient}
       >
-        {/* Header with User Info */}
-        <Animated.View entering={FadeInUp} style={styles.header}>
-          <View style={styles.userSection}>
-            <LinearGradient
-              colors={['#fde68a', '#fcd34d']}
-              style={styles.userAvatar}
-            >
-              <User size={32} color="#44403c" />
-            </LinearGradient>
-            <View style={styles.userInfo}>
-              <Text style={styles.greeting}>Welcome back</Text>
-              <Text style={styles.userName}>{userName} 🙏</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Header with User Info */}
+          <Animated.View entering={FadeInUp} style={styles.header}>
+            <View style={styles.userSection}>
+              <View style={styles.userInfo}>
+                <Text style={styles.greeting}>Welcome back,</Text>
+                <Text style={styles.userName}>{userName}</Text>
+              </View>
+              <LinearGradient
+                colors={['#ffffff', '#fafaf9']}
+                style={styles.userAvatar}
+              >
+                <User size={28} color="#92400e" strokeWidth={2.5} />
+              </LinearGradient>
             </View>
-          </View>
-        </Animated.View>
+          </Animated.View>
 
-        {/* Tokens & Stats Card */}
-        <Animated.View entering={FadeInDown.delay(100)}>
-          <LinearGradient
-            colors={['#ffffff', '#fafaf9']}
-            style={styles.statsCard}
-          >
-            <View style={styles.tokensSection}>
+          {/* Tokens Card - Hero */}
+          <Animated.View entering={FadeInDown.delay(100)} style={styles.heroCardWrapper}>
+            <LinearGradient
+              colors={['#ffffff', '#fafaf9']}
+              style={styles.tokensCard}
+            >
               <View style={styles.tokensHeader}>
-                <Sparkles size={24} color="#92400e" />
-                <Text style={styles.tokensLabel}>Your Balance</Text>
-              </View>
-              <Text style={styles.tokensValue}>{tokens} PRAY</Text>
-            </View>
-
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{prayersCount}</Text>
-                <Text style={styles.statLabel}>Prayers</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{streak} 🔥</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </Animated.View>
-
-        {/* Daily Quote Card */}
-        {dailyQuote && (
-          <Animated.View entering={FadeInDown.delay(200)}>
-            <LinearGradient
-              colors={['#fef3c7', '#fde68a']}
-              style={styles.quoteCard}
-            >
-              <View style={styles.quoteHeader}>
-                <View style={styles.quoteTitle}>
-                  <Quote size={20} color="#92400e" />
-                  <Text style={styles.quoteTitleText}>Daily Inspiration</Text>
+                <LinearGradient
+                  colors={['#92400e', '#78350f']}
+                  style={styles.logoContainer}
+                >
+                  <View style={styles.crossWrapper}>
+                    <View style={styles.crossVertical} />
+                    <View style={styles.crossHorizontal} />
+                  </View>
+                </LinearGradient>
+                <View style={styles.tokensContent}>
+                  <Text style={styles.tokensLabel}>Your Balance</Text>
+                  <View style={styles.tokensValueRow}>
+                    <Text style={styles.tokensValue}>{tokens}</Text>
+                    <Text style={styles.tokensUnit}>PRAY</Text>
+                  </View>
                 </View>
-                <Pressable onPress={refreshQuote} disabled={refreshing}>
-                  <RefreshCw 
-                    size={20} 
-                    color="#92400e" 
-                    style={refreshing ? { opacity: 0.5 } : {}} 
-                  />
-                </Pressable>
               </View>
-              <Text style={styles.quoteText}>{dailyQuote.text}</Text>
-              <Text style={styles.quoteReference}>— {dailyQuote.reference}</Text>
+
+              <View style={styles.divider} />
+
+              <View style={styles.statsGrid}>
+                <View style={styles.statBox}>
+                  <View style={styles.statIconWrapper}>
+                    <BookOpen size={18} color="#92400e" strokeWidth={2.5} />
+                  </View>
+                  <Text style={styles.statValue}>{prayersCount}</Text>
+                  <Text style={styles.statLabel}>Prayers</Text>
+                </View>
+                
+                <View style={styles.statBox}>
+                  <View style={styles.statIconWrapper}>
+                    <Flame size={18} color="#ea580c" strokeWidth={2.5} />
+                  </View>
+                  <Text style={[styles.statValue, { color: '#ea580c' }]}>{streak}</Text>
+                  <Text style={styles.statLabel}>Day Streak 🔥</Text>
+                </View>
+              </View>
             </LinearGradient>
           </Animated.View>
-        )}
 
-        {/* Action Cards */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionsContainer}>
-          <ActionCard
-            icon={BookOpen}
-            title="Daily Reading"
-            description="Read today's scripture"
-            gradient={['#d97706', '#92400e']}
-            emoji="📖"
-            delay={300}
-            onPress={async () => {
-              try {
-                const response = await fetch(`${API_URL}/api/bible/daily-reading`);
-                if (response.ok) {
-                  const reading = await response.json();
-                  router.push({
-                    pathname: '/daily-reading',
-                    params: { data: JSON.stringify(reading) }
-                  });
-                }
-              } catch (error) {
-                console.error('Error loading daily reading:', error);
-              }
-            }}
-          />
-          
-          <ActionCard
-            icon={Quote}
-            title="Random Quote"
-            description="Get inspired by scripture"
-            gradient={['#78716c', '#57534e']}
-            emoji="✨"
-            delay={400}
-            onPress={async () => {
-              try {
-                const response = await fetch(`${API_URL}/api/bible/random-quote`);
-                if (response.ok) {
-                  const quote = await response.json();
-                  router.push({
-                    pathname: '/random-quote',
-                    params: { data: JSON.stringify(quote) }
-                  });
-                }
-              } catch (error) {
-                console.error('Error loading random quote:', error);
-              }
-            }}
-          />
+          <View style={styles.content}>
+            {/* Daily Quote Card */}
+            {dailyQuote && (
+              <Animated.View entering={FadeInDown.delay(200)}>
+                <LinearGradient
+                  colors={['#92400e', '#78350f']}
+                  style={styles.quoteCard}
+                >
+                  <View style={styles.quoteHeader}>
+                    <View style={styles.quoteTitle}>
+                      <Quote size={18} color="#fcd34d" strokeWidth={2.5} />
+                      <Text style={styles.quoteTitleText}>Daily Inspiration</Text>
+                    </View>
+                    <Pressable onPress={refreshQuote} disabled={refreshing} style={styles.refreshButton}>
+                      <RefreshCw 
+                        size={18} 
+                        color="#fcd34d" 
+                        strokeWidth={2.5}
+                        style={refreshing ? { opacity: 0.5 } : {}} 
+                      />
+                    </Pressable>
+                  </View>
+                  <Text style={styles.quoteText}>"{dailyQuote.text}"</Text>
+                  <Text style={styles.quoteReference}>— {dailyQuote.reference}</Text>
+                </LinearGradient>
+              </Animated.View>
+            )}
 
-          <ActionCard
-            icon={Calendar}
-            title="Read Bible"
-            description="Choose any book & chapter"
-            gradient={['#92400e', '#78350f']}
-            emoji="📚"
-            delay={500}
-            onPress={() => router.push('/bible-reader')}
-          />
-        </View>
+            {/* Action Cards */}
+            <Text style={styles.sectionTitle}>Explore Scripture</Text>
+            <View style={styles.actionsGrid}>
+              <ActionCard
+                icon={BookOpen}
+                title="Daily Reading"
+                description="Today's passage"
+                gradient={['#d97706', '#92400e']}
+                delay={300}
+                onPress={() => router.push('/daily-reading')}
+                style={styles.halfCard}
+              />
+              
+              <ActionCard
+                icon={Quote}
+                title="Random Verse"
+                description="Get inspired"
+                gradient={['#78716c', '#57534e']}
+                delay={350}
+                onPress={() => router.push('/random-quote')}
+                style={styles.halfCard}
+              />
 
-        <View style={{ height: 30 }} />
+              <ActionCard
+                icon={Calendar}
+                title="Bible Reader"
+                description="Read any chapter"
+                gradient={['#92400e', '#78350f']}
+                delay={400}
+                onPress={() => router.push('/bible-reader')}
+                style={styles.fullCard}
+              />
+            </View>
+
+            <View style={{ height: 40 }} />
+          </View>
+        </ScrollView>
       </LinearGradient>
-    </ScrollView>
+    </View>
   );
 }
 
-function ActionCard({ icon: Icon, title, description, gradient, emoji, delay, onPress }: any) {
+function ActionCard({ icon: Icon, title, description, gradient, delay, onPress, style }: any) {
   return (
     <AnimatedPressable
       entering={FadeInDown.delay(delay)}
       onPress={onPress}
-      style={styles.actionCard}
+      style={[styles.actionCard, style]}
     >
       <LinearGradient colors={gradient} style={styles.actionGradient}>
-        <View style={styles.actionContent}>
-          <View style={styles.actionHeader}>
-            <Icon size={24} color="#ffffff" />
-            <Text style={styles.emoji}>{emoji}</Text>
-          </View>
-          <Text style={styles.actionTitle}>{title}</Text>
-          <Text style={styles.actionDescription}>{description}</Text>
+        <View style={styles.actionIconWrapper}>
+          <Icon size={22} color="#ffffff" strokeWidth={2.5} />
         </View>
+        <Text style={styles.actionTitle}>{title}</Text>
+        <Text style={styles.actionDescription}>{description}</Text>
       </LinearGradient>
     </AnimatedPressable>
   );
@@ -261,37 +287,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fafaf9',
   },
+  gradient: {
+    flex: 1,
+    paddingTop: 60,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fafaf9',
+    gap: 12,
   },
-  gradient: {
-    flex: 1,
-    padding: 16,
-    paddingTop: 60,
-    paddingBottom: 100,
+  loadingText: {
+    fontSize: 14,
+    color: '#78716c',
+    marginTop: 8,
   },
   header: {
+    paddingHorizontal: 16,
     marginBottom: 20,
   },
   userSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-  },
-  userAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: 'space-between',
   },
   userInfo: {
     flex: 1,
@@ -299,84 +318,161 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 14,
     color: '#78716c',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   userName: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#1c1917',
+    letterSpacing: -0.5,
   },
-  statsCard: {
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 16,
+  userAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  tokensSection: {
-    marginBottom: 18,
-    paddingBottom: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e7e5e4',
+  heroCardWrapper: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  tokensCard: {
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   tokensHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 16,
+    marginBottom: 16,
+  },
+  logoContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#92400e',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  crossWrapper: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  crossVertical: {
+    position: 'absolute',
+    width: 7,
+    height: 34,
+    backgroundColor: '#ffffff',
+    borderRadius: 3.5,
+  },
+  crossHorizontal: {
+    position: 'absolute',
+    width: 34,
+    height: 7,
+    backgroundColor: '#ffffff',
+    borderRadius: 3.5,
+  },
+  tokensContent: {
+    flex: 1,
   },
   tokensLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
     color: '#78716c',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tokensValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
   },
   tokensValue: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#16a34a',
+    letterSpacing: -1,
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
+  tokensUnit: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#16a34a',
+    opacity: 0.7,
   },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
+  divider: {
+    height: 1,
     backgroundColor: '#e7e5e4',
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#fafaf9',
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statIconWrapper: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
   statValue: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#1c1917',
+    letterSpacing: -0.5,
   },
   statLabel: {
     fontSize: 12,
     color: '#78716c',
-    marginTop: 4,
+    fontWeight: '600',
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 100,
   },
   quoteCard: {
-    borderRadius: 16,
-    padding: 18,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#92400e',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
   },
   quoteHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   quoteTitle: {
     flexDirection: 'row',
@@ -384,63 +480,85 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   quoteTitleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#92400e',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fcd34d',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  refreshButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(252, 211, 77, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   quoteText: {
     fontSize: 15,
     lineHeight: 24,
-    color: '#44403c',
+    color: '#ffffff',
     fontStyle: 'italic',
     marginBottom: 10,
+    fontWeight: '500',
   },
   quoteReference: {
     fontSize: 13,
-    color: '#78716c',
-    fontWeight: '500',
+    color: '#fcd34d',
+    fontWeight: '600',
     textAlign: 'right',
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#1c1917',
     marginBottom: 12,
+    letterSpacing: -0.5,
   },
-  actionsContainer: {
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   actionCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
+  halfCard: {
+    width: '48%',
+  },
+  fullCard: {
+    width: '100%',
+  },
   actionGradient: {
-    padding: 16,
-  },
-  actionContent: {
-    gap: 8,
-  },
-  actionHeader: {
-    flexDirection: 'row',
+    padding: 18,
+    minHeight: 130,
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  emoji: {
-    fontSize: 28,
+  actionIconWrapper: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
   },
   actionTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#ffffff',
+    marginBottom: 3,
   },
   actionDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#ffffff',
     opacity: 0.9,
+    fontWeight: '500',
   },
 });

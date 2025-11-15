@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 import logging
 from typing import Optional
 from difflib import SequenceMatcher
+from datetime import datetime
+import uuid
 
 from src.utils.mongodb import get_database
 from src.models.prayer import PrayerAnalysisRequest, DualAnalysisRequest, DualAnalysisResponse
@@ -12,8 +14,9 @@ from src.config import (
     ACCURACY_POINTS_MULTIPLIER,
     STABILITY_POINTS_MULTIPLIER,
     FLUENCY_POINTS_MULTIPLIER,
-    FOCUS_POINTS_MULTIPLIER
+    FOCUS_POINTS_MULTIPLIER,
 )
+from src.utils.voice_verification import verify_recording_session
 
 router = APIRouter(prefix="/api/prayer", tags=["prayer"])
 logger = logging.getLogger(__name__)
@@ -159,6 +162,71 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
         prayer_text = prayer_trans.get("text", "").strip()
         captcha_transcribed = captcha_trans.get("text", "").strip()
         
+        # Get audio file paths - USE file_path (full path already)
+        prayer_audio = prayer_trans.get("file_path")  # ZMIANA!
+        captcha_audio = captcha_trans.get("file_path")  # ZMIANA!
+        
+        if not prayer_audio or not captcha_audio:
+            raise HTTPException(status_code=400, detail="Audio files not found in database")
+        
+        # Verify files exist on disk
+        import os
+        if not os.path.exists(prayer_audio):
+            logger.error(f"Prayer audio file not found: {prayer_audio}")
+            raise HTTPException(status_code=400, detail=f"Prayer audio file missing: {os.path.basename(prayer_audio)}")
+        
+        if not os.path.exists(captcha_audio):
+            logger.error(f"Captcha audio file not found: {captcha_audio}")
+            raise HTTPException(status_code=400, detail=f"Captcha audio file missing: {os.path.basename(captcha_audio)}")
+        
+        # Voice verification and fraud detection
+        logger.info(f"Starting voice verification...")
+        logger.info(f"Prayer audio: {prayer_audio}")
+        logger.info(f"Captcha audio: {captcha_audio}")
+        
+        verification_result = verify_recording_session(
+            prayer_audio=prayer_audio,  # ZMIANA - pełna ścieżka
+            captcha_audio=captcha_audio,  # ZMIANA - pełna ścieżka
+            min_similarity=0.65  # ZMIANA - obniżony próg
+        )
+        
+        logger.info(f"Voice verification result: {verification_result}")
+        
+        # Check if verification passed
+        if not verification_result["passed"]:
+            failure_reasons = verification_result["details"].get("failure_reasons", [])
+            logger.warning(f"Verification failed: {failure_reasons}")
+            
+            # Log fraud attempt
+            fraud_log = {
+                "_id": str(uuid.uuid4()),
+                "user_id": request.user_id,
+                "prayer_transcription_id": request.prayer_transcription_id,
+                "captcha_transcription_id": request.captcha_transcription_id,
+                "verification_result": verification_result,
+                "failure_reasons": failure_reasons,
+                "timestamp": datetime.utcnow(),
+                "type": "voice_verification_failed"
+            }
+            await db.fraud_logs.insert_one(fraud_log)
+            
+            return DualAnalysisResponse(
+                analysis={
+                    "focus_score": 0.0,
+                    "engagement_score": 0.0,
+                    "sentiment": "neutral",
+                    "text_accuracy": 0.0,
+                    "captcha_accuracy": 0.0,
+                    "emotional_stability": 0.0,
+                    "speech_fluency": 0.0,
+                    "is_focused": False,
+                    "tokens_earned": 0,
+                },
+                captcha_passed=False,
+                user_id=request.user_id,
+                message=f"Verification failed: {', '.join(failure_reasons)}"
+            )
+        
         logger.info(f"Prayer text: {prayer_text[:100]}...")
         logger.info(f"Captcha transcribed: {captcha_transcribed}")
         logger.info(f"Captcha reference: {request.captcha_text}")
@@ -199,6 +267,7 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
         captcha_passed = captcha_accuracy >= CAPTCHA_ACCURACY_THRESHOLD
         
         logger.info(f"Captcha accuracy: {captcha_accuracy:.2f} - {'PASSED' if captcha_passed else 'FAILED'}")
+        logger.info(f"Voice similarity: {verification_result['voice_similarity']:.2f}")
         
         if captcha_passed:
             accuracy_points = text_accuracy * ACCURACY_POINTS_MULTIPLIER
@@ -206,7 +275,10 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
             fluency_points = speech_fluency * FLUENCY_POINTS_MULTIPLIER
             focus_points = focus_score * FOCUS_POINTS_MULTIPLIER
             
-            tokens_earned = int(accuracy_points + stability_points + fluency_points + focus_points)
+            # Bonus for high voice similarity
+            voice_bonus = int(verification_result['voice_similarity'] * 10)
+            
+            tokens_earned = int(accuracy_points + stability_points + fluency_points + focus_points + voice_bonus)
             
             if text_accuracy < LOW_TEXT_ACCURACY_THRESHOLD:
                 tokens_earned = max(0, tokens_earned - LOW_TEXT_ACCURACY_PENALTY)
@@ -225,8 +297,21 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
                 focus_score=focus_score
             )
             
+            # Log successful verification
+            verification_log = {
+                "_id": str(uuid.uuid4()),
+                "user_id": request.user_id,
+                "prayer_transcription_id": request.prayer_transcription_id,
+                "captcha_transcription_id": request.captcha_transcription_id,
+                "verification_result": verification_result,
+                "tokens_earned": tokens_earned,
+                "timestamp": datetime.utcnow(),
+                "type": "verification_success"
+            }
+            await db.verification_logs.insert_one(verification_log)
+            
             logger.info(f"Awarded {tokens_earned} tokens to user {request.user_id}")
-            message = f"Success! You earned {tokens_earned} tokens"
+            message = f"Success! You earned {tokens_earned} tokens (Voice verified ✓)"
         else:
             tokens_earned = 0
             logger.info(f"CAPTCHA failed - 0 tokens awarded")
@@ -243,6 +328,8 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
                 "speech_fluency": float(speech_fluency),
                 "is_focused": bool(is_focused),
                 "tokens_earned": tokens_earned,
+                "voice_similarity": float(verification_result['voice_similarity']),
+                "voice_verified": verification_result['passed']
             },
             captcha_passed=captcha_passed,
             user_id=request.user_id,
@@ -254,3 +341,5 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
     except Exception as e:
         logger.error(f"Error in dual analysis: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error analyzing prayer: {str(e)}")
+
+# Pozostałe endpointy bez zmian...

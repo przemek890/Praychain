@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # CAPTCHA accuracy threshold (0.0 - 1.0)
-CAPTCHA_ACCURACY_THRESHOLD = 0.5
+CAPTCHA_ACCURACY_THRESHOLD = 0.75
 
 # Text accuracy threshold for low tokens
 LOW_TEXT_ACCURACY_THRESHOLD = 0.3
@@ -41,3 +41,14 @@ MAX_FILE_SIZE = 100 * 1024 * 1024
 
 BIBLE_API_TIMEOUT = 5.0
 BIBLE_API_ENABLED = True
+
+# Voice verification settings
+VOICE_VERIFICATION_ENABLED = True
+ASSEMBLYAI_MIN_SIMILARITY = 0.65
+
+# Delay między dwoma wywołaniami detektora (bezpieczny bufor)
+REPLICATE_DELAY_SECONDS = int(os.getenv("VOICE_DETECT_DELAY_SECONDS", "8"))
+
+# Resemble Detect
+RESEMBLE_API_TOKEN = os.getenv("RESEMBLE_API_TOKEN", "")
+RESEMBLE_DETECT_URL = os.getenv("RESEMBLE_DETECT_URL", "https://api.resemble.ai/v1/detect")
