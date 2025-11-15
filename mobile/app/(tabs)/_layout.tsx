@@ -1,45 +1,62 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
-import Colors from '@/constants/Colors';
-
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
+import { Home, Heart, Trophy, Users, Coins } from 'lucide-react-native';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { t } = useLanguage();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#92400e',
+        tabBarInactiveTintColor: '#78716c',
+        tabBarStyle: {
+          backgroundColor: '#fafaf9',
+          borderTopColor: '#e7e5e4',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
         headerShown: false,
-      }}>
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Prayer',
-          tabBarIcon: ({ color }) => <TabBarIcon name="book" color={color} />,
+          title: t.nav.home,
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="prayer"
         options={{
-          title: 'Charity',
-          tabBarIcon: ({ color }) => <TabBarIcon name="heart" color={color} />,
+          title: t.nav.prayer,
+          tabBarIcon: ({ color, size }) => <Heart size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="three"
+        name="achievements"
         options={{
-          title: 'Stats',
-          tabBarIcon: ({ color }) => <TabBarIcon name="bar-chart" color={color} />,
+          title: t.nav.achievements,
+          tabBarIcon: ({ color, size }) => <Trophy size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="community"
+        options={{
+          title: t.nav.community,
+          tabBarIcon: ({ color, size }) => <Users size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="tokens"
+        options={{
+          title: t.nav.tokens,
+          tabBarIcon: ({ color, size }) => <Coins size={size} color={color} />,
         }}
       />
     </Tabs>

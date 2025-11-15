@@ -16,15 +16,9 @@ async def get_charity_actions():
     try:
         db = get_database()
         actions = await db.charity_actions.find({"is_active": True}).to_list(length=100)
-        for action in actions:
-            action["_id"] = str(action["_id"])
-            if "total_tokens_raised" not in action:
-                action["total_tokens_raised"] = 0
-            if "total_supported" not in action:
-                action["total_supported"] = 0
         return {"actions": actions}
     except Exception as e:
-        logger.error(f"Error fetching charity actions: {str(e)}")
+        logger.error(f"Error fetching charity actions: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch charity actions")
 
 @router.get("/actions/{charity_id}")
@@ -73,9 +67,14 @@ async def donate_to_charity(request: DonationRequest):
 
         await db.charity_actions.update_one(
             {"_id": request.charity_id},
-            {"$inc": {"total_supported": request.tokens_amount}}
+            {
+                "$inc": {
+                    "total_supported": 1,
+                    "total_tokens_raised": request.tokens_amount
+                },
+                "$set": {"updated_at": datetime.utcnow()}
+            }
         )
-
         donation_id = str(uuid.uuid4())
         donation = {
             "_id": donation_id,
@@ -94,7 +93,7 @@ async def donate_to_charity(request: DonationRequest):
             "_id": str(uuid.uuid4()),
             "user_id": request.user_id,
             "type": "spend",
-            "amount": request.tokens_amount,
+            "amount": -request.tokens_amount,
             "source": f"charity:{request.charity_id}",
             "description": f"Donated to: {charity['title']}",
             "created_at": datetime.utcnow(),
@@ -117,7 +116,7 @@ async def donate_to_charity(request: DonationRequest):
         raise
     except Exception as e:
         logger.error(f"Error processing donation: {e}")
-        raise HTTPException(status_code=500, detail=f"Error processing donation: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/donations/{user_id}")
 async def get_user_donations(user_id: str, skip: int = 0, limit: int = 20):
@@ -169,95 +168,56 @@ async def get_charity_stats():
     }
 
 @router.get("/actions/{charity_id}/stats")
-async def get_charity_stats(charity_id: str):
+async def get_charity_action_stats(charity_id: str):
     db = get_database()
     charity = await db.charity_actions.find_one({"_id": charity_id})
     if not charity:
-        raise HTTPException(status_code=404, detail="Charity action not found")
+        raise HTTPException(status_code=404, detail="Charity not found")
+    
     donations = await db.charity_donations.find({"charity_id": charity_id}).to_list(length=None)
-    total_tokens_raised = sum(d["tokens_spent"] for d in donations)
-    total_supporters = len(set(d["user_id"] for d in donations))
-    recent_donations = await db.charity_donations.find(
-        {"charity_id": charity_id}
-    ).sort("created_at", -1).limit(10).to_list(length=10)
+    total_donations = len(donations)
+    total_raised = sum(d["tokens_spent"] for d in donations)
+    
     return {
         "charity_id": charity_id,
         "title": charity["title"],
-        "description": charity["description"],
-        "organization": charity["organization"],
-        "total_tokens_raised": total_tokens_raised,
-        "total_supporters": total_supporters,
-        "cost_tokens": charity["cost_tokens"],
-        "recent_donations": [
-            {
-                "user_id": d["user_id"][:8] + "...",
-                "tokens": d["tokens_spent"],
-                "date": d["created_at"]
-            }
-            for d in recent_donations
-        ]
+        "total_donations": total_donations,
+        "total_raised": total_raised,
+        "total_supported": charity.get("total_supported", 0)
     }
 
 @router.get("/user/{user_id}/donations")
 async def get_user_charity_stats(user_id: str):
     db = get_database()
-    donations = await db.charity_donations.find(
-        {"user_id": user_id}
-    ).sort("created_at", -1).to_list(length=None)
-    total_tokens_donated = sum(d["tokens_spent"] for d in donations)
-    charity_breakdown = {}
-    for donation in donations:
-        charity_id = donation["charity_id"]
-        if charity_id not in charity_breakdown:
-            charity_breakdown[charity_id] = {
-                "charity_id": charity_id,
-                "charity_title": donation["charity_title"],
-                "total_tokens": 0,
-                "donations_count": 0
-            }
-        charity_breakdown[charity_id]["total_tokens"] += donation["tokens_spent"]
-        charity_breakdown[charity_id]["donations_count"] += 1
+    donations = await db.charity_donations.find({"user_id": user_id}).to_list(length=None)
+    
+    total_donated = sum(d["tokens_spent"] for d in donations)
+    total_charities = len(set(d["charity_id"] for d in donations))
+    
     return {
         "user_id": user_id,
-        "total_tokens_donated": total_tokens_donated,
         "total_donations": len(donations),
-        "charities_supported": len(charity_breakdown),
-        "breakdown": list(charity_breakdown.values()),
-        "recent_donations": [
-            {
-                "donation_id": d["_id"],
-                "charity_title": d["charity_title"],
-                "tokens_spent": d["tokens_spent"],
-                "date": d["created_at"],
-                "status": d["status"]
-            }
-            for d in donations[:20]
-        ]
+        "total_tokens_donated": total_donated,
+        "charities_supported": total_charities
     }
 
 @router.get("/leaderboard")
 async def get_charity_leaderboard(limit: int = 10):
     db = get_database()
-    charities = await db.charity_actions.find(
-        {"is_active": True}
-    ).to_list(length=None)
-    leaderboard = []
-    for charity in charities:
-        donations = await db.charity_donations.find(
-            {"charity_id": charity["_id"]}
-        ).to_list(length=None)
-        total_tokens = sum(d["tokens_spent"] for d in donations)
-        supporters_count = len(set(d["user_id"] for d in donations))
-        leaderboard.append({
-            "charity_id": charity["_id"],
-            "title": charity["title"],
-            "organization": charity["organization"],
-            "category": charity["category"],
-            "total_tokens_raised": total_tokens,
-            "supporters_count": supporters_count,
-            "image_url": charity.get("image_url", "")
-        })
-    leaderboard.sort(key=lambda x: x["total_tokens_raised"], reverse=True)
-    return {
-        "leaderboard": leaderboard[:limit]
-    }
+    
+    # Aggregate donations by user
+    pipeline = [
+        {
+            "$group": {
+                "_id": "$user_id",
+                "total_donated": {"$sum": "$tokens_spent"},
+                "donation_count": {"$count": {}}
+            }
+        },
+        {"$sort": {"total_donated": -1}},
+        {"$limit": limit}
+    ]
+    
+    leaderboard = await db.charity_donations.aggregate(pipeline).to_list(length=limit)
+    
+    return {"leaderboard": leaderboard}

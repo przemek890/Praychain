@@ -6,12 +6,12 @@ from datetime import datetime
 from ..data.prayers import CLASSIC_PRAYERS
 from ..data.quotes import SHORT_BIBLE_QUOTES
 from ..data.bible_structure import BIBLE_BOOKS_ORDER, CHAPTERS_PER_BOOK
+from src.config import BIBLE_API_TIMEOUT, BIBLE_API_ENABLED
 
 router = APIRouter(prefix="/api/bible", tags=["bible"])
 logger = logging.getLogger(__name__)
 
-BIBLE_API_TIMEOUT = 5.0
-BIBLE_API_ENABLED = True
+BASE_URL = "https://bible-api.com"
 
 @router.get("/random-quote")
 async def get_random_bible_quote():
@@ -74,39 +74,52 @@ async def list_prayers():
 
 @router.get("/daily-reading")
 async def get_daily_reading():
+    """
+    Generuje czytanie na dzisiaj na podstawie daty
+    """
     try:
-        day_of_year = datetime.now().timetuple().tm_yday
-        total_chapters = sum(CHAPTERS_PER_BOOK.values())
-        chapter_index = day_of_year % total_chapters
-        cumulative = 0
-        selected_book = "Genesis"
-        selected_chapter = 1
+        from src.data.bible_structure import BIBLE_BOOKS_ORDER, CHAPTERS_PER_BOOK
+        import random
         
-        for book in BIBLE_BOOKS_ORDER:
-            book_chapters = CHAPTERS_PER_BOOK[book]
-            if cumulative + book_chapters > chapter_index:
-                selected_book = book
-                selected_chapter = chapter_index - cumulative + 1
-                break
-            cumulative += book_chapters
+        # Use date as seed for consistent daily reading
+        today = datetime.now().date()
+        seed = int(today.strftime('%Y%m%d'))
+        random.seed(seed)
         
-        url = f"https://bible-api.com/{selected_book} {selected_chapter}"
-        response = requests.get(url, timeout=BIBLE_API_TIMEOUT)
-        response.raise_for_status()
+        # Select random book and chapter
+        book = random.choice(BIBLE_BOOKS_ORDER)
+        max_chapter = CHAPTERS_PER_BOOK.get(book, 1)
+        chapter = random.randint(1, max_chapter)
+        
+        # Fetch chapter content
+        response = requests.get(
+            f"{BASE_URL}/{book}/{chapter}",
+            timeout=BIBLE_API_TIMEOUT
+        )
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=500, detail="Failed to fetch daily reading")
+            
         data = response.json()
         
+        # Format response
+        verses = []
+        for verse in data.get("verses", []):
+            verses.append({
+                "verse": verse.get("verse"),
+                "text": verse.get("text", "")
+            })
+        
         return {
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "reference": f"{selected_book} {selected_chapter}",
-            "text": data["text"],
-            "verses": data.get("verses", []),
-            "type": "daily_reading",
-            "book": selected_book,
-            "chapter": selected_chapter
+            "book_name": book,
+            "chapter": chapter,
+            "verses": verses,
+            "date": today.isoformat()
         }
+        
     except Exception as e:
-        logger.error(f"Error fetching daily reading: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error fetching daily reading")
+        logger.error(f"Error getting daily reading: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/read")
 async def read_bible(
@@ -155,9 +168,60 @@ async def get_bible_verse(reference: str):
 
 @router.get("/books")
 async def list_bible_books():
+    """
+    Zwraca listę wszystkich książek Biblii z liczbą rozdziałów
+    """
     return {
         "total": len(BIBLE_BOOKS_ORDER),
         "books": BIBLE_BOOKS_ORDER,
         "old_testament": BIBLE_BOOKS_ORDER[:39],
-        "new_testament": BIBLE_BOOKS_ORDER[39:]
+        "new_testament": BIBLE_BOOKS_ORDER[39:],
+        "chapters_per_book": CHAPTERS_PER_BOOK
     }
+
+@router.get("/chapter")
+async def get_bible_chapter(
+    book: str = Query(..., description="Book name (e.g., 'Genesis')"),
+    chapter: int = Query(..., ge=1, description="Chapter number")
+):
+    """
+    Pobiera cały rozdział z Biblii
+    """
+    try:
+        if book not in BIBLE_BOOKS_ORDER:
+            raise HTTPException(status_code=400, detail=f"Invalid book name: {book}")
+        
+        max_chapter = CHAPTERS_PER_BOOK.get(book, 1)
+        if chapter > max_chapter:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Chapter {chapter} doesn't exist in {book} (max: {max_chapter})"
+            )
+        
+        url = f"{BASE_URL}/{book} {chapter}"
+        response = requests.get(url, timeout=BIBLE_API_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
+        
+        verses = []
+        for verse in data.get("verses", []):
+            verses.append({
+                "verse": verse.get("verse"),
+                "text": verse.get("text", "").strip()
+            })
+        
+        return {
+            "book_name": book,
+            "chapter": chapter,
+            "verses": verses,
+            "reference": f"{book} {chapter}"
+        }
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(
+            status_code=504,
+            detail=f"Bible API timeout after {BIBLE_API_TIMEOUT} seconds"
+        )
+    except Exception as e:
+        logger.error(f"Error fetching chapter: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
