@@ -25,7 +25,7 @@ interface AnalysisResult {
   analysis: {
     focus_score: number;
     engagement_score: number;
-    sentiment: string;
+    // sentiment: string;  ❌ USUNIĘTE
     text_accuracy: number;
     captcha_accuracy: number;
     emotional_stability: number;
@@ -34,6 +34,10 @@ interface AnalysisResult {
   };
   captcha_passed: boolean;
   message: string;
+  voice_verified: boolean;
+  voice_similarity: number;
+  is_human: boolean;
+  human_confidence: number;
 }
 
 interface UserData {
@@ -211,22 +215,22 @@ export const usePrayerRecording = () => {
         playsInSilentModeIOS: true,
       });
 
-      // ZMIANA: Użyj formatu WAV zamiast HIGH_QUALITY (który daje m4a)
+      // ✅ ZOPTYMALIZOWANA KONFIGURACJA - 16kHz mono WAV
       const { recording } = await Audio.Recording.createAsync({
         android: {
           extension: '.wav',
           outputFormat: Audio.AndroidOutputFormat.DEFAULT,
           audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-          sampleRate: 16000,
-          numberOfChannels: 1,
+          sampleRate: 16000,  // ✅ 16kHz od razu
+          numberOfChannels: 1, // ✅ Mono
           bitRate: 128000,
         },
         ios: {
           extension: '.wav',
           outputFormat: Audio.IOSOutputFormat.LINEARPCM,
           audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 16000,
-          numberOfChannels: 1,
+          sampleRate: 16000,  // ✅ 16kHz od razu
+          numberOfChannels: 1, // ✅ Mono
           bitRate: 128000,
           linearPCMBitDepth: 16,
           linearPCMIsBigEndian: false,
@@ -276,7 +280,7 @@ export const usePrayerRecording = () => {
       const data = await response.json();
       setPrayerTranscriptionId(data.transcription.id);
       
-      Alert.alert('Success! ✅', 'Prayer recorded! Now read the verification verse.');
+      Alert.alert('Success!', 'Prayer recorded! Now read the verification verse.');
       setPrayerRecording(null);
     } catch (error: any) {
       console.error('Processing error:', error);
@@ -298,22 +302,22 @@ export const usePrayerRecording = () => {
         playsInSilentModeIOS: true,
       });
 
-      // ZMIANA: Użyj formatu WAV
+      // ✅ ZOPTYMALIZOWANA KONFIGURACJA - 16kHz mono WAV
       const { recording } = await Audio.Recording.createAsync({
         android: {
           extension: '.wav',
           outputFormat: Audio.AndroidOutputFormat.DEFAULT,
           audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-          sampleRate: 16000,
-          numberOfChannels: 1,
+          sampleRate: 16000,  // ✅ 16kHz od razu
+          numberOfChannels: 1, // ✅ Mono
           bitRate: 128000,
         },
         ios: {
           extension: '.wav',
           outputFormat: Audio.IOSOutputFormat.LINEARPCM,
           audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 16000,
-          numberOfChannels: 1,
+          sampleRate: 16000,  // ✅ 16kHz od razu
+          numberOfChannels: 1, // ✅ Mono
           bitRate: 128000,
           linearPCMBitDepth: 16,
           linearPCMIsBigEndian: false,
@@ -399,13 +403,13 @@ export const usePrayerRecording = () => {
 
       if (analysisData.captcha_passed) {
         Alert.alert(
-          'Success! 🎉',
+          'Success!',
           `You earned ${tokensEarned} tokens!\n\nPrayer Accuracy: ${(analysisData.analysis.text_accuracy * 100).toFixed(0)}%\nVerse Verification: ${(analysisData.analysis.captcha_accuracy * 100).toFixed(0)}%`,
           [{ text: 'Continue', style: 'default' }]
         );
       } else {
         Alert.alert(
-          'Verification Failed ❌',
+          'Verification Failed',
           `Verse accuracy: ${(analysisData.analysis.captcha_accuracy * 100).toFixed(0)}%\n\nRequired: 50%+\n\nPlease read the verse more carefully and try again.`,
           [{ text: 'Try Again', style: 'default' }]
         );

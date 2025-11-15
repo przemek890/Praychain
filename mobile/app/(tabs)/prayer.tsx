@@ -209,7 +209,7 @@ export default function PrayerScreen() {
                   colors={['#ffffff', '#fafaf9']}
                   style={[styles.stepGradient, styles.resultGradient]}
                 >
-                  {/* Icon and Title in one line */}
+                  {/* Icon and Title */}
                   <View style={styles.resultHeader}>
                     <View style={styles.resultIconSmall}>
                       <LinearGradient 
@@ -234,12 +234,67 @@ export default function PrayerScreen() {
                       : 'Please try again and focus on reading clearly.'}
                   </Text>
 
-                  {/* Tokens in one line */}
+                  {/* Tokens */}
                   <View style={styles.tokensInline}>
                     <Text style={styles.tokensInlineLabel}>EARNED:</Text>
                     <Text style={styles.tokensInlineValue}>
                       +{result.analysis.tokens_earned || 0} PRAY
                     </Text>
+                  </View>
+
+                  {/* Voice Verification Status */}
+                  <View style={styles.verificationSection}>
+                    <Text style={styles.verificationTitle}>Voice Verification</Text>
+                    
+                    <View style={styles.verificationGrid}>
+                      {/* Voice Match */}
+                      <View style={styles.verificationItem}>
+                        <View style={styles.verificationLabel}>
+                          <Text style={styles.verificationLabelText}>Voice Match</Text>
+                        </View>
+                        <LinearGradient 
+                          colors={result.voice_verified ? ['#dcfce7', '#bbf7d0'] : ['#fee2e2', '#fecaca']} 
+                          style={styles.verificationBadge}
+                        >
+                          <Text style={[
+                            styles.verificationValue,
+                            { color: result.voice_verified ? '#16a34a' : '#dc2626' }
+                          ]}>
+                            {result.voice_verified ? '✓ Verified' : '✗ Failed'}
+                          </Text>
+                          <Text style={[
+                            styles.verificationScore,
+                            { color: result.voice_verified ? '#16a34a' : '#dc2626' }
+                          ]}>
+                            {(result.voice_similarity * 100).toFixed(0)}%
+                          </Text>
+                        </LinearGradient>
+                      </View>
+
+                      {/* Human Detection */}
+                      <View style={styles.verificationItem}>
+                        <View style={styles.verificationLabel}>
+                          <Text style={styles.verificationLabelText}>Human Voice</Text>
+                        </View>
+                        <LinearGradient 
+                          colors={result.is_human ? ['#dcfce7', '#bbf7d0'] : ['#fee2e2', '#fecaca']} 
+                          style={styles.verificationBadge}
+                        >
+                          <Text style={[
+                            styles.verificationValue,
+                            { color: result.is_human ? '#16a34a' : '#dc2626' }
+                          ]}>
+                            {result.is_human ? '✓ Human' : '✗ AI Voice'}
+                          </Text>
+                          <Text style={[
+                            styles.verificationScore,
+                            { color: result.is_human ? '#16a34a' : '#dc2626' }
+                          ]}>
+                            {(result.human_confidence * 100).toFixed(0)}%
+                          </Text>
+                        </LinearGradient>
+                      </View>
+                    </View>
                   </View>
 
                   {/* Performance Details */}
@@ -311,12 +366,10 @@ export default function PrayerScreen() {
 
             {isProcessing && !result && (
               <Animated.View entering={FadeIn} style={styles.stepCard}>
-                <LinearGradient colors={['#e0e7ff', '#c7d2fe']} style={styles.stepGradient}>
-                  <View style={styles.processingContainer}>
-                    <ActivityIndicator size="large" color="#92400e" />
-                    <Text style={styles.processingText}>Analyzing...</Text>
-                  </View>
-                </LinearGradient>
+                <View style={styles.processingContainer}>
+                  <ActivityIndicator size="large" color="#92400e" />
+                  <Text style={styles.processingText}>Analyzing...</Text>
+                </View>
               </Animated.View>
             )}
 
@@ -644,11 +697,64 @@ const styles = StyleSheet.create({
   processingContainer: { 
     padding: 30, 
     alignItems: 'center',
+    backgroundColor: 'transparent', // Przezroczyste tło
   },
   processingText: { 
     marginTop: 10, 
     fontSize: 13, 
     color: '#78716c', 
     fontWeight: '500',
+  },
+
+  // Verification section styles
+  verificationSection: {
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  verificationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1c1917',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  verificationGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  verificationItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  verificationLabel: {
+    marginBottom: 6,
+  },
+  verificationLabelText: {
+    fontSize: 11,
+    color: '#78716c',
+    fontWeight: '500',
+  },
+  verificationBadge: {
+    width: '100%',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  verificationValue: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  verificationScore: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
