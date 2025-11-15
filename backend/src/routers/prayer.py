@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException
-import logging
 from typing import Optional
 from difflib import SequenceMatcher
 from datetime import datetime
 import uuid
+import logging  # ✅ DODAJ TO
+import numpy as np
 
 from src.utils.mongodb import get_database
 from src.models.prayer import PrayerAnalysisRequest, DualAnalysisRequest, DualAnalysisResponse
@@ -15,11 +16,22 @@ from src.config import (
     STABILITY_POINTS_MULTIPLIER,
     FLUENCY_POINTS_MULTIPLIER,
     FOCUS_POINTS_MULTIPLIER,
+    VOICE_SIMILARITY_THRESHOLD,
+    VOICE_SIMILARITY_BONUS_MULTIPLIER,
 )
 from src.utils.voice_verification import verify_recording_session
 
 router = APIRouter(prefix="/api/prayer", tags=["prayer"])
 logger = logging.getLogger(__name__)
+
+# Import funkcji z analysis.py
+from src.routers.analysis import (
+    analyze_emotion_api,
+    calculate_text_accuracy,
+    analyze_emotional_stability,
+    analyze_speech_fluency,
+    calculate_prayer_focus_score
+)
 
 @router.post("/analyze/{transcription_id}")
 async def analyze_prayer_reading(
@@ -34,71 +46,33 @@ async def analyze_prayer_reading(
         if not transcription:
             raise HTTPException(status_code=404, detail="Transcription not found")
         
-        transcribed_text = transcription.get("text", "").strip()
+        prayer_text = transcription["text"]
         
-        if not transcribed_text or len(transcribed_text) < 10:
-            return {
-                "analysis": {
-                    "focus_score": 0.0,
-                    "engagement_score": 0.0,
-                    "sentiment": "neutral",
-                    "text_accuracy": 0.0,
-                    "captcha_accuracy": 0.0,
-                    "emotional_stability": 0.0,
-                    "speech_fluency": 0.0,
-                    "is_focused": False,
-                    "reason": "No prayer detected - silence or too short"
-                },
-                "bible_reference": bible_reference,
-                "user_id": request.user_id,
-                "captcha_passed": False
-            }
+        emotions = analyze_emotion_api(prayer_text)
+        text_accuracy = calculate_text_accuracy(prayer_text, request.bible_text)
+        emotional_stability = analyze_emotional_stability(emotions)
+        speech_fluency = analyze_speech_fluency(prayer_text)
+        focus_score = calculate_prayer_focus_score(text_accuracy, emotional_stability, speech_fluency)
         
-        full_text = f"{request.bible_text}\n{request.captcha_text}"
-        
-        from src.routers.analysis import analyze_transcription_with_reference
-        
-        analysis_response = await analyze_transcription_with_reference(
-            transcription_id=transcription_id,
-            reference_text=full_text,
-            user_id=request.user_id
-        )
-        
-        text_accuracy = getattr(analysis_response, 'text_accuracy', 0.0)
-        emotional_stability = getattr(analysis_response, 'emotional_stability', 0.0)
-        speech_fluency = getattr(analysis_response, 'speech_fluency', 0.0)
-        focus_score = analysis_response.focus_score
-        
-        captcha_transcribed = transcribed_text.split()[-len(request.captcha_text.split()):]
-        captcha_transcribed_text = " ".join(captcha_transcribed).lower()
-        captcha_reference = request.captcha_text.lower()
-        
-        captcha_accuracy = SequenceMatcher(None, captcha_transcribed_text, captcha_reference).ratio()
-        captcha_passed = captcha_accuracy >= CAPTCHA_ACCURACY_THRESHOLD
-        
-        return {
-            "analysis": {
-                "focus_score": focus_score,
-                "engagement_score": analysis_response.engagement_score,
-                "sentiment": analysis_response.sentiment,
-                "text_accuracy": text_accuracy,
-                "captcha_accuracy": captcha_accuracy,
-                "emotional_stability": emotional_stability,
-                "speech_fluency": speech_fluency,
-                "is_focused": getattr(analysis_response, 'is_focused', False),
-            },
-            "bible_reference": bible_reference,
-            "user_id": request.user_id,
-            "captcha_passed": captcha_passed,
-            "captcha_threshold": CAPTCHA_ACCURACY_THRESHOLD,
-            "message": "Captcha passed - call /tokens/award to earn tokens" if captcha_passed else f"Captcha failed ({captcha_accuracy * 100:.0f}%) - 0 tokens"
+        analysis = {
+            "transcription_id": transcription_id,
+            "emotions": emotions,
+            "focus_score": focus_score,
+            "text_accuracy": text_accuracy,
+            "emotional_stability": emotional_stability,
+            "speech_fluency": speech_fluency,
+            "created_at": datetime.utcnow()
         }
+        
+        await db.analyses.insert_one(analysis)
+        
+        return analysis
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error analyzing prayer: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error analyzing prayer: {str(e)}")
+        logger.error(f"Error analyzing prayer: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/history")
 async def get_prayer_history(skip: int = 0, limit: int = 10):
@@ -108,16 +82,11 @@ async def get_prayer_history(skip: int = 0, limit: int = 10):
     
     history = []
     for analysis in analyses:
-        focus_bonus = int(analysis["focus_score"] * 20)
-        engagement_bonus = int(analysis["engagement_score"] * 15)
-        sentiment_bonus = 5 if analysis["sentiment"] == "positive" else 0
-        total_tokens = 10 + focus_bonus + engagement_bonus + sentiment_bonus
-        
         history.append({
-            "id": analysis["_id"],
-            "tokens_earned": total_tokens,
-            "sentiment": analysis["sentiment"],
-            "created_at": analysis["created_at"]
+            "id": analysis.get("_id"),
+            "focus_score": analysis.get("focus_score", 0),
+            "text_accuracy": analysis.get("text_accuracy", 0),
+            "created_at": analysis.get("created_at")
         })
     
     return {
@@ -133,13 +102,13 @@ async def get_prayer_stats():
     
     analyses = await db.analyses.find().to_list(length=None)
     total_tokens = sum(
-        10 + int(a["focus_score"] * 20) + int(a["engagement_score"] * 15) + 
-        (5 if a["sentiment"] == "positive" else 0)
+        10 + int(a.get("focus_score", 0) * 20) + int(a.get("engagement_score", 0) * 15) + 
+        (5 if a.get("sentiment") == "positive" else 0)
         for a in analyses
     )
     
-    avg_focus = sum(a["focus_score"] for a in analyses) / len(analyses) if analyses else 0
-    avg_engagement = sum(a["engagement_score"] for a in analyses) / len(analyses) if analyses else 0
+    avg_focus = sum(a.get("focus_score", 0) for a in analyses) / len(analyses) if analyses else 0
+    avg_engagement = sum(a.get("engagement_score", 0) for a in analyses) / len(analyses) if analyses else 0
     
     return {
         "total_prayers": total_prayers,
@@ -153,100 +122,42 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
     try:
         db = get_database()
         
-        prayer_trans = await db.transcriptions.find_one({"_id": request.prayer_transcription_id})
-        captcha_trans = await db.transcriptions.find_one({"_id": request.captcha_transcription_id})
+        # Get transcriptions FIRST for text analysis
+        prayer_transcription = await db.transcriptions.find_one({"_id": request.prayer_transcription_id})
+        captcha_transcription = await db.transcriptions.find_one({"_id": request.captcha_transcription_id})
         
-        if not prayer_trans or not captcha_trans:
+        if not prayer_transcription or not captcha_transcription:
             raise HTTPException(status_code=404, detail="Transcription not found")
         
-        prayer_text = prayer_trans.get("text", "").strip()
-        captcha_transcribed = captcha_trans.get("text", "").strip()
+        prayer_text = prayer_transcription["text"]
+        captcha_transcribed = captcha_transcription["text"]
         
-        # Get audio file paths - USE file_path (full path already)
-        prayer_audio = prayer_trans.get("file_path")  # ZMIANA!
-        captcha_audio = captcha_trans.get("file_path")  # ZMIANA!
-        
-        if not prayer_audio or not captcha_audio:
-            raise HTTPException(status_code=400, detail="Audio files not found in database")
-        
-        # Verify files exist on disk
-        import os
-        if not os.path.exists(prayer_audio):
-            logger.error(f"Prayer audio file not found: {prayer_audio}")
-            raise HTTPException(status_code=400, detail=f"Prayer audio file missing: {os.path.basename(prayer_audio)}")
-        
-        if not os.path.exists(captcha_audio):
-            logger.error(f"Captcha audio file not found: {captcha_audio}")
-            raise HTTPException(status_code=400, detail=f"Captcha audio file missing: {os.path.basename(captcha_audio)}")
-        
-        # Voice verification and fraud detection
-        logger.info(f"Starting voice verification...")
-        logger.info(f"Prayer audio: {prayer_audio}")
-        logger.info(f"Captcha audio: {captcha_audio}")
-        
-        verification_result = verify_recording_session(
-            prayer_audio=prayer_audio,  # ZMIANA - pełna ścieżka
-            captcha_audio=captcha_audio,  # ZMIANA - pełna ścieżka
-            min_similarity=0.65  # ZMIANA - obniżony próg
-        )
-        
-        logger.info(f"Voice verification result: {verification_result}")
-        
-        # Check if verification passed
-        if not verification_result["passed"]:
-            failure_reasons = verification_result["details"].get("failure_reasons", [])
-            logger.warning(f"Verification failed: {failure_reasons}")
-            
-            # Log fraud attempt
-            fraud_log = {
-                "_id": str(uuid.uuid4()),
-                "user_id": request.user_id,
-                "prayer_transcription_id": request.prayer_transcription_id,
-                "captcha_transcription_id": request.captcha_transcription_id,
-                "verification_result": verification_result,
-                "failure_reasons": failure_reasons,
-                "timestamp": datetime.utcnow(),
-                "type": "voice_verification_failed"
-            }
-            await db.fraud_logs.insert_one(fraud_log)
-            
-            return DualAnalysisResponse(
-                analysis={
-                    "focus_score": 0.0,
-                    "engagement_score": 0.0,
-                    "sentiment": "neutral",
-                    "text_accuracy": 0.0,
-                    "captcha_accuracy": 0.0,
-                    "emotional_stability": 0.0,
-                    "speech_fluency": 0.0,
-                    "is_focused": False,
-                    "tokens_earned": 0,
-                },
-                captcha_passed=False,
-                user_id=request.user_id,
-                message=f"Verification failed: {', '.join(failure_reasons)}"
-            )
-        
-        logger.info(f"Prayer text: {prayer_text[:100]}...")
+        logger.info(f"Analyzing prayer: {prayer_text[:100]}...")
         logger.info(f"Captcha transcribed: {captcha_transcribed}")
-        logger.info(f"Captcha reference: {request.captcha_text}")
+        logger.info(f"Captcha expected: {request.captcha_text}")
         
-        from src.routers.analysis import analyze_transcription_with_reference
-        
+        # ========================================
+        # ANALYZE TEXT FIRST (before voice check)
+        # ========================================
         try:
-            analysis_dict = await analyze_transcription_with_reference(
-                transcription_id=request.prayer_transcription_id,
-                reference_text=request.bible_text,
-                user_id=request.user_id
-            )
+            # Emotion analysis
+            emotions = analyze_emotion_api(prayer_text)
             
-            text_accuracy = analysis_dict.get('text_accuracy', 0.0)
-            emotional_stability = analysis_dict.get('emotional_stability', 0.0)
-            speech_fluency = analysis_dict.get('speech_fluency', 0.0)
-            focus_score = analysis_dict.get('focus_score', 0.0)
-            engagement_score = analysis_dict.get('engagement_score', 0.0)
-            sentiment = analysis_dict.get('sentiment', 'neutral')
-            is_focused = analysis_dict.get('is_focused', False)
+            # Calculate metrics using imported functions
+            text_accuracy = calculate_text_accuracy(prayer_text, request.bible_text)
+            emotional_stability = analyze_emotional_stability(emotions)
+            speech_fluency = analyze_speech_fluency(prayer_text)
+            focus_score = calculate_prayer_focus_score(text_accuracy, emotional_stability, speech_fluency)
+            
+            # Engagement score (simplified)
+            engagement_score = (emotions.get("joy", 0) * 0.5 + 
+                              emotions.get("neutral", 0) * 0.3 + 
+                              (1.0 - emotions.get("anger", 0)) * 0.2)
+            
+            is_focused = focus_score >= 0.5
+            
+            logger.info(f"Prayer Analysis - Focus: {focus_score:.2f}, Accuracy: {text_accuracy:.2f}, "
+                       f"Stability: {emotional_stability:.2f}, Fluency: {speech_fluency:.2f}")
             
         except Exception as e:
             logger.error(f"Error in prayer analysis: {e}")
@@ -255,33 +166,108 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
             speech_fluency = 0.0
             focus_score = 0.0
             engagement_score = 0.0
-            sentiment = "neutral"
             is_focused = False
         
+        # Calculate captcha accuracy
         captcha_accuracy = SequenceMatcher(
             None, 
-            captcha_transcribed.lower(), 
-            request.captcha_text.lower()
+            captcha_transcribed.lower().strip(), 
+            request.captcha_text.lower().strip()
         ).ratio()
         
         captcha_passed = captcha_accuracy >= CAPTCHA_ACCURACY_THRESHOLD
         
         logger.info(f"Captcha accuracy: {captcha_accuracy:.2f} - {'PASSED' if captcha_passed else 'FAILED'}")
-        logger.info(f"Voice similarity: {verification_result['voice_similarity']:.2f}")
         
+        # ========================================
+        # VOICE VERIFICATION (if captcha passed)
+        # ========================================
+        voice_verification = await verify_recording_session(
+            prayer_transcription_id=request.prayer_transcription_id,
+            captcha_transcription_id=request.captcha_transcription_id,
+            min_similarity=VOICE_SIMILARITY_THRESHOLD
+        )
+        
+        if not voice_verification.get("passed", False):
+            failure_reasons = voice_verification.get("details", {}).get("failure_reasons", [])
+            
+            logger.warning(f"Verification failed: {failure_reasons}")
+            
+            # ✅ KONWERTUJ numpy typy na Python typy
+            verification_result_clean = {
+                "passed": bool(voice_verification.get("passed", False)),
+                "voice_match": bool(voice_verification.get("voice_match", False)),
+                "similarity_score": float(voice_verification.get("similarity_score", 0.0)),
+                "is_human": bool(voice_verification.get("is_human", False)),
+                "human_confidence": float(voice_verification.get("human_confidence", 0.0)),
+                "details": {
+                    "failure_reasons": failure_reasons,
+                    "ai_detection_model": voice_verification.get("details", {}).get("ai_detection_model", ""),
+                    "voice_matching_model": voice_verification.get("details", {}).get("voice_matching_model", ""),
+                    "threshold": float(voice_verification.get("details", {}).get("threshold", 0.0)),
+                    "ai_detection_details": {
+                        k: float(v) if isinstance(v, (np.number, np.floating, np.integer)) else v
+                        for k, v in voice_verification.get("details", {}).get("ai_detection_details", {}).items()
+                    }
+                }
+            }
+            
+            # Log fraud attempt
+            fraud_log = {
+                "_id": str(uuid.uuid4()),
+                "user_id": request.user_id,
+                "prayer_transcription_id": request.prayer_transcription_id,
+                "captcha_transcription_id": request.captcha_transcription_id,
+                "verification_result": verification_result_clean,  # ✅ Cleaned data
+                "failure_reasons": failure_reasons,
+                "timestamp": datetime.now(),
+                "type": "voice_verification_failed"
+            }
+            
+            try:
+                await db.fraud_logs.insert_one(fraud_log)
+                logger.info(f"Fraud attempt logged for user {request.user_id}")
+            except Exception as e:
+                logger.error(f"Failed to log fraud attempt: {e}")
+            
+            # ✅ ZWRÓĆ 0 TOKENÓW (nie rzucaj błędu!)
+            return DualAnalysisResponse(
+                analysis={
+                    "focus_score": float(focus_score),
+                    "engagement_score": float(engagement_score),
+                    "text_accuracy": float(text_accuracy),
+                    "captcha_accuracy": float(captcha_accuracy),
+                    "emotional_stability": float(emotional_stability),
+                    "speech_fluency": float(speech_fluency),
+                    "tokens_earned": 0,  # ❌ 0 tokenów
+                },
+                captcha_passed=False,
+                user_id=request.user_id,
+                message=f"Verification failed: {', '.join(failure_reasons)}",
+                voice_verified=False,
+                voice_similarity=float(voice_verification.get("similarity_score", 0.0)),
+                is_human=bool(voice_verification.get("is_human", False)),
+                human_confidence=float(voice_verification.get("human_confidence", 0.0))
+            )
+        
+        # ========================================
+        # AWARD TOKENS (if everything passed)
+        # ========================================
         if captcha_passed:
             accuracy_points = text_accuracy * ACCURACY_POINTS_MULTIPLIER
             stability_points = emotional_stability * STABILITY_POINTS_MULTIPLIER
             fluency_points = speech_fluency * FLUENCY_POINTS_MULTIPLIER
             focus_points = focus_score * FOCUS_POINTS_MULTIPLIER
             
-            # Bonus for high voice similarity
-            voice_bonus = int(verification_result['voice_similarity'] * 10)
+            voice_bonus = voice_verification["similarity_score"] * VOICE_SIMILARITY_BONUS_MULTIPLIER
             
             tokens_earned = int(accuracy_points + stability_points + fluency_points + focus_points + voice_bonus)
             
             if text_accuracy < LOW_TEXT_ACCURACY_THRESHOLD:
                 tokens_earned = max(0, tokens_earned - LOW_TEXT_ACCURACY_PENALTY)
+            
+            logger.info(f"Token calculation - Accuracy: {accuracy_points:.0f}, Stability: {stability_points:.0f}, "
+                       f"Fluency: {fluency_points:.0f}, Focus: {focus_points:.0f}, Voice bonus: {voice_bonus:.0f}")
             
             from src.routers.tokens import award_tokens_internal
             
@@ -297,21 +283,8 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
                 focus_score=focus_score
             )
             
-            # Log successful verification
-            verification_log = {
-                "_id": str(uuid.uuid4()),
-                "user_id": request.user_id,
-                "prayer_transcription_id": request.prayer_transcription_id,
-                "captcha_transcription_id": request.captcha_transcription_id,
-                "verification_result": verification_result,
-                "tokens_earned": tokens_earned,
-                "timestamp": datetime.utcnow(),
-                "type": "verification_success"
-            }
-            await db.verification_logs.insert_one(verification_log)
-            
             logger.info(f"Awarded {tokens_earned} tokens to user {request.user_id}")
-            message = f"Success! You earned {tokens_earned} tokens (Voice verified ✓)"
+            message = f"Success! You earned {tokens_earned} tokens (Voice verified ✓, Human: {voice_verification['human_confidence']*100:.0f}%)"
         else:
             tokens_earned = 0
             logger.info(f"CAPTCHA failed - 0 tokens awarded")
@@ -321,19 +294,19 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
             analysis={
                 "focus_score": float(focus_score),
                 "engagement_score": float(engagement_score),
-                "sentiment": str(sentiment),
                 "text_accuracy": float(text_accuracy),
                 "captcha_accuracy": float(captcha_accuracy),
                 "emotional_stability": float(emotional_stability),
                 "speech_fluency": float(speech_fluency),
-                "is_focused": bool(is_focused),
                 "tokens_earned": tokens_earned,
-                "voice_similarity": float(verification_result['voice_similarity']),
-                "voice_verified": verification_result['passed']
             },
             captcha_passed=captcha_passed,
             user_id=request.user_id,
-            message=message
+            message=message,
+            voice_verified=voice_verification["passed"],
+            voice_similarity=float(voice_verification["similarity_score"]),
+            is_human=voice_verification["is_human"],
+            human_confidence=float(voice_verification["human_confidence"])
         )
         
     except HTTPException:
@@ -341,5 +314,6 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
     except Exception as e:
         logger.error(f"Error in dual analysis: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error analyzing prayer: {str(e)}")
+
 
 # Pozostałe endpointy bez zmian...
