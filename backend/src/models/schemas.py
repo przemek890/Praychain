@@ -47,7 +47,6 @@ class AnalysisResponse(BaseModel):
     emotions: Dict[str, float]
     focus_score: float
     engagement_score: float
-    sentiment: str
     key_phrases: List[str]
     created_at: datetime
     
