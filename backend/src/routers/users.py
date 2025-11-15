@@ -13,10 +13,24 @@ logger = logging.getLogger(__name__)
 async def create_user(user: UserCreate):
     db = get_database()
     
+    # Check if username exists
     existing_user = await db.users.find_one({"username": user.username})
     if existing_user:
-        raise HTTPException(status_code=400, detail="Username already exists")
+        # Return existing user instead of error
+        logger.info(f"User '{user.username}' already exists, returning existing user")
+        return UserResponse(
+            id=existing_user["_id"],
+            username=existing_user["username"],
+            email=existing_user.get("email"),
+            tokens_balance=existing_user.get("tokens_balance", 0),
+            total_earned=existing_user.get("total_earned", 0),
+            total_donated=existing_user.get("total_donated", 0),
+            prayers_count=existing_user.get("prayers_count", 0),
+            streak_days=existing_user.get("streak_days", 0),
+            created_at=existing_user["created_at"]
+        )
     
+    # Create new user
     user_data = {
         "_id": user.username,
         "username": user.username,
@@ -32,6 +46,7 @@ async def create_user(user: UserCreate):
     }
     
     await db.users.insert_one(user_data)
+    logger.info(f"Created new user: {user.username}")
     
     return UserResponse(
         id=user_data["_id"],

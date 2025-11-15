@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { Audio } from 'expo-av';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST || 'localhost';
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '8000';
-const API_URL = `http://${API_HOST}:${API_PORT}`;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface Prayer {
   id: string;
@@ -38,6 +36,16 @@ interface AnalysisResult {
   message: string;
 }
 
+interface UserData {
+  id: string;
+  username: string;
+  tokens_balance: number;
+  prayers_count: number;
+  streak_days: number;
+  total_earned: number;
+  total_donated: number;
+}
+
 export const usePrayerRecording = () => {
   const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,18 +62,75 @@ export const usePrayerRecording = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [userId, setUserId] = useState<string>('');
+  const [userData, setUserData] = useState<UserData | null>(null);
 
   const initializeUserId = async () => {
     try {
-      let storedUserId = await SecureStore.getItemAsync('user_id');
-      if (!storedUserId) {
-        storedUserId = Crypto.randomUUID();
-        await SecureStore.setItemAsync('user_id', storedUserId);
+      // Always use "test" as the primary user
+      let storedUserId = 'test';
+      
+      try {
+        // Try to fetch user "test"
+        const response = await fetch(`${API_URL}/api/users/${storedUserId}`);
+        
+        if (response.ok) {
+          const user = await response.json();
+          setUserData(user);
+          setUserId(storedUserId);
+          await AsyncStorage.setItem('userId', storedUserId);
+        } else if (response.status === 404) {
+          // User "test" doesn't exist, create it
+          const createResponse = await fetch(`${API_URL}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: 'test',
+              email: 'test@example.com'
+            })
+          });
+          
+          if (createResponse.ok) {
+            const newUser = await createResponse.json();
+            setUserData(newUser);
+            setUserId(newUser.id);
+            await AsyncStorage.setItem('userId', newUser.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error with user "test":', error);
+        
+        // Fallback: check AsyncStorage
+        const fallbackUserId = await AsyncStorage.getItem('userId');
+        if (fallbackUserId) {
+          await fetchUserData(fallbackUserId);
+          setUserId(fallbackUserId);
+        } else {
+          // Last resort: generate new UUID
+          const newId = Crypto.randomUUID();
+          setUserId(newId);
+          await AsyncStorage.setItem('userId', newId);
+        }
       }
-      setUserId(storedUserId);
     } catch (error) {
-      console.error('Error managing user ID:', error);
-      setUserId(Crypto.randomUUID());
+      console.error('Error initializing user ID:', error);
+      const fallbackId = Crypto.randomUUID();
+      setUserId(fallbackId);
+      await AsyncStorage.setItem('userId', fallbackId);
+    }
+  };
+
+  const fetchUserData = async (id?: string) => {
+    try {
+      const uid = id || userId;
+      if (!uid) return;
+      
+      const response = await fetch(`${API_URL}/api/users/${uid}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUserData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
     }
   };
 
@@ -75,10 +140,13 @@ export const usePrayerRecording = () => {
       setError(null);
       const response = await fetch(`${API_URL}/api/bible/prayers`);
       
-      if (!response.ok) throw new Error('Failed to fetch prayers');
+      if (!response.ok) {
+        throw new Error('Failed to fetch prayers');
+      }
       
       const data = await response.json();
       
+      // Pobierz pełne teksty modlitw z osobnego endpointu
       const prayersWithText = await Promise.all(
         data.prayers.map(async (p: any) => {
           try {
@@ -87,15 +155,16 @@ export const usePrayerRecording = () => {
               const prayerData = await prayerResponse.json();
               return {
                 id: p.id,
-                title: p.title,
-                reference: p.reference,
+                title: prayerData.title,
+                reference: prayerData.reference,
                 text: prayerData.text
               };
             }
+            return null;
           } catch (err) {
             console.error(`Error fetching prayer ${p.id}:`, err);
+            return null;
           }
-          return null;
         })
       );
       
@@ -142,9 +211,32 @@ export const usePrayerRecording = () => {
         playsInSilentModeIOS: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      // ZMIANA: Użyj formatu WAV zamiast HIGH_QUALITY (który daje m4a)
+      const { recording } = await Audio.Recording.createAsync({
+        android: {
+          extension: '.wav',
+          outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+          audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.wav',
+          outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/wav',
+          bitsPerSecond: 128000,
+        },
+      });
       
       setPrayerRecording(recording);
       setIsPrayerRecording(true);
@@ -170,8 +262,8 @@ export const usePrayerRecording = () => {
       const formData = new FormData();
       formData.append('file', {
         uri,
-        type: 'audio/m4a',
-        name: 'prayer.m4a',
+        type: 'audio/wav',  // ZMIANA: było audio/m4a
+        name: 'prayer.wav',  // ZMIANA: było prayer.m4a
       } as any);
 
       const response = await fetch(`${API_URL}/api/transcribe?audio_type=prayer`, {
@@ -206,9 +298,32 @@ export const usePrayerRecording = () => {
         playsInSilentModeIOS: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      // ZMIANA: Użyj formatu WAV
+      const { recording } = await Audio.Recording.createAsync({
+        android: {
+          extension: '.wav',
+          outputFormat: Audio.AndroidOutputFormat.DEFAULT,
+          audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.wav',
+          outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 16000,
+          numberOfChannels: 1,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/wav',
+          bitsPerSecond: 128000,
+        },
+      });
       
       setCaptchaRecording(recording);
       setIsCaptchaRecording(true);
@@ -234,8 +349,8 @@ export const usePrayerRecording = () => {
       const formData = new FormData();
       formData.append('file', {
         uri,
-        type: 'audio/m4a',
-        name: 'captcha.m4a',
+        type: 'audio/wav',  // ZMIANA: było audio/m4a
+        name: 'captcha.wav',  // ZMIANA: było captcha.m4a
       } as any);
 
       const response = await fetch(`${API_URL}/api/transcribe?audio_type=captcha`, {
@@ -321,7 +436,10 @@ export const usePrayerRecording = () => {
     captchaTranscriptionId,
     isProcessing,
     result,
+    userId,
+    userData,
     initializeUserId,
+    fetchUserData,
     fetchPrayers,
     selectPrayer,
     startPrayerRecording,

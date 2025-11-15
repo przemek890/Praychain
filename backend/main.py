@@ -17,19 +17,8 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         await connect_to_mongo()
-        logger.info("MongoDB connected successfully")
-        
-        # Initialize ML models in background (non-blocking)
-        try:
-            from src.routers.analysis import initialize_models
-            initialize_models()
-            logger.info("ML models initialized")
-        except Exception as e:
-            logger.error(f"Failed to initialize ML models: {e}")
-            logger.warning("Application will start without ML models. They will be loaded on first use.")
-        
+        logger.info("MongoDB connected")
         yield
-        
     except Exception as e:
         logger.error(f"Startup failed: {e}")
         raise
@@ -40,8 +29,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Praychain API",
-    description="API for audio transcription and emotion/focus analysis",
-    version="1.0.0",
+    description="Prayer analysis with AI fraud detection",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -53,7 +42,6 @@ app.add_middleware(
     allow_headers=["*"], 
 )
 
-# Register routers
 app.include_router(base.router)
 app.include_router(transcription.router)
 app.include_router(analysis.router)

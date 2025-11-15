@@ -4,8 +4,7 @@ from datetime import datetime
 import uuid
 import os
 import logging
-import whisper
-import torch
+from faster_whisper import WhisperModel  # ZMIANA!
 
 from src.config import (
     UPLOAD_DIR,
@@ -18,10 +17,10 @@ from src.models.transcription import TranscriptionResponse, AudioUploadResponse
 router = APIRouter(prefix="/api", tags=["transcription"])
 logger = logging.getLogger(__name__)
 
+# ZMIANA: faster-whisper (bez torch!)
 logger.info("Loading Whisper model...")
-device = "cuda" if torch.cuda.is_available() else "cpu"
-whisper_model = whisper.load_model("base", device=device)
-logger.info(f"Whisper model loaded on {device}")
+whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+logger.info("Whisper model loaded on CPU")
 
 @router.post("/transcribe", response_model=AudioUploadResponse)
 async def transcribe_audio(
@@ -49,13 +48,22 @@ async def transcribe_audio(
             f.write(content)
         
         logger.info(f"Transcribing {audio_type}: {file_path}")
-        result = whisper_model.transcribe(file_path, language="en")
+        
+        # ZMIANA: faster-whisper API
+        segments, info = whisper_model.transcribe(
+            file_path, 
+            language="en",
+            beam_size=5
+        )
+        
+        # Combine segments into full text
+        text = " ".join([segment.text for segment in segments])
         
         transcription_data = {
             "_id": transcription_id,
-            "text": result["text"].strip(),
-            "language": result.get("language", "en"),
-            "duration": result.get("duration", 0.0),
+            "text": text.strip(),
+            "language": info.language,
+            "duration": info.duration,
             "file_path": file_path,
             "audio_type": audio_type,
             "created_at": datetime.utcnow()
@@ -123,7 +131,7 @@ async def list_transcriptions(skip: int = 0, limit: int = 10):
 async def change_whisper_model(model_name: str):
     global whisper_model
     
-    valid_models = ["tiny", "base", "small", "medium", "large"]
+    valid_models = ["tiny", "base", "small", "medium", "large-v2"]
     if model_name not in valid_models:
         raise HTTPException(
             status_code=400,
@@ -132,8 +140,8 @@ async def change_whisper_model(model_name: str):
     
     try:
         logger.info(f"Loading new Whisper model: {model_name}")
-        whisper_model = whisper.load_model(model_name, device=device)
-        return {"message": f"Model changed to: {model_name}", "device": device}
+        whisper_model = WhisperModel(model_name, device="cpu", compute_type="int8")
+        return {"message": f"Model changed to: {model_name}", "device": "cpu"}
     except Exception as e:
         logger.error(f"Error changing model: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
