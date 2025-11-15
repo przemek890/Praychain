@@ -1,0 +1,654 @@
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Heart, Search, Play, AlertCircle, Mic, StopCircle, Check, BookOpen, Sparkles } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useState, useEffect } from 'react';
+import { usePrayerRecording } from '@/hooks/usePrayerRecording';
+import { Audio } from 'expo-av';
+
+export default function PrayerScreen() {
+  const { t } = useLanguage();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [favorites, setFavorites] = useState<string[]>([]);
+
+  const {
+    prayers,
+    loading,
+    error,
+    selectedPrayer,
+    captchaQuote,
+    isPrayerRecording,
+    isCaptchaRecording,
+    prayerTranscriptionId,
+    isProcessing,
+    result,
+    initializeUserId,
+    fetchPrayers,
+    selectPrayer,
+    startPrayerRecording,
+    stopPrayerRecording,
+    startCaptchaRecording,
+    stopCaptchaRecording,
+    resetPrayer,
+  } = usePrayerRecording();
+
+  useEffect(() => {
+    const init = async () => {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Please grant microphone permissions');
+      }
+      await initializeUserId();
+      await fetchPrayers();
+    };
+    init();
+  }, []);
+
+  const filteredPrayers = prayers.filter(prayer =>
+    prayer.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    prayer.reference.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const toggleFavorite = (id: string) => {
+    if (favorites.includes(id)) {
+      setFavorites(favorites.filter(fav => fav !== id));
+    } else {
+      setFavorites([...favorites, id]);
+    }
+  };
+
+  if (selectedPrayer) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#78350f20', '#44403c30', '#78350f25']}
+          style={styles.gradient}
+        >
+          <ScrollView style={styles.prayerDetailScroll} showsVerticalScrollIndicator={false}>
+            <Animated.View entering={FadeInDown} style={styles.detailHeader}>
+              <Pressable onPress={resetPrayer} style={styles.backButton}>
+                <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.backButtonGradient}>
+                  <Text style={styles.backButtonText}>← Back</Text>
+                </LinearGradient>
+              </Pressable>
+              <View style={styles.detailTitleContainer}>
+                <Heart size={24} color="#92400e" fill="#92400e" />
+                <Text style={styles.detailTitle}>{selectedPrayer.title}</Text>
+              </View>
+              <Text style={styles.detailReference}>{selectedPrayer.reference}</Text>
+            </Animated.View>
+
+            {/* Prayer Text - zawsze widocne, pełny tekst */}
+            <Animated.View entering={FadeInDown.delay(100)} style={styles.stepCard}>
+              <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.stepGradient}>
+                <View style={styles.prayerTextHeader}>
+                  <BookOpen size={18} color="#92400e" />
+                  <Text style={styles.prayerTextHeaderTitle}>Prayer Text</Text>
+                </View>
+                <Text style={styles.prayerText}>{selectedPrayer.text}</Text>
+              </LinearGradient>
+            </Animated.View>
+
+            {/* Step 1: Record Prayer - ukrywa się po zakończeniu */}
+            {!prayerTranscriptionId && (
+              <Animated.View 
+                entering={FadeInDown.delay(200)} 
+                exiting={FadeOut}
+                style={styles.stepCard}
+              >
+                <LinearGradient colors={['#fff7ed', '#ffedd5']} style={styles.stepGradient}>
+                  <View style={styles.stepHeader}>
+                    <View style={styles.stepNumber}>
+                      <Text style={styles.stepNumberText}>1</Text>
+                    </View>
+                    <View style={styles.stepTitleContainer}>
+                      <Text style={styles.stepTitle}>Record Your Prayer</Text>
+                      <Text style={styles.stepDescription}>Read the prayer text aloud</Text>
+                    </View>
+                  </View>
+
+                  {isPrayerRecording && (
+                    <View style={styles.recordingIndicator}>
+                      <View style={styles.recordingDot} />
+                      <Text style={styles.recordingText}>Recording...</Text>
+                    </View>
+                  )}
+
+                  <Pressable
+                    style={[
+                      styles.recordButton,
+                      isPrayerRecording && styles.recordButtonActive,
+                    ]}
+                    onPress={isPrayerRecording ? stopPrayerRecording : startPrayerRecording}
+                    disabled={isProcessing}
+                  >
+                    <LinearGradient
+                      colors={isPrayerRecording ? ['#dc2626', '#b91c1c'] : ['#d97706', '#b45309']}
+                      style={styles.recordButtonGradient}
+                    >
+                      {isPrayerRecording ? (
+                        <>
+                          <StopCircle size={18} color="#ffffff" />
+                          <Text style={styles.recordButtonText}>Stop</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Mic size={18} color="#ffffff" />
+                          <Text style={styles.recordButtonText}>Start Recording</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </Pressable>
+                </LinearGradient>
+              </Animated.View>
+            )}
+
+            {/* Step 2: Verify with Bible Verse - pełny tekst captcha */}
+            {prayerTranscriptionId && !result && captchaQuote && (
+              <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.stepCard}>
+                <LinearGradient colors={['#fef3c7', '#fde68a']} style={styles.stepGradient}>
+                  <View style={styles.stepHeader}>
+                    <View style={styles.stepNumber}>
+                      <Text style={styles.stepNumberText}>2</Text>
+                    </View>
+                    <View style={styles.stepTitleContainer}>
+                      <Text style={styles.stepTitle}>Verify with Verse</Text>
+                      <Text style={styles.stepDescription}>Read to verify</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.captchaQuoteContainer}>
+                    <View style={styles.captchaQuoteHeader}>
+                      <Sparkles size={16} color="#92400e" />
+                      <Text style={styles.captchaQuoteLabel}>Bible Verse</Text>
+                    </View>
+                    <Text style={styles.captchaQuoteText}>{captchaQuote.text}</Text>
+                    <Text style={styles.captchaQuoteRef}>
+                      {captchaQuote.book_name} {captchaQuote.chapter}:{captchaQuote.verse}
+                    </Text>
+                  </View>
+
+                  {isCaptchaRecording && (
+                    <View style={styles.recordingIndicator}>
+                      <View style={styles.recordingDot} />
+                      <Text style={styles.recordingText}>Recording...</Text>
+                    </View>
+                  )}
+
+                  <Pressable
+                    style={[styles.recordButton, isCaptchaRecording && styles.recordButtonActive]}
+                    onPress={isCaptchaRecording ? stopCaptchaRecording : startCaptchaRecording}
+                    disabled={isProcessing}
+                  >
+                    <LinearGradient
+                      colors={isCaptchaRecording ? ['#dc2626', '#b91c1c'] : ['#d97706', '#b45309']}
+                      style={styles.recordButtonGradient}
+                    >
+                      {isCaptchaRecording ? (
+                        <>
+                          <StopCircle size={18} color="#ffffff" />
+                          <Text style={styles.recordButtonText}>Stop</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Mic size={18} color="#ffffff" />
+                          <Text style={styles.recordButtonText}>Record Verse</Text>
+                        </>
+                      )}
+                    </LinearGradient>
+                  </Pressable>
+                </LinearGradient>
+              </Animated.View>
+            )}
+
+            {/* Result Card */}
+            {result && (
+              <Animated.View entering={FadeIn} style={styles.stepCard}>
+                <LinearGradient
+                  colors={['#ffffff', '#fafaf9']}
+                  style={[styles.stepGradient, styles.resultGradient]}
+                >
+                  {/* Icon and Title in one line */}
+                  <View style={styles.resultHeader}>
+                    <View style={styles.resultIconSmall}>
+                      <LinearGradient 
+                        colors={result.captcha_passed ? ['#10b981', '#059669'] : ['#ef4444', '#dc2626']} 
+                        style={styles.resultIconSmallCircle}
+                      >
+                        {result.captcha_passed ? (
+                          <Check size={18} color="#ffffff" strokeWidth={3} />
+                        ) : (
+                          <AlertCircle size={18} color="#ffffff" strokeWidth={3} />
+                        )}
+                      </LinearGradient>
+                    </View>
+                    <Text style={styles.resultTitle}>
+                      {result.captcha_passed ? 'Prayer Completed!' : 'Try Again'}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.resultDescription}>
+                    {result.captcha_passed 
+                      ? 'Great job! You completed your prayer.' 
+                      : 'Please try again and focus on reading clearly.'}
+                  </Text>
+
+                  {/* Tokens in one line */}
+                  <View style={styles.tokensInline}>
+                    <Text style={styles.tokensInlineLabel}>EARNED:</Text>
+                    <Text style={styles.tokensInlineValue}>
+                      +{result.analysis.tokens_earned || 0} PRAY
+                    </Text>
+                  </View>
+
+                  {/* Performance Details */}
+                  <Text style={styles.performanceTitle}>Performance Details</Text>
+
+                  <View style={styles.metricsGrid}>
+                    <View style={styles.metricItem}>
+                      <LinearGradient 
+                        colors={['#fef3c7', '#fde68a']} 
+                        style={styles.metricIconCircle}
+                      >
+                        <Heart size={16} color="#92400e" fill="#92400e" />
+                      </LinearGradient>
+                      <Text style={styles.metricLabel}>Prayer</Text>
+                      <Text style={styles.metricValue}>
+                        {(result.analysis.text_accuracy * 100).toFixed(0)}%
+                      </Text>
+                    </View>
+
+                    <View style={styles.metricItem}>
+                      <LinearGradient 
+                        colors={result.captcha_passed ? ['#dcfce7', '#bbf7d0'] : ['#fee2e2', '#fecaca']} 
+                        style={styles.metricIconCircle}
+                      >
+                        <Sparkles size={16} color={result.captcha_passed ? '#16a34a' : '#dc2626'} />
+                      </LinearGradient>
+                      <Text style={styles.metricLabel}>Verse</Text>
+                      <Text style={[styles.metricValue, { color: result.captcha_passed ? '#16a34a' : '#dc2626' }]}>
+                        {(result.analysis.captcha_accuracy * 100).toFixed(0)}%
+                      </Text>
+                    </View>
+
+                    <View style={styles.metricItem}>
+                      <LinearGradient 
+                        colors={['#fef3c7', '#fde68a']} 
+                        style={styles.metricIconCircle}
+                      >
+                        <BookOpen size={16} color="#92400e" />
+                      </LinearGradient>
+                      <Text style={styles.metricLabel}>Focus</Text>
+                      <Text style={styles.metricValue}>
+                        {(result.analysis.focus_score * 100).toFixed(0)}%
+                      </Text>
+                    </View>
+
+                    <View style={styles.metricItem}>
+                      <LinearGradient 
+                        colors={['#fef3c7', '#fde68a']} 
+                        style={styles.metricIconCircle}
+                      >
+                        <Mic size={16} color="#92400e" />
+                      </LinearGradient>
+                      <Text style={styles.metricLabel}>Fluency</Text>
+                      <Text style={styles.metricValue}>
+                        {(result.analysis.speech_fluency * 100).toFixed(0)}%
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Pressable style={styles.newPrayerButton} onPress={resetPrayer}>
+                    <LinearGradient colors={['#92400e', '#78350f']} style={styles.newPrayerButtonGradient}>
+                      <Play size={14} color="#ffffff" fill="#ffffff" />
+                      <Text style={styles.newPrayerButtonText}>Pray Another</Text>
+                    </LinearGradient>
+                  </Pressable>
+                </LinearGradient>
+              </Animated.View>
+            )}
+
+            {isProcessing && !result && (
+              <Animated.View entering={FadeIn} style={styles.stepCard}>
+                <LinearGradient colors={['#e0e7ff', '#c7d2fe']} style={styles.stepGradient}>
+                  <View style={styles.processingContainer}>
+                    <ActivityIndicator size="large" color="#92400e" />
+                    <Text style={styles.processingText}>Analyzing...</Text>
+                  </View>
+                </LinearGradient>
+              </Animated.View>
+            )}
+
+            <View style={{ height: 30 }} />
+          </ScrollView>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
+        <Animated.View entering={FadeInDown} style={styles.header}>
+          <View style={styles.iconContainer}>
+            <Heart size={36} color="#92400e" strokeWidth={2} />
+          </View>
+          <Text style={styles.title}>{t.nav?.prayer || 'Prayer'}</Text>
+          <Text style={styles.subtitle}>{t.prayer?.subtitle || 'Choose a prayer to begin'}</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(100)} style={styles.searchContainer}>
+          <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.searchBar}>
+            <Search size={18} color="#78716c" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t.prayer?.search || 'Search prayers...'}
+              placeholderTextColor="#a8a29e"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </LinearGradient>
+        </Animated.View>
+
+        <ScrollView style={styles.prayerList} showsVerticalScrollIndicator={false}>
+          <View style={styles.sectionHeader}>
+            <BookOpen size={18} color="#92400e" />
+            <Text style={styles.sectionTitle}>Available Prayers</Text>
+            {loading && <ActivityIndicator size="small" color="#92400e" />}
+          </View>
+
+          {error && (
+            <Animated.View entering={FadeInDown} style={styles.errorContainer}>
+              <LinearGradient colors={['#fee2e2', '#fecaca']} style={styles.errorGradient}>
+                <AlertCircle size={18} color="#dc2626" />
+                <Text style={styles.errorText}>{error}</Text>
+                <Pressable onPress={fetchPrayers} style={styles.retryButton}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </Pressable>
+              </LinearGradient>
+            </Animated.View>
+          )}
+
+          {loading && !error && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#92400e" />
+              <Text style={styles.loadingText}>Loading...</Text>
+            </View>
+          )}
+
+          {!loading && !error && filteredPrayers.length === 0 && (
+            <View style={styles.emptyContainer}>
+              <Heart size={36} color="#d1d5db" />
+              <Text style={styles.emptyText}>No prayers found</Text>
+            </View>
+          )}
+
+          {!loading && !error && filteredPrayers.map((prayer, index) => (
+            <Animated.View key={prayer.id} entering={FadeInDown.delay(200 + index * 50)}>
+              <Pressable onPress={() => selectPrayer(prayer)}>
+                <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.prayerCard}>
+                  <View style={styles.prayerContent}>
+                    <View style={styles.prayerLeft}>
+                      <LinearGradient colors={['#fef3c7', '#fde68a']} style={styles.categoryBadge}>
+                        <Heart size={22} color="#92400e" />
+                      </LinearGradient>
+                    </View>
+
+                    <View style={styles.prayerRight}>
+                      <View style={styles.prayerHeader}>
+                        <Text style={styles.prayerName}>{prayer.title}</Text>
+                        <Pressable onPress={(e) => { e.stopPropagation(); toggleFavorite(prayer.id); }} style={styles.favoriteButton}>
+                          <Heart size={18} color={favorites.includes(prayer.id) ? '#dc2626' : '#a8a29e'} fill={favorites.includes(prayer.id) ? '#dc2626' : 'transparent'} />
+                        </Pressable>
+                      </View>
+
+                      <View style={styles.prayerCategoryContainer}>
+                        <BookOpen size={12} color="#78716c" />
+                        <Text style={styles.prayerCategory}>{prayer.reference}</Text>
+                      </View>
+
+                      <View style={styles.prayerFooter}>
+                        <Pressable style={styles.startButton}>
+                          <LinearGradient colors={['#d97706', '#b45309']} style={styles.startButtonGradient}>
+                            <Play size={14} color="#ffffff" fill="#ffffff" />
+                            <Text style={styles.startButtonText}>Start</Text>
+                          </LinearGradient>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+          ))}
+
+          <View style={{ height: 20 }} />
+        </ScrollView>
+      </LinearGradient>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fafaf9' },
+  gradient: { flex: 1, paddingTop: 60, paddingHorizontal: 16 },
+  header: { alignItems: 'center', marginBottom: 12 },
+  iconContainer: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#1c1917', marginTop: 8, marginBottom: 2 },
+  subtitle: { fontSize: 13, color: '#78716c', textAlign: 'center' },
+  searchContainer: { marginBottom: 16 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },
+  searchInput: { flex: 1, fontSize: 14, color: '#1c1917' },
+  prayerList: { flex: 1 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#1c1917', flex: 1 },
+  loadingContainer: { padding: 30, alignItems: 'center' },
+  loadingText: { marginTop: 10, fontSize: 13, color: '#78716c' },
+  errorContainer: { marginBottom: 12, borderRadius: 12, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  errorGradient: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 10 },
+  errorText: { flex: 1, fontSize: 13, color: '#dc2626', fontWeight: '500' },
+  retryButton: { backgroundColor: '#dc2626', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
+  retryText: { fontSize: 12, fontWeight: '600', color: '#ffffff' },
+  emptyContainer: { padding: 40, alignItems: 'center' },
+  emptyText: { fontSize: 14, fontWeight: '600', color: '#78716c', marginTop: 10 },
+  prayerCard: { borderRadius: 14, padding: 12, marginBottom: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  prayerContent: { flexDirection: 'row', gap: 10 },
+  prayerLeft: { alignItems: 'center', justifyContent: 'flex-start' },
+  categoryBadge: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  prayerRight: { flex: 1 },
+  prayerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  prayerName: { fontSize: 15, fontWeight: '600', color: '#1c1917', flex: 1 },
+  favoriteButton: { padding: 4 },
+  prayerCategoryContainer: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  prayerCategory: { fontSize: 12, color: '#78716c' },
+  prayerFooter: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
+  startButton: { borderRadius: 8, overflow: 'hidden', shadowColor: '#d97706', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 3 },
+  startButtonGradient: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8 },
+  startButtonText: { fontSize: 13, fontWeight: '600', color: '#ffffff' },
+
+  prayerDetailScroll: { flex: 1 },
+  detailHeader: { alignItems: 'center', marginBottom: 16 },
+  backButton: { alignSelf: 'flex-start', marginBottom: 12, borderRadius: 8, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  backButtonGradient: { paddingHorizontal: 12, paddingVertical: 6 },
+  backButtonText: { fontSize: 14, color: '#92400e', fontWeight: '600' },
+  detailTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  detailTitle: { fontSize: 24, fontWeight: 'bold', color: '#1c1917', textAlign: 'center' },
+  detailReference: { fontSize: 12, color: '#78716c', textAlign: 'center' },
+  stepCard: { marginBottom: 12, borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  stepGradient: { padding: 14 },
+  prayerTextHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  prayerTextHeaderTitle: { fontSize: 14, fontWeight: '600', color: '#92400e' },
+  prayerText: { fontSize: 14, lineHeight: 22, color: '#44403c' },
+  stepHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  stepNumber: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#92400e', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 2 },
+  stepNumberText: { fontSize: 16, fontWeight: 'bold', color: '#ffffff' },
+  stepTitleContainer: { flex: 1 },
+  stepTitle: { fontSize: 16, fontWeight: '600', color: '#1c1917', marginBottom: 2 },
+  stepDescription: { fontSize: 12, color: '#78716c' },
+  recordingIndicator: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 10, padding: 8, backgroundColor: '#ffffff40', borderRadius: 8, borderWidth: 1, borderColor: '#dc262620' },
+  recordingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#dc2626', marginRight: 6 },
+  recordingText: { color: '#dc2626', fontWeight: '600', fontSize: 12 },
+  recordButton: { borderRadius: 10, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 },
+  recordButtonActive: { shadowColor: '#dc2626' },
+  recordButtonGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 },
+  recordButtonText: { fontSize: 14, fontWeight: '600', color: '#ffffff' },
+  captchaQuoteContainer: { backgroundColor: '#ffffff60', padding: 12, borderRadius: 10, marginBottom: 12, borderWidth: 2, borderColor: '#fbbf2440' },
+  captchaQuoteHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
+  captchaQuoteLabel: { fontSize: 12, fontWeight: '600', color: '#92400e' },
+  captchaQuoteText: { fontSize: 14, fontStyle: 'italic', color: '#1c1917', marginBottom: 6, lineHeight: 20 },
+  captchaQuoteRef: { fontSize: 11, color: '#78716c', fontWeight: '500', textAlign: 'right' },
+  
+  // Result styles - jeszcze bardziej zmniejszone
+  resultGradient: { 
+    padding: 12,
+  },
+  
+  // Icon and title in one line
+  resultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  resultIconSmall: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resultIconSmallCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  resultTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#1c1917',
+  },
+  resultDescription: {
+    fontSize: 12,
+    textAlign: 'center',
+    color: '#78716c',
+    marginBottom: 10,
+    paddingHorizontal: 8,
+    lineHeight: 16,
+  },
+  
+  // Tokens inline - jeszcze bardziej kompaktowy
+  tokensInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+    borderRadius: 8,
+    backgroundColor: '#fafaf9',
+    borderWidth: 1,
+    borderColor: '#e7e5e4',
+  },
+  tokensInlineLabel: {
+    fontSize: 12,
+    color: '#78716c',
+    fontWeight: '500',
+  },
+  tokensInlineValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#16a34a',
+  },
+
+  performanceTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1c1917',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+
+  // Metrics - jeszcze mniejsze
+  metricsGrid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 6, 
+    marginBottom: 10,
+  },
+  metricItem: { 
+    flex: 1, 
+    minWidth: '47%',
+    alignItems: 'center',
+    backgroundColor: '#fafaf9',
+    padding: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  metricIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  metricLabel: { 
+    fontSize: 10, 
+    color: '#78716c',
+    marginBottom: 2,
+    fontWeight: '500',
+  },
+  metricValue: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    color: '#1c1917',
+  },
+
+  newPrayerButton: { 
+    borderRadius: 8, 
+    overflow: 'hidden', 
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.2, 
+    shadowRadius: 4, 
+    elevation: 3,
+  },
+  newPrayerButtonGradient: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 5, 
+    paddingVertical: 10,
+  },
+  newPrayerButtonText: { 
+    fontSize: 13, 
+    fontWeight: '600', 
+    color: '#ffffff',
+  },
+  
+  processingContainer: { 
+    padding: 30, 
+    alignItems: 'center',
+  },
+  processingText: { 
+    marginTop: 10, 
+    fontSize: 13, 
+    color: '#78716c', 
+    fontWeight: '500',
+  },
+});

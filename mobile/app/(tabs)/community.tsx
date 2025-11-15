@@ -1,0 +1,659 @@
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Users, Heart, MessageCircle, Flame, Trophy, Award, Medal, Plus, ChevronDown, ChevronUp, X } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { useState } from 'react';
+
+interface PrayerRequest {
+  id: string;
+  user: string;
+  request: string;
+  prayers: number;
+  time: string;
+}
+
+interface TopUser {
+  id: string;
+  name: string;
+  points: number;
+  streak: number;
+  rank: number;
+}
+
+export default function CommunityScreen() {
+  const { t } = useLanguage();
+  const [showAllRequests, setShowAllRequests] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newRequest, setNewRequest] = useState('');
+
+  const [prayerRequests, setPrayerRequests] = useState<PrayerRequest[]>([
+    {
+      id: '1',
+      user: 'Maria K.',
+      request: t.community.request1,
+      prayers: 24,
+      time: `2 ${t.community.hoursAgo}`,
+    },
+    {
+      id: '2',
+      user: 'Jan P.',
+      request: t.community.request2,
+      prayers: 18,
+      time: `4 ${t.community.hoursAgo}`,
+    },
+    {
+      id: '3',
+      user: 'Anna W.',
+      request: t.community.request3,
+      prayers: 12,
+      time: `6 ${t.community.hoursAgo}`,
+    },
+    {
+      id: '4',
+      user: 'Tomasz B.',
+      request: t.community.request4,
+      prayers: 8,
+      time: `8 ${t.community.hoursAgo}`,
+    },
+    {
+      id: '5',
+      user: 'Ewa M.',
+      request: t.community.request5,
+      prayers: 5,
+      time: `12 ${t.community.hoursAgo}`,
+    },
+  ]);
+
+  const topUsers: TopUser[] = [
+    { id: '1', name: 'Piotr M.', points: 1250, streak: 45, rank: 1 },
+    { id: '2', name: 'Kasia L.', points: 1180, streak: 38, rank: 2 },
+    { id: '3', name: 'Marek S.', points: 1050, streak: 32, rank: 3 },
+  ];
+
+  const displayedRequests = showAllRequests ? prayerRequests : prayerRequests.slice(0, 3);
+
+  const handleAddRequest = () => {
+    if (newRequest.trim()) {
+      const request: PrayerRequest = {
+        id: Date.now().toString(),
+        user: t.community.youName,
+        request: newRequest.trim(),
+        prayers: 0,
+        time: t.community.justNow,
+      };
+      setPrayerRequests([request, ...prayerRequests]);
+      setNewRequest('');
+      setShowAddModal(false);
+    }
+  };
+
+  const handleSendPrayer = (requestId: string) => {
+    setPrayerRequests(prev =>
+      prev.map(req =>
+        req.id === requestId
+          ? { ...req, prayers: req.prayers + 1 }
+          : req
+      )
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#78350f20', '#44403c30', '#78350f25']}
+        style={styles.gradient}
+      >
+        {/* Header */}
+        <Animated.View entering={FadeInDown} style={styles.header}>
+          <View style={styles.iconContainer}>
+            <Users size={40} color="#92400e" strokeWidth={2} />
+          </View>
+          <Text style={styles.title}>{t.nav.community}</Text>
+          <Text style={styles.subtitle}>{t.community.subtitle}</Text>
+        </Animated.View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Top Users */}
+          <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Trophy size={20} color="#92400e" />
+              <Text style={styles.sectionTitle}>Top Community Members</Text>
+            </View>
+
+            {topUsers.map((user, index) => (
+              <Animated.View
+                key={user.id}
+                entering={FadeInDown.delay(150 + index * 50)}
+              >
+                <TopUserCard user={user} />
+              </Animated.View>
+            ))}
+          </Animated.View>
+
+          {/* Prayer Requests */}
+          <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Heart size={20} color="#92400e" />
+              <Text style={styles.sectionTitle}>Recent Prayer Requests</Text>
+              <Pressable
+                style={styles.addButton}
+                onPress={() => setShowAddModal(true)}
+              >
+                <Plus size={20} color="#ffffff" />
+              </Pressable>
+            </View>
+
+            {displayedRequests.map((request, index) => (
+              <Animated.View
+                key={request.id}
+                entering={FadeInDown.delay(350 + index * 50)}
+              >
+                <PrayerRequestCard request={request} onSendPrayer={handleSendPrayer} />
+              </Animated.View>
+            ))}
+
+            {prayerRequests.length > 3 && (
+              <Pressable
+                style={styles.showMoreButton}
+                onPress={() => setShowAllRequests(!showAllRequests)}
+              >
+                <LinearGradient
+                  colors={['#fef3c7', '#fde68a']}
+                  style={styles.showMoreGradient}
+                >
+                  {showAllRequests ? (
+                    <>
+                      <ChevronUp size={18} color="#92400e" />
+                      <Text style={styles.showMoreText}>{t.community.showLess}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={18} color="#92400e" />
+                      <Text style={styles.showMoreText}>
+                        {t.community.showMore} ({prayerRequests.length - 3})
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </Pressable>
+            )}
+          </Animated.View>
+        </ScrollView>
+
+        {/* Add Prayer Request Modal */}
+        <Modal
+          visible={showAddModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAddModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <Animated.View entering={FadeInUp} style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{t.community.addRequestTitle}</Text>
+                <Pressable onPress={() => setShowAddModal(false)}>
+                  <X size={24} color="#78716c" />
+                </Pressable>
+              </View>
+
+              <TextInput
+                style={styles.modalInput}
+                placeholder={t.community.requestPlaceholder}
+                placeholderTextColor="#a8a29e"
+                multiline
+                numberOfLines={4}
+                value={newRequest}
+                onChangeText={setNewRequest}
+                textAlignVertical="top"
+              />
+
+              <Pressable
+                style={[styles.modalButton, !newRequest.trim() && styles.modalButtonDisabled]}
+                onPress={handleAddRequest}
+                disabled={!newRequest.trim()}
+              >
+                <LinearGradient
+                  colors={newRequest.trim() ? ['#16a34a', '#15803d'] : ['#a3a3a3', '#737373']}
+                  style={styles.modalButtonGradient}
+                >
+                  <Heart size={18} color="#ffffff" />
+                  <Text style={styles.modalButtonText}>{t.community.addPrayerButton}</Text>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+          </View>
+        </Modal>
+      </LinearGradient>
+    </View>
+  );
+}
+
+function TopUserCard({ user }: { user: TopUser }) {
+  const getRankColors = (rank: number) => {
+    if (rank === 1) return { gradient: ['#fbbf24', '#f59e0b'], badge: '#f59e0b' };
+    if (rank === 2) return { gradient: ['#d1d5db', '#9ca3af'], badge: '#9ca3af' };
+    if (rank === 3) return { gradient: ['#fcd34d', '#fbbf24'], badge: '#fbbf24' };
+    return { gradient: ['#ffffff', '#fafaf9'], badge: '#e7e5e4' };
+  };
+
+  const colors = getRankColors(user.rank);
+  const RankIcon = user.rank === 1 ? Trophy : user.rank === 2 ? Medal : Award;
+
+  return (
+    <LinearGradient
+      colors={['#ffffff', '#fafaf9']}
+      style={styles.topUserCard}
+    >
+      <LinearGradient
+        colors={colors.gradient}
+        style={styles.rankBadge}
+      >
+        <RankIcon size={20} color={user.rank <= 3 ? '#ffffff' : '#78716c'} />
+      </LinearGradient>
+      
+      <View style={styles.userInfo}>
+        <View style={styles.userNameRow}>
+          <Text style={styles.userName}>{user.name}</Text>
+          <View style={styles.rankTag}>
+            <Text style={styles.rankTagText}>#{user.rank}</Text>
+          </View>
+        </View>
+        
+        <View style={styles.userStats}>
+          <View style={styles.userStat}>
+            <View style={styles.statIconContainer}>
+              <Trophy size={14} color="#92400e" />
+            </View>
+            <Text style={styles.userStatValue}>{user.points}</Text>
+            <Text style={styles.userStatLabel}>pts</Text>
+          </View>
+          
+          <View style={styles.statDivider} />
+          
+          <View style={styles.userStat}>
+            <Flame size={14} color="#dc2626" />
+            <Text style={styles.userStatValue}>{user.streak}</Text>
+            <Text style={styles.userStatLabel}>day streak</Text>
+          </View>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+}
+
+function PrayerRequestCard({ request, onSendPrayer }: { request: PrayerRequest; onSendPrayer: (id: string) => void }) {
+  const { t } = useLanguage();
+  const [hasPrayed, setHasPrayed] = useState(false);
+  
+  const handlePrayerPress = () => {
+    if (!hasPrayed) {
+      setHasPrayed(true);
+      onSendPrayer(request.id);
+    }
+  };
+
+  return (
+    <LinearGradient
+      colors={['#ffffff', '#fafaf9']}
+      style={styles.requestCard}
+    >
+      <View style={styles.requestHeader}>
+        <View style={styles.userAvatar}>
+          <Text style={styles.userAvatarText}>{request.user.charAt(0)}</Text>
+        </View>
+        <View style={styles.requestUserInfo}>
+          <Text style={styles.requestUser}>{request.user}</Text>
+          <Text style={styles.requestTime}>{request.time}</Text>
+        </View>
+      </View>
+      
+      <Text style={styles.requestText}>{request.request}</Text>
+      
+      <View style={styles.requestFooter}>
+        <Pressable 
+          style={styles.prayButton}
+          onPress={handlePrayerPress}
+          disabled={hasPrayed}
+        >
+          <LinearGradient
+            colors={hasPrayed ? ['#d1fae5', '#a7f3d0'] : ['#fee2e2', '#fecaca']}
+            style={styles.prayButtonGradient}
+          >
+            <Heart size={16} color={hasPrayed ? '#16a34a' : '#dc2626'} fill={hasPrayed ? '#16a34a' : 'none'} />
+            <Text style={[styles.prayButtonText, hasPrayed && styles.prayButtonTextSent]}>
+              {hasPrayed ? '✓ Sent' : t.community.sendPrayer}
+            </Text>
+          </LinearGradient>
+        </Pressable>
+        
+        <View style={styles.prayerCount}>
+          <Heart size={14} color="#dc2626" fill="#dc2626" />
+          <Text style={styles.prayerCountText}>{request.prayers}</Text>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fafaf9',
+  },
+  gradient: {
+    flex: 1,
+    paddingTop: 60,
+    paddingHorizontal: 16,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1c1917',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#78716c',
+    textAlign: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1c1917',
+    flex: 1,
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#16a34a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  topUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  rankBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1c1917',
+  },
+  rankTag: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  rankTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  userStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  userStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statIconContainer: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userStatValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#44403c',
+  },
+  userStatLabel: {
+    fontSize: 12,
+    color: '#78716c',
+  },
+  statDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#e7e5e4',
+  },
+  requestCard: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  requestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fbbf24',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  userAvatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  requestUserInfo: {
+    flex: 1,
+  },
+  requestUser: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1c1917',
+    marginBottom: 2,
+  },
+  requestTime: {
+    fontSize: 12,
+    color: '#78716c',
+  },
+  requestText: {
+    fontSize: 15,
+    color: '#44403c',
+    lineHeight: 22,
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  requestFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f5f5f4',
+  },
+  prayButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  prayButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  prayButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#dc2626',
+  },
+  prayButtonTextSent: {
+    color: '#16a34a',
+  },
+  prayerCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  prayerCountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  showMoreButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  showMoreGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+  },
+  showMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1c1917',
+  },
+  modalInput: {
+    backgroundColor: '#fafaf9',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: '#1c1917',
+    minHeight: 120,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e7e5e4',
+  },
+  modalButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+});
