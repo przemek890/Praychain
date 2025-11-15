@@ -5,7 +5,6 @@ from datetime import datetime
 class AnalysisMetrics(BaseModel):
     focus_score: float
     engagement_score: float
-    sentiment: str
     text_accuracy: float
     emotional_stability: float
     speech_fluency: float

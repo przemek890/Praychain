@@ -1,219 +1,366 @@
 import os
 import logging
-import requests
+import numpy as np
+import torch
 from typing import Dict
-import time
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# API Keys
-ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY")
+# Force CPU only (no GPU)
+torch.set_num_threads(1)  # Lighter CPU usage
 
-# Resemble Detect
-RESEMBLE_API_TOKEN = os.getenv("RESEMBLE_API_TOKEN", "")
-RESEMBLE_DETECT_URL = os.getenv("RESEMBLE_DETECT_URL", "https://api.resemble.ai/v1/detect")
-
-ASSEMBLYAI_UPLOAD_URL = "https://api.assemblyai.com/v2/upload"
-ASSEMBLYAI_TRANSCRIPT_URL = "https://api.assemblyai.com/v2/transcript"
-
-def upload_audio_to_assemblyai(audio_path: str) -> str:
-    headers = {"authorization": ASSEMBLYAI_API_KEY}
-    with open(audio_path, "rb") as f:
-        r = requests.post(ASSEMBLYAI_UPLOAD_URL, headers=headers, data=f, timeout=120)
-    if r.status_code != 200:
-        raise Exception(f"Upload failed: {r.text}")
-    return r.json()["upload_url"]
-
-def analyze_audio_with_assemblyai(audio_url: str) -> Dict:
-    headers = {"authorization": ASSEMBLYAI_API_KEY, "content-type": "application/json"}
-    data = {"audio_url": audio_url, "speaker_labels": True}
-    r = requests.post(ASSEMBLYAI_TRANSCRIPT_URL, json=data, headers=headers, timeout=30)
-    if r.status_code != 200:
-        raise Exception(f"Analysis failed: {r.text}")
-    transcript_id = r.json()["id"]
-    polling_endpoint = f"{ASSEMBLYAI_TRANSCRIPT_URL}/{transcript_id}"
-    while True:
-        res = requests.get(polling_endpoint, headers=headers, timeout=30).json()
-        if res["status"] == "completed":
-            return res
-        if res["status"] == "error":
-            raise Exception(f"AssemblyAI error: {res.get('error', 'Unknown error')}")
-        time.sleep(2)
-
-def _parse_resemble_detect(payload: Dict) -> Dict:
-    """
-    Obsłuż różne formaty odpowiedzi.
-    Oczekiwane pola: label (human/real vs synthetic/ai/fake), confidence/score.
-    """
-    label = (
-        payload.get("label")
-        or payload.get("result")
-        or payload.get("prediction")
-        or (payload.get("results", [{}])[0].get("label") if isinstance(payload.get("results"), list) and payload["results"] else None)
+# ========================================
+# SPEECHBRAIN - LIGHTWEIGHT VOICE MATCHING (CPU-only)
+# ========================================
+try:
+    from speechbrain.inference.speaker import SpeakerRecognition
+    
+    # Load lightweight model (50MB, CPU-optimized)
+    verification = SpeakerRecognition.from_hparams(
+        source="speechbrain/spkrec-ecapa-voxceleb",
+        savedir="models/speaker_recognition",
+        run_opts={"device": "cpu"}  # Force CPU
     )
-    confidence = (
-        payload.get("confidence")
-        or payload.get("score")
-        or (payload.get("results", [{}])[0].get("confidence") if isinstance(payload.get("results"), list) and payload["results"] else None)
-        or 0.0
-    )
-    label_str = str(label or "").lower()
-    is_synthetic = any(k in label_str for k in ["synthetic", "ai", "fake"])
-    # Jeżeli label jest puste, ale jest score, traktuj >0.5 jako AI (ostrożność)
-    if label is None and float(confidence) > 0.5:
-        is_synthetic = True
-    return {"is_synthetic": bool(is_synthetic), "confidence": float(confidence or 0.0)}
+    logger.info("✅ SpeechBrain speaker recognition loaded (50MB, CPU-only)")
+    SPEECHBRAIN_AVAILABLE = True
+    
+except ImportError:
+    logger.warning("⚠️ SpeechBrain not installed. Run: poetry add speechbrain torchaudio")
+    SPEECHBRAIN_AVAILABLE = False
+    verification = None
+except Exception as e:
+    logger.error(f"Failed to load SpeechBrain model: {e}")
+    SPEECHBRAIN_AVAILABLE = False
+    verification = None
 
-def detect_deepfake_resemble(audio_path: str) -> Dict:
+def verify_speaker_match_speechbrain(audio_path1: str, audio_path2: str) -> Dict:
     """
-    Resemble Detect — wykrywanie AI voice.
-    Blokuje, jeśli:
-    - brak tokenu,
-    - błąd sieci/HTTP (!= 200),
-    - odpowiedź nie do zinterpretowania.
+    Compare two voice samples using SpeechBrain (CPU-only, 50MB model)
+    Returns similarity score between speakers
     """
-    if not RESEMBLE_API_TOKEN:
-        logger.error("RESEMBLE_API_TOKEN not set - BLOCKING tokens")
-        raise Exception("Resemble Detect token missing")
-
-    try:
-        logger.info(f"🔍 Resemble Detect: {os.path.basename(audio_path)}")
-        with open(audio_path, "rb") as f:
-            files = {"file": (os.path.basename(audio_path), f, "audio/wav")}
-            headers = {
-                # większość integracji używa x-api-key; jeśli masz inny nagłówek w planie enterprise, ustaw RESEMBLE_DETECT_URL i modyfikuj tu
-                "x-api-key": RESEMBLE_API_TOKEN
-            }
-            r = requests.post(RESEMBLE_DETECT_URL, headers=headers, files=files, timeout=120)
-
-        if r.status_code == 200:
-            data = r.json()
-            parsed = _parse_resemble_detect(data)
-            logger.info(
-                f"Resemble result: {'❌ AI' if parsed['is_synthetic'] else '✅ HUMAN'} "
-                f"(confidence: {parsed['confidence']:.2%})"
-            )
-            return {
-                "is_synthetic": parsed["is_synthetic"],
-                "confidence": parsed["confidence"],
-                "model": "Resemble Detect",
-                "error": None,
-            }
-
-        # Znane błędy → blokuj
-        if r.status_code in (401, 403):
-            raise Exception("Unauthorized to Resemble Detect (check API token)")
-        if r.status_code == 404:
-            raise Exception("Resemble Detect endpoint not found")
-        if r.status_code == 429:
-            raise Exception("Resemble Detect rate limit exceeded")
-        if r.status_code == 422:
-            raise Exception(f"Unprocessable audio for Resemble Detect: {r.text}")
-
-        raise Exception(f"Resemble Detect HTTP {r.status_code}: {r.text}")
-
-    except Exception as e:
-        logger.error(f"❌ Resemble Detect error: {e}")
-        # Każdy błąd = blokada (bezpieczeństwo)
-        raise
-
-def verify_recording_session(
-    prayer_audio: str,
-    captcha_audio: str,
-    min_similarity: float = 0.65
-) -> Dict:
-    logger.info("🎙️ Voice verification starting...")
-    try:
-        # 1) AssemblyAI — porównanie głosów
-        logger.info("Step 1: AssemblyAI speaker matching...")
-        prayer_url = upload_audio_to_assemblyai(prayer_audio)
-        captcha_url = upload_audio_to_assemblyai(captcha_audio)
-
-        prayer_res = analyze_audio_with_assemblyai(prayer_url)
-        captcha_res = analyze_audio_with_assemblyai(captcha_url)
-
-        prayer_utts = prayer_res.get("utterances", [])
-        captcha_utts = captcha_res.get("utterances", [])
-
-        prayer_speaker = prayer_utts[0].get("speaker") if prayer_utts else "A"
-        captcha_speaker = captcha_utts[0].get("speaker") if captcha_utts else "B"
-
-        voice_match = prayer_speaker == captcha_speaker
-
-        prayer_conf = prayer_res.get("confidence", 0.0)
-        captcha_conf = captcha_res.get("confidence", 0.0)
-        similarity = (prayer_conf + captcha_conf) / 2
-
-        logger.info(f"Speaker match: {voice_match} ({prayer_speaker} vs {captcha_speaker}), similarity: {similarity:.2%}")
-
-        # 2) Resemble Detect — AI voice
-        logger.info("Step 2: Resemble AI voice detection...")
-        from src.config import REPLICATE_DELAY_SECONDS
-
-        prayer_det = detect_deepfake_resemble(prayer_audio)
-
-        logger.info(f"⏱️ Waiting {REPLICATE_DELAY_SECONDS}s (polite rate limit)...")
-        time.sleep(REPLICATE_DELAY_SECONDS)
-
-        captcha_det = detect_deepfake_resemble(captcha_audio)
-
-        prayer_synth = prayer_det["is_synthetic"]
-        captcha_synth = captcha_det["is_synthetic"]
-
-        logger.info(f"Prayer: {'❌ AI' if prayer_synth else '✅ HUMAN'}")
-        logger.info(f"Captcha: {'❌ AI' if captcha_synth else '✅ HUMAN'}")
-
-        failure_reasons = []
-
-        if not voice_match:
-            failure_reasons.append(f"Different speakers: {prayer_speaker} vs {captcha_speaker}")
-
-        if similarity < min_similarity:
-            failure_reasons.append(f"Low similarity: {similarity:.0%} < {min_similarity:.0%}")
-
-        if prayer_synth:
-            failure_reasons.append(f"Prayer is AI-generated (confidence: {prayer_det['confidence']:.0%})")
-
-        if captcha_synth:
-            failure_reasons.append(f"Captcha is AI-generated (confidence: {captcha_det['confidence']:.0%})")
-
-        passed = len(failure_reasons) == 0
-
-        if passed:
-            logger.info("✅ Verification PASSED - Real human voice")
-        else:
-            logger.warning(f"❌ Verification FAILED: {failure_reasons}")
-
+    if not SPEECHBRAIN_AVAILABLE:
+        logger.warning("SpeechBrain not available, skipping voice matching")
         return {
-            "voice_match": voice_match,
-            "voice_similarity": similarity,
-            "prayer_synthetic": prayer_synth,
-            "captcha_synthetic": captcha_synth,
-            "passed": passed,
-            "details": {
-                "prayer_deepfake_confidence": prayer_det["confidence"],
-                "captcha_deepfake_confidence": captcha_det["confidence"],
-                "failure_reasons": failure_reasons,
-                "api_used": "AssemblyAI + Resemble Detect",
-                "prayer_speaker": prayer_speaker,
-                "captcha_speaker": captcha_speaker,
-            },
+            "match": True,
+            "confidence": 1.0,
+            "score": 1.0,
+            "note": "Voice matching skipped (SpeechBrain not installed)"
+        }
+    
+    try:
+        # Verify speakers
+        score, prediction = verification.verify_files(audio_path1, audio_path2)
+        
+        # Score is a tensor, convert to float
+        similarity = float(score.item())
+        
+        # SpeechBrain threshold: >0.25 = same speaker (lower than Resemblyzer)
+        match = similarity > 0.25
+        
+        logger.info(f"🔊 SpeechBrain - Score: {similarity:.3f}, Match: {match}")
+        
+        return {
+            "match": match,
+            "confidence": float(similarity),
+            "score": float(similarity),
+            "model": "SpeechBrain ECAPA (CPU-only, 50MB)"
+        }
+        
+    except Exception as e:
+        logger.error(f"SpeechBrain voice matching failed: {e}")
+        return {
+            "match": True,  # Fail-safe
+            "confidence": 0.5,
+            "score": 0.5,
+            "error": str(e)
         }
 
-    except Exception as e:
-        logger.error(f"❌ Verification error: {e}")
+# ========================================
+# AI VOICE DETECTION (offline, wykrywa Google Translate, Ivona, itp.)
+# ========================================
+def detect_ai_voice_offline(audio_path: str) -> Dict:
+    """
+    Detect AI/synthetic voice (Google Translate TTS, Ivona, ElevenLabs, etc.)
+    Using acoustic analysis:
+    1. Pitch stability - AI voices have unnaturally stable pitch
+    2. Spectral flatness - AI voices have flatter frequency spectrum
+    3. Zero-crossing rate - AI voices have too regular ZCR
+    4. Spectral contrast - AI voices have lower contrast
+    """
+    try:
+        import librosa
+        
+        # Load audio
+        y, sr = librosa.load(audio_path, sr=16000)
+        
+        # 1. PITCH STABILITY (AI = zbyt stabilna wysokość)
+        pitches, magnitudes = librosa.piptrack(y=y, sr=sr)
+        pitch_values = []
+        for t in range(pitches.shape[1]):
+            index = magnitudes[:, t].argmax()
+            pitch = pitches[index, t]
+            if pitch > 0:
+                pitch_values.append(pitch)
+        
+        pitch_std = np.std(pitch_values) if len(pitch_values) > 0 else 0
+        pitch_score = 1.0 if pitch_std < 20 else 0.0  # AI: pitch_std < 20Hz
+        
+        # 2. SPECTRAL FLATNESS (AI = płaskie spektrum)
+        spectral_flatness = librosa.feature.spectral_flatness(y=y)[0]
+        flatness_mean = np.mean(spectral_flatness)
+        flatness_score = 1.0 if flatness_mean > 0.15 else 0.0  # AI: flatness > 0.15
+        
+        # 3. ZERO CROSSING RATE (AI = zbyt regularne)
+        zcr = librosa.feature.zero_crossing_rate(y)[0]
+        zcr_std = np.std(zcr)
+        zcr_score = 1.0 if zcr_std < 0.02 else 0.0  # AI: zcr_std < 0.02
+        
+        # 4. SPECTRAL CONTRAST (AI = niższy kontrast)
+        spectral_contrast = librosa.feature.spectral_contrast(y=y, sr=sr)
+        contrast_mean = np.mean(spectral_contrast)
+        contrast_score = 1.0 if contrast_mean < 15 else 0.0  # AI: contrast < 15
+        
+        # WYNIK: jeśli ≥2/4 wskaźników wykrywają AI → to jest AI!
+        ai_indicators = [pitch_score, flatness_score, zcr_score, contrast_score]
+        ai_score = sum(ai_indicators) / len(ai_indicators)
+        
+        is_human = ai_score < 0.5  # < 50% wskaźników AI = człowiek
+        
+        logger.info(f"🤖 AI Detection (wykrywa Google Translate, Ivona, etc.):")
+        logger.info(f"   - Pitch stability: {'AI-like' if pitch_score > 0.5 else 'Human-like'} (std: {pitch_std:.1f}Hz)")
+        logger.info(f"   - Spectral flatness: {'AI-like' if flatness_score > 0.5 else 'Human-like'} ({flatness_mean:.3f})")
+        logger.info(f"   - ZCR regularity: {'AI-like' if zcr_score > 0.5 else 'Human-like'} (std: {zcr_std:.3f})")
+        logger.info(f"   - Spectral contrast: {'AI-like' if contrast_score > 0.5 else 'Human-like'} ({contrast_mean:.1f})")
+        logger.info(f"   - 🎯 WYNIK: {'✅ CZŁOWIEK' if is_human else '🚨 AI/TTS'} (AI score: {ai_score:.2f})")
+        
         return {
-            "voice_match": False,
-            "voice_similarity": 0.0,
-            "prayer_synthetic": True,
-            "captcha_synthetic": True,
-            "passed": False,
+            "is_human": is_human,
+            "confidence": 1.0 - ai_score,  # Human confidence
+            "ai_score": ai_score,
             "details": {
-                "failure_reasons": [f"Verification error: {str(e)}"],
-                "api_used": "Failed",
-                "prayer_deepfake_confidence": 0.0,
-                "captcha_deepfake_confidence": 0.0,
-                "prayer_speaker": "unknown",
-                "captcha_speaker": "unknown",
+                "pitch_stability": float(pitch_std),
+                "spectral_flatness": float(flatness_mean),
+                "zcr_std": float(zcr_std),
+                "spectral_contrast": float(contrast_mean)
             },
+            "model": "Librosa Acoustic Analysis (offline)"
+        }
+        
+    except ImportError:
+        logger.error("❌ librosa not installed - AI detection DISABLED")
+        return {
+            "is_human": False,  # ❌ FAIL if not available
+            "confidence": 0.0,
+            "ai_score": 1.0,
+            "error": "librosa not installed"
+        }
+    except Exception as e:
+        logger.error(f"❌ AI detection failed: {e}")
+        return {
+            "is_human": False,  # ❌ FAIL on error
+            "confidence": 0.0,
+            "ai_score": 1.0,
+            "error": str(e)
+        }
+
+# ========================================
+# RESEMBLYZER - VOICE MATCHING (25MB)
+# ========================================
+try:
+    from resemblyzer import VoiceEncoder, preprocess_wav
+    
+    voice_encoder = VoiceEncoder()
+    logger.info("✅ Resemblyzer loaded (25MB)")
+    RESEMBLYZER_AVAILABLE = True
+    
+except ImportError:
+    logger.warning("⚠️ Resemblyzer not installed")
+    RESEMBLYZER_AVAILABLE = False
+    voice_encoder = None
+
+def verify_speaker_match_resemblyzer(audio_path1: str, audio_path2: str) -> Dict:
+    """Compare two voice samples using Resemblyzer"""
+    if not RESEMBLYZER_AVAILABLE:
+        logger.error("❌ Resemblyzer not available")
+        return {
+            "match": False,
+            "confidence": 0.0,
+            "score": 0.0,
+            "error": "Resemblyzer not installed"
+        }
+    
+    try:
+        wav1_data = preprocess_wav(Path(audio_path1))
+        wav2_data = preprocess_wav(Path(audio_path2))
+        
+        embedding1 = voice_encoder.embed_utterance(wav1_data)
+        embedding2 = voice_encoder.embed_utterance(wav2_data)
+        
+        similarity = np.dot(embedding1, embedding2) / (
+            np.linalg.norm(embedding1) * np.linalg.norm(embedding2)
+        )
+        
+        match = similarity >= 0.7
+        
+        logger.info(f"🔊 Resemblyzer - Similarity: {similarity:.3f}, Match: {match}")
+        
+        return {
+            "match": match,
+            "confidence": float(similarity),
+            "score": float(similarity),
+            "model": "Resemblyzer"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Resemblyzer failed: {e}")
+        return {
+            "match": False,
+            "confidence": 0.0,
+            "score": 0.0,
+            "error": str(e)
+        }
+
+from src.config import VOICE_SIMILARITY_THRESHOLD
+from src.utils.mongodb import get_database
+
+async def verify_recording_session(
+    prayer_transcription_id: str,
+    captcha_transcription_id: str,
+    min_similarity: float = VOICE_SIMILARITY_THRESHOLD
+) -> Dict:
+    """
+    Voice verification (2 steps):
+    1. 🤖 AI/TTS detection (wykrywa Google Translate, Ivona, ElevenLabs)
+    2. 🔊 Voice matching (porównuje czy ta sama osoba)
+    """
+    try:
+        db = get_database()
+        
+        prayer_record = await db.transcriptions.find_one({"_id": prayer_transcription_id})
+        captcha_record = await db.transcriptions.find_one({"_id": captcha_transcription_id})
+        
+        if not prayer_record or not captcha_record:
+            logger.error("❌ Transcription records not found")
+            return {
+                "passed": False,
+                "voice_match": False,
+                "similarity_score": 0.0,
+                "is_human": False,
+                "human_confidence": 0.0,
+                "details": {"failure_reasons": ["Transcription records not found"]}
+            }
+        
+        prayer_audio_path = prayer_record.get("file_path")
+        captcha_audio_path = captcha_record.get("file_path")
+        
+        if not prayer_audio_path or not captcha_audio_path:
+            logger.error("❌ Audio files not found")
+            return {
+                "passed": False,
+                "voice_match": False,
+                "similarity_score": 0.0,
+                "is_human": False,
+                "human_confidence": 0.0,
+                "details": {"failure_reasons": ["Audio files not found"]}
+            }
+        
+        failure_reasons = []
+        
+        # ========================================
+        # STEP 1: AI/TTS DETECTION
+        # ========================================
+        logger.info("🤖 Detecting AI/TTS voice (Google Translate, Ivona, etc.)...")
+        ai_detection = detect_ai_voice_offline(captcha_audio_path)
+        
+        # ❌ Check for errors
+        if "error" in ai_detection:
+            logger.error(f"❌ AI detection unavailable: {ai_detection['error']}")
+            return {
+                "passed": False,
+                "voice_match": False,
+                "similarity_score": 0.0,
+                "is_human": False,
+                "human_confidence": 0.0,
+                "details": {
+                    "failure_reasons": [f"AI detection error: {ai_detection['error']}"]
+                }
+            }
+        
+        is_human = ai_detection["is_human"]
+        human_confidence = ai_detection["confidence"]
+        
+        if not is_human:
+            failure_reasons.append(f"🚨 AI/TTS voice detected (score: {ai_detection['ai_score']:.2f})")
+            logger.warning(f"🚨 FRAUD ATTEMPT: AI/TTS detected!")
+        
+        # ========================================
+        # STEP 2: VOICE MATCHING (only if human)
+        # ========================================
+        voice_match = False
+        similarity_score = 0.0
+        
+        if is_human:
+            logger.info("👤 Comparing voices (same person?)...")
+            
+            verification = verify_speaker_match_resemblyzer(
+                captcha_audio_path,
+                prayer_audio_path
+            )
+            
+            # ❌ Check for errors
+            if "error" in verification:
+                logger.error(f"❌ Voice matching unavailable: {verification['error']}")
+                return {
+                    "passed": False,
+                    "voice_match": False,
+                    "similarity_score": 0.0,
+                    "is_human": False,
+                    "human_confidence": 0.0,
+                    "details": {
+                        "failure_reasons": [f"Voice matching error: {verification['error']}"]
+                    }
+                }
+            
+            voice_match = verification["match"]
+            similarity_score = verification["score"]
+            
+            if not voice_match:
+                failure_reasons.append(f"Voice mismatch (similarity: {similarity_score:.2f})")
+        
+        # ========================================
+        # FINAL VERDICT
+        # ========================================
+        verification_passed = is_human and voice_match
+        
+        logger.info(f"{'✅ PASSED' if verification_passed else '❌ FAILED'}")
+        logger.info(f"   - Human: {is_human} (confidence: {human_confidence:.2f})")
+        logger.info(f"   - Voice Match: {voice_match} (similarity: {similarity_score:.2f})")
+        
+        return {
+            "passed": verification_passed,
+            "voice_match": voice_match,
+            "similarity_score": similarity_score,
+            "is_human": is_human,
+            "human_confidence": human_confidence,
+            "details": {
+                "failure_reasons": failure_reasons,
+                "ai_detection_model": "Librosa Acoustic Analysis",
+                "voice_matching_model": "Resemblyzer",
+                "threshold": min_similarity,
+                "ai_detection_details": ai_detection.get("details", {})
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Verification failed: {e}")
+        return {
+            "passed": False,
+            "voice_match": False,
+            "similarity_score": 0.0,
+            "is_human": False,
+            "human_confidence": 0.0,
+            "details": {
+                "failure_reasons": [f"Verification error: {str(e)}"]
+            }
         }
