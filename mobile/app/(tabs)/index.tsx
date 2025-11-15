@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@/contexts/AuthContext';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -29,6 +30,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function HomeScreen() {
   const { t } = useLanguage();
+  const { logout, user, authenticated } = useAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [dailyQuote, setDailyQuote] = useState<BibleQuote | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,8 +115,9 @@ export default function HomeScreen() {
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('userId');
+    await logout();
     setSettingsVisible(false);
-    // Add your logout logic here
+    router.replace('../login');
   };
 
   if (loading) {

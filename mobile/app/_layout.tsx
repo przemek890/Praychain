@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
 export { ErrorBoundary } from 'expo-router';
@@ -35,10 +36,13 @@ export default function RootLayout() {
   }
 
   return (
-    <LanguageProvider>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </LanguageProvider>
+    <AuthProvider>
+      <LanguageProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="login" options={{ presentation: 'fullScreenModal' }} />
+        </Stack>
+      </LanguageProvider>
+    </AuthProvider>
   );
 }

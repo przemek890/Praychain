@@ -1,9 +1,31 @@
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { Home, Heart, Trophy, Users, Coins } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 
 export default function TabLayout() {
   const { t } = useLanguage();
+  const { ready, authenticated } = useAuth();
+
+  useEffect(() => {
+    if (ready && !authenticated) {
+      router.replace('../login');
+    }
+  }, [ready, authenticated]);
+
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafaf9' }}>
+        <ActivityIndicator size="large" color="#92400e" />
+      </View>
+    );
+  }
+
+  if (!authenticated) {
+    return null;
+  }
 
   return (
     <Tabs
