@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Image, Dimensions, StatusBar, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Image, Dimensions, StatusBar, Animated, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, ArrowRight, Coins, RefreshCw, ArrowLeft, Info, Users, Target } from 'lucide-react-native';
+import { Heart, ArrowRight, Coins, RefreshCw, ArrowLeft, Info, Users, Target, X } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useCallback, useEffect, useRef } from 'react'; // ✅ Dodane useEffect, useRef
-import { useCharity, CharityAction } from '@/hooks/useCharity';
+import { useCharity, CharityAction, useCharityDonors } from '@/hooks/useCharity';
 import { useTokens } from '@/hooks/useTokens';
 import { getCurrentUserId } from '@/config/currentUser';
 import { useFocusEffect } from 'expo-router'; // ✅ Dodane
@@ -21,6 +21,8 @@ export default function TokensScreen() {
   const [selectedMultiplier, setSelectedMultiplier] = useState<number | null>(null);
   const [donating, setDonating] = useState(false);
   const [amountError, setAmountError] = useState<string | null>(null); // ✅ NOWE
+  const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const { donors, loading: donorsLoading } = useCharityDonors(selectedCharity?._id || null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const { triggerRefresh } = useUserDataRefresh();
 
@@ -156,13 +158,9 @@ export default function TokensScreen() {
 
     return (
       <View style={styles.container}>
-        {/* ✅ NOWE - Biały status bar */}
         <StatusBar barStyle="light-content" />
         
-        <LinearGradient
-          colors={['#fef3c7', '#fde68a', '#fbbf24']}
-          style={styles.donationGradient}
-        >
+        <LinearGradient colors={['#fef3c7', '#fde68a', '#fbbf24']} style={styles.donationGradient}>
           {/* Header with Image Background */}
           <Animated.View style={[styles.donationImageContainer, { opacity: fadeAnim }]}>
             {selectedCharity.image_url && (
@@ -202,32 +200,24 @@ export default function TokensScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.donationScrollPadding}
           >
-            {/* Description Card */}
-            <Animated.View style={{ opacity: fadeAnim }}>
-              <LinearGradient
-                colors={['#fef3c7', '#fde68a']}
-                style={styles.descriptionCard}
-              >
-                <View style={styles.descriptionHeader}>
-                  <Info size={20} color="#92400e" />
-                  <Text style={styles.descriptionTitle}>About this cause</Text>
-                </View>
-                <Text style={[styles.descriptionText, { color: '#92400e' }]}>
-                  {selectedCharity.description}
-                </Text>
-              </LinearGradient>
-            </Animated.View>
 
             {/* Progress Card */}
             {selectedCharity.goal_tokens && (
               <Animated.View style={{ opacity: fadeAnim }}>
-                <LinearGradient
-                  colors={['#ffffff', '#f3f4f6']}
-                  style={styles.progressCard}
-                >
+                <LinearGradient colors={['#ffffff', '#f3f4f6']} style={styles.progressCard}>
                   <View style={styles.progressCardHeader}>
-                    <Target size={20} color="#92400e" />
-                    <Text style={styles.progressCardTitle}>Campaign Progress</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <Target size={20} color="#92400e" />
+                      <Text style={styles.progressCardTitle}>Campaign Progress</Text>
+                    </View>
+                    
+                    {/* ✅ NOWY - Info Button */}
+                    <Pressable 
+                      onPress={() => setInfoModalVisible(true)}
+                      style={styles.infoButton}
+                    >
+                      <Info size={20} color="#92400e" strokeWidth={2.5} />
+                    </Pressable>
                   </View>
                   
                   <View style={styles.progressStatsRow}>
@@ -370,6 +360,88 @@ export default function TokensScreen() {
             </Animated.View>
           </ScrollView>
         </LinearGradient>
+
+        {/* ✅ NOWY - Info Modal */}
+        <Modal
+          visible={infoModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setInfoModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Campaign Details</Text>
+                <Pressable 
+                  onPress={() => setInfoModalVisible(false)} 
+                  style={styles.closeButton}
+                >
+                  <X size={24} color="#1c1917" strokeWidth={2} />
+                </Pressable>
+              </View>
+
+              <ScrollView 
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.modalScrollContent}
+              >
+                {/* About Section */}
+                <View style={styles.modalSection}>
+                  <View style={styles.modalSectionHeader}>
+                    <Info size={18} color="#92400e" />
+                    <Text style={styles.modalSectionTitle}>About This Cause</Text>
+                  </View>
+                  <Text style={styles.modalSectionText}>
+                    {selectedCharity.description}
+                  </Text>
+                  <View style={styles.impactBadge}>
+                    <Text style={styles.impactBadgeText}>
+                      {selectedCharity.impact_description}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Top Supporters */}
+                <View style={styles.modalSection}>
+                  <View style={styles.modalSectionHeader}>
+                    <Users size={18} color="#92400e" />
+                    <Text style={styles.modalSectionTitle}>
+                      Top Supporters ({donors.length})
+                    </Text>
+                  </View>
+                  
+                  {donorsLoading ? (
+                    <ActivityIndicator color="#92400e" style={{ marginTop: 16 }} />
+                  ) : donors.length > 0 ? (
+                    <View style={styles.donorsList}>
+                      {donors.map((donor, index) => (
+                        <View key={donor.user_id} style={styles.donorCard}>
+                          <View style={styles.donorRank}>
+                            <Text style={styles.donorRankText}>#{index + 1}</Text>
+                          </View>
+                          <View style={styles.donorInfo}>
+                            <Text style={styles.donorName}>{donor.username}</Text>
+                            <Text style={styles.donorStats}>
+                              {donor.total_donated} PRAY • {donor.donation_count} donation{donor.donation_count !== 1 ? 's' : ''}
+                            </Text>
+                          </View>
+                          <Heart 
+                            size={16} 
+                            color="#dc2626" 
+                            fill={index < 3 ? "#dc2626" : "none"}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.noDonorsText}>
+                      Be the first to support this cause! 💝
+                    </Text>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -775,7 +847,7 @@ const styles = StyleSheet.create({
   progressCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   progressCardTitle: {
@@ -990,5 +1062,122 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#92400e',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7e5e4',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1c1917',
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f5f5f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalScrollContent: {
+    padding: 20,
+  },
+  modalSection: {
+    marginBottom: 24,
+  },
+  modalSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1c1917',
+  },
+  modalSectionText: {
+    fontSize: 14,
+    color: '#57534e',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  impactBadge: {
+    backgroundColor: '#dcfce7',
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#16a34a',
+  },
+  impactBadgeText: {
+    fontSize: 13,
+    color: '#166534',
+    fontWeight: '500',
+  },
+  donorsList: {
+    gap: 12,
+    marginTop: 8,
+  },
+  donorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fafaf9',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e7e5e4',
+  },
+  donorRank: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  donorRankText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400e',
+  },
+  donorInfo: {
+    flex: 1,
+  },
+  donorName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1c1917',
+    marginBottom: 2,
+  },
+  donorStats: {
+    fontSize: 12,
+    color: '#78716c',
+  },
+  noDonorsText: {
+    fontSize: 14,
+    color: '#78716c',
+    textAlign: 'center',
+    marginTop: 16,
+    fontStyle: 'italic',
   },
 });
