@@ -230,3 +230,50 @@ async def get_charity_leaderboard(limit: int = 10):
     leaderboard = await db.charity_donations.aggregate(pipeline).to_list(length=limit)
     
     return {"leaderboard": leaderboard}
+
+@router.get("/actions/{charity_id}/donors")
+async def get_charity_donors(charity_id: str, limit: int = 50):
+    """
+    Zwraca listę donatorów dla danej akcji charytatywnej
+    """
+    try:
+        db = get_database()
+        
+        # Agreguj donacje per użytkownik
+        pipeline = [
+            {"$match": {"charity_id": charity_id, "status": "completed"}},
+            {
+                "$group": {
+                    "_id": "$user_id",
+                    "total_donated": {"$sum": "$tokens_spent"},
+                    "donation_count": {"$sum": 1},
+                    "last_donation": {"$max": "$created_at"}
+                }
+            },
+            {"$sort": {"total_donated": -1}},
+            {"$limit": limit}
+        ]
+        
+        donors_raw = await db.charity_donations.aggregate(pipeline).to_list(length=limit)
+        
+        # Pobierz dane użytkowników
+        donors = []
+        for donor in donors_raw:
+            user = await db.users.find_one({"_id": donor["_id"]})
+            donors.append({
+                "user_id": donor["_id"],
+                "username": user.get("username", "Anonymous") if user else "Anonymous",
+                "total_donated": donor["total_donated"],
+                "donation_count": donor["donation_count"],
+                "last_donation": donor["last_donation"]
+            })
+        
+        return {
+            "charity_id": charity_id,
+            "total_donors": len(donors),
+            "donors": donors
+        }
+        
+    except Exception as e:
+        logger.error(f"Error fetching donors: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
