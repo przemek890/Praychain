@@ -9,8 +9,3 @@ Description
 - You can interactively test requests (including files, request bodies, and headers) directly from the browser.
 
 ---
-
-To start the backend and frontend:
-- Run the backend using Docker: `docker compose up --build`
-- Install dependencies for the frontend: `npm install`
-- Start the frontend with Expo: `npx expo start`

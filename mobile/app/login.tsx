@@ -1,19 +1,29 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { LogIn, Mail, Wallet } from 'lucide-react-native';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginScreen() {
   const { login, ready, authenticated, user } = useAuth();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (authenticated && user) {
       router.replace('/(tabs)');
     }
   }, [authenticated, user]);
+
+  useEffect(() => {
+    if (ready) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [ready]);
 
   const handleEmailLogin = async () => {
     try {
@@ -38,7 +48,7 @@ export default function LoginScreen() {
         style={styles.gradient}
       >
         {/* Logo Section */}
-        <Animated.View entering={FadeInUp} style={styles.logoSection}>
+        <Animated.View style={[styles.logoSection, { opacity: fadeAnim }]}>
           <LinearGradient
             colors={['#92400e', '#78350f']}
             style={styles.logoContainer}
@@ -53,7 +63,7 @@ export default function LoginScreen() {
         </Animated.View>
 
         {/* Login Options */}
-        <Animated.View entering={FadeInDown.delay(200)} style={styles.loginSection}>
+        <Animated.View style={[styles.loginSection, { opacity: fadeAnim }]}>
           <Text style={styles.welcomeText}>Welcome</Text>
           <Text style={styles.subtitleText}>Sign in to continue your spiritual journey</Text>
 

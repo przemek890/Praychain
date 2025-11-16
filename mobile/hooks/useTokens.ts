@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST || 'localhost';
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '8000';
+const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
 const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 export interface UserTokens {

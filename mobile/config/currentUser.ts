@@ -2,7 +2,7 @@
  * Current logged-in user configuration
  * Change this value to switch between users
  */
-export const CURRENT_USER_ID = 'admin';
+export const CURRENT_USER_ID = 'przemek';
 
 /**
  * Helper function to get current user ID

@@ -1,49 +1,25 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Quote, ArrowLeft, RefreshCw } from 'lucide-react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
-
-interface BibleQuote {
-  text: string;
-  reference: string;
-  book_name: string;
-  chapter: number;
-  verse: number;
-  category?: string;
-}
+import { useEffect, useRef } from 'react';
+import { useRandomQuote } from '@/hooks/useBible';
 
 export default function RandomQuoteScreen() {
-  const [quote, setQuote] = useState<BibleQuote | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // ✅ Użyj hooka
+  const { quote, loading, refreshing, refresh } = useRandomQuote();
 
   useEffect(() => {
-    loadQuote();
-  }, []);
-
-  const loadQuote = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/bible/random-quote`);
-      if (response.ok) {
-        const data = await response.json();
-        setQuote(data);
-      }
-    } catch (error) {
-      console.error('Error loading quote:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    if (!loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     }
-  };
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    loadQuote();
-  };
+  }, [loading]);
 
   if (loading) {
     return (
@@ -62,27 +38,27 @@ export default function RandomQuoteScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           {/* ✅ Header - niżej na ekranie */}
-          <Animated.View entering={FadeInDown} style={styles.headerSection}>
+          <Animated.View style={[styles.headerSection, { opacity: fadeAnim }]}>
             <Pressable 
               onPress={() => router.back()} 
               style={styles.backButton}
             >
-              <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
+              <ArrowLeft size={24} color="#1c1917" />
             </Pressable>
-
-            <View style={styles.headerContent}>
-              <View style={styles.iconContainer}>
-                <Quote size={40} color="#92400e" strokeWidth={2} />
+            
+            <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
+              <View style={styles.titleRow}>
+                <Quote size={28} color="#92400e" strokeWidth={2} />
+                <Text style={styles.title}>Random Quote</Text>
               </View>
-              <Text style={styles.title}>Random Quote</Text>
               <Text style={styles.subtitle}>Get inspired by scripture</Text>
-            </View>
+            </Animated.View>
           </Animated.View>
 
           {/* ✅ Quote Card - zaraz pod headerem */}
           <View style={styles.content}>
             {quote && (
-              <Animated.View entering={FadeInDown.delay(200)}>
+              <Animated.View style={{ opacity: fadeAnim }}>
                 <LinearGradient 
                   colors={['#b45309', '#92400e']} 
                   style={styles.quoteCard}
@@ -162,17 +138,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
   },
-  iconContainer: {
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 4,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1c1917',
-    marginBottom: 6,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,

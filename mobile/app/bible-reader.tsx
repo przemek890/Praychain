@@ -1,83 +1,31 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, FlatList, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen, ArrowLeft, ChevronDown, X } from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
-
-interface BibleChapter {
-  book_name: string;
-  chapter: number;
-  verses: Array<{
-    verse: number;
-    text: string;
-  }>;
-}
-
-interface BibleStructure {
-  books: string[];
-  chapters_per_book: { [key: string]: number };
-}
+import { useState, useEffect, useRef } from 'react';
+import { useBibleStructure, useBibleChapter } from '@/hooks/useBible';
 
 export default function BibleReaderScreen() {
-  const [bibleStructure, setBibleStructure] = useState<BibleStructure | null>(null);
   const [selectedBook, setSelectedBook] = useState('John');
   const [selectedChapter, setSelectedChapter] = useState(1);
-  const [content, setContent] = useState<BibleChapter | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [structureLoading, setStructureLoading] = useState(true);
-  
-  // ✅ NOWE - Modal states
   const [bookModalVisible, setBookModalVisible] = useState(false);
   const [chapterModalVisible, setChapterModalVisible] = useState(false);
+  
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // ✅ Użyj hooków
+  const { structure: bibleStructure, loading: structureLoading } = useBibleStructure();
+  const { content, loading } = useBibleChapter(selectedBook, selectedChapter);
 
   useEffect(() => {
-    loadBibleStructure();
-  }, []);
-
-  useEffect(() => {
-    if (bibleStructure) {
-      loadChapter();
+    if (!structureLoading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     }
-  }, [selectedBook, selectedChapter, bibleStructure]);
-
-  const loadBibleStructure = async () => {
-    try {
-      setStructureLoading(true);
-      const response = await fetch(`${API_URL}/api/bible/books`);
-      if (response.ok) {
-        const data = await response.json();
-        setBibleStructure({
-          books: data.books,
-          chapters_per_book: data.chapters_per_book
-        });
-      }
-    } catch (error) {
-      console.error('Error loading Bible structure:', error);
-    } finally {
-      setStructureLoading(false);
-    }
-  };
-
-  const loadChapter = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(
-        `${API_URL}/api/bible/chapter?book=${encodeURIComponent(selectedBook)}&chapter=${selectedChapter}`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        setContent(data);
-      }
-    } catch (error) {
-      console.error('Error loading chapter:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [structureLoading]);
 
   // ✅ NOWE - Handle book selection
   const handleBookSelect = (book: string) => {
@@ -120,26 +68,26 @@ export default function BibleReaderScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           {/* Header */}
-          <Animated.View entering={FadeInDown} style={styles.headerSection}>
+          <Animated.View style={[styles.headerSection, { opacity: fadeAnim }]}>
             <Pressable 
               onPress={() => router.back()} 
               style={styles.backButton}
             >
-              <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
+              <ArrowLeft size={24} color="#1c1917" />
             </Pressable>
-
-            <View style={styles.headerContent}>
-              <View style={styles.iconContainer}>
-                <BookOpen size={40} color="#92400e" strokeWidth={2} />
+            
+            <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
+              <View style={styles.titleRow}>
+                <BookOpen size={28} color="#92400e" strokeWidth={2} />
+                <Text style={styles.title}>Bible Reader</Text>
               </View>
-              <Text style={styles.title}>Bible Reader</Text>
-              <Text style={styles.subtitle}>Read any book and chapter</Text>
-            </View>
+              <Text style={styles.subtitle}>Read the Holy Scripture</Text>
+            </Animated.View>
           </Animated.View>
 
           {/* ✅ NOWE Selectors - clickable cards */}
           <View style={styles.selectorsContainer}>
-            <Animated.View entering={FadeInDown.delay(150)} style={styles.selectorWrapper}>
+            <Animated.View style={[styles.selectorWrapper, { opacity: fadeAnim }]}>
               <Pressable onPress={() => setBookModalVisible(true)}>
                 <LinearGradient 
                   colors={['#d97706', '#b45309']} 
@@ -156,7 +104,7 @@ export default function BibleReaderScreen() {
               </Pressable>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(200)} style={styles.selectorWrapper}>
+            <Animated.View style={[styles.selectorWrapper, { opacity: fadeAnim }]}>
               <Pressable onPress={() => setChapterModalVisible(true)}>
                 <LinearGradient 
                   colors={['#d97706', '#b45309']} 
@@ -180,7 +128,7 @@ export default function BibleReaderScreen() {
                 <Text style={styles.loadingText}>Loading chapter...</Text>
               </View>
             ) : content ? (
-              <Animated.View entering={FadeInDown.delay(250)}>
+              <Animated.View style={{ opacity: fadeAnim }}>
                 <View style={styles.contentCard}>
                   <View style={styles.referenceHeader}>
                     <Text style={styles.reference}>
@@ -329,7 +277,7 @@ const styles = StyleSheet.create({
   headerSection: {
     paddingTop: 60,
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     position: 'relative',
   },
   backButton: {
@@ -353,17 +301,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
   },
-  iconContainer: {
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 4,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1c1917',
-    marginBottom: 6,
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,

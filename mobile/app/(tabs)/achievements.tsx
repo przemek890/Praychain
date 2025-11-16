@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Trophy, Lock, Star, Award } from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useEffect, useRef } from 'react';
 
 interface Achievement {
   id: string;
@@ -18,6 +18,15 @@ interface Achievement {
 
 export default function AchievementsScreen() {
   const { t } = useLanguage();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   const achievements: Achievement[] = [
     {
@@ -84,29 +93,26 @@ export default function AchievementsScreen() {
         style={styles.gradient}
       >
         {/* Header */}
-        <Animated.View entering={FadeInDown} style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Trophy size={40} color="#92400e" strokeWidth={2} />
+        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+          <View style={styles.titleRow}>
+            <Trophy size={32} color="#92400e" strokeWidth={2} />
+            <Text style={styles.title}>{t.nav?.achievements || 'Achievements'}</Text>
           </View>
-          <Text style={styles.title}>{t.nav?.achievements || 'Achievements'}</Text>
           <Text style={styles.subtitle}>{t.achievements?.subtitle || 'Your spiritual achievements'}</Text>
         </Animated.View>
 
         {/* Achievements List */}
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.sectionHeader}>
               <Award size={20} color="#92400e" />
               <Text style={styles.sectionTitle}>Your Achievements</Text>
             </View>
 
-            {achievements.map((achievement, index) => (
-              <Animated.View
-                key={achievement.id}
-                entering={FadeInDown.delay(150 + index * 50)}
-              >
+            {achievements.map((achievement) => (
+              <View key={achievement.id}>
                 <AchievementCard achievement={achievement} />
-              </Animated.View>
+              </View>
             ))}
           </Animated.View>
         </ScrollView>
@@ -194,18 +200,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 4,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#1c1917',
-    marginTop: 12,
-    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,

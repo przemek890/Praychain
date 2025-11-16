@@ -4,10 +4,12 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { t } = useLanguage();
   const { ready, authenticated } = useAuth();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (ready && !authenticated) {
@@ -35,8 +37,8 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#fafaf9',
           borderTopColor: '#e7e5e4',
-          height: 60,
-          paddingBottom: 8,
+          height: 45 + insets.bottom, // ✅ Automatycznie dostosowuje się do safe area
+          paddingBottom: insets.bottom, // ✅ Tylko safe area padding
           paddingTop: 8,
         },
         headerShown: false,
