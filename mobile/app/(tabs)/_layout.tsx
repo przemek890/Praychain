@@ -37,13 +37,13 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#fafaf9',
           borderTopColor: '#e7e5e4',
-          height: 45 + insets.bottom, // ✅ Automatycznie dostosowuje się do safe area
-          paddingBottom: insets.bottom, // ✅ Tylko safe area padding
+          height: 50 + insets.bottom,
+          paddingBottom: insets.bottom,
           paddingTop: 8,
         },
         headerShown: false,
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 9, // zmniejszone z 12 na 10
           fontWeight: '600',
         },
       }}
