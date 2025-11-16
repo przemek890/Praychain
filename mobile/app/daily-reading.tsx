@@ -1,68 +1,40 @@
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BookOpen, ArrowLeft, Calendar } from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useDailyReading } from '@/hooks/useBible';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
-
-interface DailyReading {
-  book_name: string;
-  chapter: number;
-  verses: Array<{
-    verse: number;
-    text: string;
-  }>;
-  date: string;
-  reference: string;
-}
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function DailyReadingScreen() {
-  const [reading, setReading] = useState<DailyReading | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // ✅ Użyj hooka
+  const { reading, loading, error, refresh } = useDailyReading();
+
+  // ✅ USUŃ te linie:
+  // const [reading, setReading] = useState<DailyReading | null>(null);
+  // const [loading, setLoading] = useState(true);
+  // const [error, setError] = useState<string | null>(null);
+  // useEffect(() => { loadDailyReading(); }, []);
+  // const loadDailyReading = async () => { ... };
 
   useEffect(() => {
-    loadDailyReading();
-  }, []);
-
-  const loadDailyReading = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch(`${API_URL}/api/bible/daily-reading`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load daily reading: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Daily reading loaded:', data.reference);
-      setReading(data);
-    } catch (err) {
-      console.error('Error loading daily reading:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load daily reading');
-    } finally {
-      setLoading(false);
+    if (!loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     }
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#92400e" />
-        <Text style={styles.loadingText}>Loading today's passage...</Text>
-      </View>
-    );
-  }
+  }, [loading]);
 
   if (error) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <Pressable style={styles.retryButton} onPress={loadDailyReading}>
+        <Pressable style={styles.retryButton} onPress={refresh}>
           <Text style={styles.retryText}>Retry</Text>
         </Pressable>
       </View>
@@ -77,19 +49,19 @@ export default function DailyReadingScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           {/* Header */}
-          <Animated.View entering={FadeInDown} style={styles.headerSection}>
+          <Animated.View style={[styles.headerSection, { opacity: fadeAnim }]}>
             <Pressable 
               onPress={() => router.back()} 
               style={styles.backButton}
             >
-              <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
+              <ArrowLeft size={24} color="#1c1917" />
             </Pressable>
 
             <View style={styles.headerContent}>
-              <View style={styles.iconContainer}>
-                <BookOpen size={40} color="#92400e" strokeWidth={2} />
+              <View style={styles.titleRow}>
+                <BookOpen size={28} color="#92400e" strokeWidth={2} />
+                <Text style={styles.title}>Daily Reading</Text>
               </View>
-              <Text style={styles.title}>Daily Reading</Text>
               <View style={styles.dateContainer}>
                 <Calendar size={14} color="#78716c" />
                 <Text style={styles.subtitle}>
@@ -109,7 +81,7 @@ export default function DailyReadingScreen() {
             {reading && (
               <>
                 {/* Reference Card */}
-                <Animated.View entering={FadeInDown.delay(150)}>
+                <Animated.View style={{ opacity: fadeAnim }}>
                   <LinearGradient 
                     colors={['#d97706', '#b45309']} 
                     style={styles.referenceCard}
@@ -122,7 +94,7 @@ export default function DailyReadingScreen() {
                 </Animated.View>
 
                 {/* Verses Card */}
-                <Animated.View entering={FadeInDown.delay(200)}>
+                <Animated.View style={{ opacity: fadeAnim }}>
                   <View style={styles.versesCard}>
                     {reading.verses.map((verse, index) => (
                       <View key={index} style={styles.verseRow}>
@@ -220,17 +192,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
   },
-  iconContainer: {
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 8,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1c1917',
-    marginBottom: 8,
-    textAlign: 'center',
   },
   dateContainer: {
     flexDirection: 'row',

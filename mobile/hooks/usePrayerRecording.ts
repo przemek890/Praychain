@@ -4,7 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { getCurrentUserId } from '@/config/currentUser';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
+const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 interface Prayer {
   id: string;

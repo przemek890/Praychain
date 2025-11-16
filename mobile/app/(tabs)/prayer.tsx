@@ -1,16 +1,19 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, Search, Play, AlertCircle, Mic, StopCircle, Check, BookOpen, Sparkles, ArrowLeft } from 'lucide-react-native';
-import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePrayerRecording } from '@/hooks/usePrayerRecording';
 import { Audio } from 'expo-av';
+import { appEvents, APP_EVENTS } from '@/utils/events';
+import { useUserDataRefresh } from '@/contexts/UserDataContext';
 
 export default function PrayerScreen() {
   const { t } = useLanguage();
+  const { triggerRefresh } = useUserDataRefresh();
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const {
     prayers,
@@ -45,6 +48,16 @@ export default function PrayerScreen() {
     init();
   }, []);
 
+  useEffect(() => {
+    if (!loading && prayers.length > 0) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, prayers]);
+
   const filteredPrayers = prayers.filter(prayer =>
     prayer.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     prayer.reference.toLowerCase().includes(searchQuery.toLowerCase())
@@ -58,6 +71,13 @@ export default function PrayerScreen() {
     }
   };
 
+  useEffect(() => {
+    if (result && result.analysis.tokens_earned > 0) {
+      console.log('Prayer completed - triggering refresh');
+      triggerRefresh();
+    }
+  }, [result, triggerRefresh]);
+
   if (selectedPrayer) {
     return (
       <View style={styles.container}>
@@ -66,7 +86,7 @@ export default function PrayerScreen() {
           style={styles.gradient}
         >
           <ScrollView style={styles.prayerDetailScroll} showsVerticalScrollIndicator={false}>
-            <Animated.View entering={FadeInDown} style={styles.detailHeader}>
+            <Animated.View style={[styles.detailHeader, { opacity: fadeAnim }]}>
               <Pressable onPress={resetPrayer} style={styles.backButtonCircle}>
                 <ArrowLeft size={24} color="#1c1917" strokeWidth={2.5} />
               </Pressable>
@@ -78,7 +98,7 @@ export default function PrayerScreen() {
             </Animated.View>
 
             {/* Prayer Text - zawsze widocne, pełny tekst */}
-            <Animated.View entering={FadeInDown.delay(100)} style={styles.stepCard}>
+            <Animated.View style={[styles.stepCard, { opacity: fadeAnim }]}>
               <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.stepGradient}>
                 <View style={styles.prayerTextHeader}>
                   <BookOpen size={18} color="#92400e" />
@@ -90,11 +110,7 @@ export default function PrayerScreen() {
 
             {/* Step 1: Record Prayer - ukrywa się po zakończeniu */}
             {!prayerTranscriptionId && (
-              <Animated.View 
-                entering={FadeInDown.delay(200)} 
-                exiting={FadeOut}
-                style={styles.stepCard}
-              >
+              <View style={styles.stepCard}>
                 <LinearGradient colors={['#fff7ed', '#ffedd5']} style={styles.stepGradient}>
                   <View style={styles.stepHeader}>
                     <View style={styles.stepNumber}>
@@ -139,12 +155,12 @@ export default function PrayerScreen() {
                     </LinearGradient>
                   </Pressable>
                 </LinearGradient>
-              </Animated.View>
+              </View>
             )}
 
             {/* Step 2: Verify with Bible Verse - pełny tekst captcha */}
             {prayerTranscriptionId && !result && captchaQuote && (
-              <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.stepCard}>
+              <View style={styles.stepCard}>
                 <LinearGradient colors={['#fef3c7', '#fde68a']} style={styles.stepGradient}>
                   <View style={styles.stepHeader}>
                     <View style={styles.stepNumber}>
@@ -197,12 +213,12 @@ export default function PrayerScreen() {
                     </LinearGradient>
                   </Pressable>
                 </LinearGradient>
-              </Animated.View>
+              </View>
             )}
 
             {/* Result Card */}
             {result && (
-              <Animated.View entering={FadeIn} style={styles.stepCard}>
+              <View style={styles.stepCard}>
                 <LinearGradient
                   colors={['#ffffff', '#fafaf9']}
                   style={[styles.stepGradient, styles.resultGradient]}
@@ -346,16 +362,16 @@ export default function PrayerScreen() {
                     </LinearGradient>
                   </Pressable>
                 </LinearGradient>
-              </Animated.View>
+              </View>
             )}
 
             {isProcessing && !result && (
-              <Animated.View entering={FadeIn} style={styles.stepCard}>
+              <View style={styles.stepCard}>
                 <View style={styles.processingContainer}>
                   <ActivityIndicator size="large" color="#92400e" />
                   <Text style={styles.processingText}>Analyzing...</Text>
                 </View>
-              </Animated.View>
+              </View>
             )}
 
             <View style={{ height: 30 }} />
@@ -368,15 +384,15 @@ export default function PrayerScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
-        <Animated.View entering={FadeInDown} style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Heart size={36} color="#92400e" strokeWidth={2} />
+        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+          <View style={styles.titleRow}>
+            <Heart size={32} color="#92400e" strokeWidth={2} />
+            <Text style={styles.title}>{t.nav?.prayer || 'Prayer'}</Text>
           </View>
-          <Text style={styles.title}>{t.nav?.prayer || 'Prayer'}</Text>
           <Text style={styles.subtitle}>{t.prayer?.subtitle || 'Choose a prayer to begin'}</Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(100)} style={styles.searchContainer}>
+        <Animated.View style={[styles.searchContainer, { opacity: fadeAnim }]}>
           <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.searchBar}>
             <Search size={18} color="#78716c" />
             <TextInput
@@ -397,7 +413,7 @@ export default function PrayerScreen() {
           </View>
 
           {error && (
-            <Animated.View entering={FadeInDown} style={styles.errorContainer}>
+            <View style={styles.errorContainer}>
               <LinearGradient colors={['#fee2e2', '#fecaca']} style={styles.errorGradient}>
                 <AlertCircle size={18} color="#dc2626" />
                 <Text style={styles.errorText}>{error}</Text>
@@ -405,7 +421,7 @@ export default function PrayerScreen() {
                   <Text style={styles.retryText}>Retry</Text>
                 </Pressable>
               </LinearGradient>
-            </Animated.View>
+            </View>
           )}
 
           {loading && !error && (
@@ -422,8 +438,8 @@ export default function PrayerScreen() {
             </View>
           )}
 
-          {!loading && !error && filteredPrayers.map((prayer, index) => (
-            <Animated.View key={prayer.id} entering={FadeInDown.delay(200 + index * 50)}>
+          {!loading && !error && filteredPrayers.map((prayer) => (
+            <View key={prayer.id}>
               <Pressable onPress={() => selectPrayer(prayer)}>
                 <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.prayerCard}>
                   <View style={styles.prayerContent}>
@@ -458,7 +474,7 @@ export default function PrayerScreen() {
                   </View>
                 </LinearGradient>
               </Pressable>
-            </Animated.View>
+            </View>
           ))}
 
           <View style={{ height: 20 }} />
@@ -471,9 +487,21 @@ export default function PrayerScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafaf9' },
   gradient: { flex: 1, paddingTop: 60, paddingHorizontal: 16 },
-  header: { alignItems: 'center', marginBottom: 12 },
-  iconContainer: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#1c1917', marginTop: 8, marginBottom: 2 },
+  header: { 
+    alignItems: 'center', 
+    marginBottom: 12 
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  title: { 
+    fontSize: 28, 
+    fontWeight: 'bold', 
+    color: '#1c1917',
+  },
   subtitle: { fontSize: 13, color: '#78716c', textAlign: 'center' },
   searchContainer: { marginBottom: 16 },
   searchBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, gap: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 },

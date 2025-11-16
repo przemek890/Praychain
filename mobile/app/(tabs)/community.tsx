@@ -1,9 +1,8 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Users, Heart, MessageCircle, Flame, Trophy, Award, Medal, Plus, ChevronDown, ChevronUp, X } from 'lucide-react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface PrayerRequest {
   id: string;
@@ -26,6 +25,15 @@ export default function CommunityScreen() {
   const [showAllRequests, setShowAllRequests] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRequest, setNewRequest] = useState('');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   const [prayerRequests, setPrayerRequests] = useState<PrayerRequest[]>([
     {
@@ -105,34 +113,31 @@ export default function CommunityScreen() {
         style={styles.gradient}
       >
         {/* Header */}
-        <Animated.View entering={FadeInDown} style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Users size={40} color="#92400e" strokeWidth={2} />
+        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+          <View style={styles.titleRow}>
+            <Users size={32} color="#92400e" strokeWidth={2} />
+            <Text style={styles.title}>{t.nav.community}</Text>
           </View>
-          <Text style={styles.title}>{t.nav.community}</Text>
           <Text style={styles.subtitle}>{t.community.subtitle}</Text>
         </Animated.View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Top Users */}
-          <Animated.View entering={FadeInDown.delay(100)} style={styles.section}>
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.sectionHeader}>
               <Trophy size={20} color="#92400e" />
               <Text style={styles.sectionTitle}>Top Community Members</Text>
             </View>
 
-            {topUsers.map((user, index) => (
-              <Animated.View
-                key={user.id}
-                entering={FadeInDown.delay(150 + index * 50)}
-              >
+            {topUsers.map((user) => (
+              <View key={user.id}>
                 <TopUserCard user={user} />
-              </Animated.View>
+              </View>
             ))}
           </Animated.View>
 
           {/* Prayer Requests */}
-          <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
+          <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.sectionHeader}>
               <Heart size={20} color="#92400e" />
               <Text style={styles.sectionTitle}>Recent Prayer Requests</Text>
@@ -144,13 +149,10 @@ export default function CommunityScreen() {
               </Pressable>
             </View>
 
-            {displayedRequests.map((request, index) => (
-              <Animated.View
-                key={request.id}
-                entering={FadeInDown.delay(350 + index * 50)}
-              >
+            {displayedRequests.map((request) => (
+              <View key={request.id}>
                 <PrayerRequestCard request={request} onSendPrayer={handleSendPrayer} />
-              </Animated.View>
+              </View>
             ))}
 
             {prayerRequests.length > 3 && (
@@ -189,7 +191,7 @@ export default function CommunityScreen() {
           onRequestClose={() => setShowAddModal(false)}
         >
           <View style={styles.modalOverlay}>
-            <Animated.View entering={FadeInUp} style={styles.modalContent}>
+            <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>{t.community.addRequestTitle}</Text>
                 <Pressable onPress={() => setShowAddModal(false)}>
@@ -221,7 +223,7 @@ export default function CommunityScreen() {
                   <Text style={styles.modalButtonText}>{t.community.addPrayerButton}</Text>
                 </LinearGradient>
               </Pressable>
-            </Animated.View>
+            </View>
           </View>
         </Modal>
       </LinearGradient>
@@ -231,10 +233,10 @@ export default function CommunityScreen() {
 
 function TopUserCard({ user }: { user: TopUser }) {
   const getRankColors = (rank: number) => {
-    if (rank === 1) return { gradient: ['#fbbf24', '#f59e0b'], badge: '#f59e0b' };
-    if (rank === 2) return { gradient: ['#d1d5db', '#9ca3af'], badge: '#9ca3af' };
-    if (rank === 3) return { gradient: ['#fcd34d', '#fbbf24'], badge: '#fbbf24' };
-    return { gradient: ['#ffffff', '#fafaf9'], badge: '#e7e5e4' };
+    if (rank === 1) return { gradient: ['#fbbf24', '#f59e0b'] as const, badge: '#f59e0b' };
+    if (rank === 2) return { gradient: ['#d1d5db', '#9ca3af'] as const, badge: '#9ca3af' };
+    if (rank === 3) return { gradient: ['#fcd34d', '#fbbf24'] as const, badge: '#fbbf24' };
+    return { gradient: ['#ffffff', '#fafaf9'] as const, badge: '#e7e5e4' };
   };
 
   const colors = getRankColors(user.rank);
@@ -350,18 +352,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 4,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#1c1917',
-    marginTop: 12,
-    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,

@@ -1,13 +1,13 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Image, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Image, Dimensions, StatusBar, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, ArrowRight, Coins, RefreshCw, ArrowLeft, Info, Users, Target } from 'lucide-react-native';
-import Animated, { FadeInDown, FadeInUp, FadeIn, SlideInRight } from 'react-native-reanimated';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useState, useCallback } from 'react'; // ✅ Dodane useCallback
+import { useState, useCallback, useEffect, useRef } from 'react'; // ✅ Dodane useEffect, useRef
 import { useCharity, CharityAction } from '@/hooks/useCharity';
 import { useTokens } from '@/hooks/useTokens';
 import { getCurrentUserId } from '@/config/currentUser';
 import { useFocusEffect } from 'expo-router'; // ✅ Dodane
+import { useUserDataRefresh } from '@/contexts/UserDataContext';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +21,8 @@ export default function TokensScreen() {
   const [selectedMultiplier, setSelectedMultiplier] = useState<number | null>(null);
   const [donating, setDonating] = useState(false);
   const [amountError, setAmountError] = useState<string | null>(null); // ✅ NOWE
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { triggerRefresh } = useUserDataRefresh();
 
   useFocusEffect(
     useCallback(() => {
@@ -28,6 +30,16 @@ export default function TokensScreen() {
       refreshTokens();
     }, [])
   );
+
+  useEffect(() => {
+    if (!tokensLoading && !charitiesLoading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [tokensLoading, charitiesLoading]);
 
   const handleSelectCharity = (charity: CharityAction) => {
     setSelectedCharity(charity);
@@ -92,7 +104,9 @@ export default function TokensScreen() {
       
       await Promise.all([refreshTokens(), refreshCharities()]);
       
-      // ✅ Cofnij bez modalu
+      console.log('Donation completed - triggering refresh');
+      triggerRefresh();
+      
       setSelectedCharity(null);
       setDonationAmount('');
       setAmountError(null);
@@ -150,7 +164,7 @@ export default function TokensScreen() {
           style={styles.donationGradient}
         >
           {/* Header with Image Background */}
-          <Animated.View entering={FadeIn} style={styles.donationImageContainer}>
+          <Animated.View style={[styles.donationImageContainer, { opacity: fadeAnim }]}>
             {selectedCharity.image_url && (
               <Image
                 source={{ uri: selectedCharity.image_url }}
@@ -174,7 +188,7 @@ export default function TokensScreen() {
               <ArrowLeft size={24} color="#ffffff" />
             </Pressable>
 
-            <Animated.View entering={FadeInUp.delay(100)} style={styles.donationHeaderOverlay}>
+            <Animated.View style={[styles.donationHeaderOverlay, { opacity: fadeAnim }]}>
               <Text style={styles.donationTitleLarge}>{selectedCharity.title}</Text>
               <View style={styles.orgBadge}>
                 <Text style={styles.donationOrgWhite}>{selectedCharity.organization}</Text>
@@ -189,7 +203,7 @@ export default function TokensScreen() {
             contentContainerStyle={styles.donationScrollPadding}
           >
             {/* Description Card */}
-            <Animated.View entering={FadeInDown.delay(250)}>
+            <Animated.View style={{ opacity: fadeAnim }}>
               <LinearGradient
                 colors={['#fef3c7', '#fde68a']}
                 style={styles.descriptionCard}
@@ -206,7 +220,7 @@ export default function TokensScreen() {
 
             {/* Progress Card */}
             {selectedCharity.goal_tokens && (
-              <Animated.View entering={FadeInDown.delay(300)}>
+              <Animated.View style={{ opacity: fadeAnim }}>
                 <LinearGradient
                   colors={['#ffffff', '#f3f4f6']}
                   style={styles.progressCard}
@@ -234,8 +248,7 @@ export default function TokensScreen() {
                   </View>
 
                   <View style={styles.progressBarLarge}>
-                    <Animated.View 
-                      entering={SlideInRight.delay(400).duration(800)}
+                    <View 
                       style={[styles.progressFillLarge, { width: `${Math.min(progress, 100)}%` }]}
                     >
                       <LinearGradient
@@ -244,7 +257,7 @@ export default function TokensScreen() {
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                       />
-                    </Animated.View>
+                    </View>
                   </View>
                   <Text style={styles.progressPercentage}>{Math.round(progress)}% funded</Text>
                 </LinearGradient>
@@ -252,7 +265,7 @@ export default function TokensScreen() {
             )}
 
             {/* Donation Amount Section */}
-            <Animated.View entering={FadeInDown.delay(400)} style={styles.amountSection}>
+            <Animated.View style={[styles.amountSection, { opacity: fadeAnim }]}>
               <Text style={styles.amountLabelLarge}>{t.tokens.donationAmount}</Text>
               
               <View style={styles.donationInputContainer}>
@@ -327,7 +340,7 @@ export default function TokensScreen() {
             </Animated.View>
 
             {/* Donate Button */}
-            <Animated.View entering={FadeInUp.delay(450)}>
+            <Animated.View style={{ opacity: fadeAnim }}>
               <Pressable
                 style={[
                   styles.donateButtonLarge,
@@ -370,27 +383,24 @@ export default function TokensScreen() {
         colors={['#78350f20', '#44403c30', '#78350f25']}
         style={styles.gradient}
       >
-        <Animated.View entering={FadeInDown} style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Coins size={40} color="#92400e" strokeWidth={2} />
+        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+          <View style={styles.titleRow}>
+            <Coins size={32} color="#92400e" strokeWidth={2} />
+            <Text style={styles.title}>{t.nav.tokens}</Text>
           </View>
-          <Text style={styles.title}>{t.nav.tokens}</Text>
           <Text style={styles.subtitle}>{t.tokens.subtitle}</Text>
         </Animated.View>
 
 
         <ScrollView style={styles.charitiesList} showsVerticalScrollIndicator={false}>
-          {charities.map((charity, index) => (
-            <Animated.View
-              key={charity._id}
-              entering={FadeInDown.delay(200 + index * 50)}
-            >
+          {charities.map((charity) => (
+            <View key={charity._id}>
               <CharityCard
                 charity={charity}
                 onSelect={() => handleSelectCharity(charity)}
                 t={t}
               />
-            </Animated.View>
+            </View>
           ))}
         </ScrollView>
       </LinearGradient>
@@ -482,18 +492,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 4,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#1c1917',
-    marginTop: 12,
-    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
@@ -633,319 +641,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   donationImageContainer: {
-    height: 280,
-    position: 'relative',
-  },
-  donationBgImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  backButtonFloating: {
-    position: 'absolute',
-    top: 60,
-    left: 16,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    backdropFilter: 'blur(10px)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  donationHeaderOverlay: {
-    position: 'absolute',
-    bottom: 24,
-    left: 16,
-    right: 16,
-  },
-  donationTitleLarge: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  orgBadge: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    backdropFilter: 'blur(10px)',
-  },
-  donationOrgWhite: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  donationScrollContent: {
-    flex: 1,
-    marginTop: -20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: '#fafaf9',
-  },
-  donationScrollPadding: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  impactCard: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  impactIconContainer: {
-    marginRight: 16,
-  },
-  impactTextContainer: {
-    flex: 1,
-  },
-  impactTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  impactDescription: {
-    fontSize: 14,
-    color: '#ffffff',
-    opacity: 0.95,
-    lineHeight: 20,
-  },
-  descriptionCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  descriptionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  descriptionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1917',
-  },
-  descriptionText: {
-    fontSize: 14,
-    color: '#57534e',
-    lineHeight: 22,
-  },
-  progressCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  progressCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  progressCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1917',
-  },
-  progressStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  progressStat: {
-    alignItems: 'center',
-  },
-  progressStatValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1c1917',
-  },
-  progressStatLabel: {
-    fontSize: 12,
-    color: '#78716c',
-    marginTop: 4,
-  },
-  progressStatDivider: {
-    width: 1,
-    backgroundColor: '#e7e5e4',
-  },
-  progressBarLarge: {
-    height: 12,
-    backgroundColor: '#e7e5e4',
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFillLarge: {
-    height: '100%',
-  },
-  progressPercentage: {
-    fontSize: 13,
-    color: '#16a34a',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  balanceCardDonation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  balanceTextContainer: {
-    marginLeft: 12,
-  },
-  balanceLabelDonation: {
-    fontSize: 12,
-    color: '#ffffff',
-    opacity: 0.9,
-  },
-  balanceAmountDonation: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  charitiesList: {
-    flex: 1,
-  },
-  listTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1c1917',
-    marginBottom: 16,
-  },
-  charityCard: {
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  charityImage: {
-    width: '100%',
-    height: 160,
-  },
-  charityContent: {
-    padding: 16,
-  },
-  charityHeader: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  charityInfo: {
-    flex: 1,
-  },
-  charityTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1c1917',
-    marginBottom: 4,
-  },
-  charityOrg: {
-    fontSize: 12,
-    color: '#92400e',
-    marginBottom: 4,
-  },
-  charityDescription: {
-    fontSize: 14,
-    color: '#78716c',
-    lineHeight: 20,
-  },
-  progressSection: {
-    marginBottom: 12,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#e7e5e4',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-  },
-  progressGradient: {
-    flex: 1,
-  },
-  progressStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  progressText: {
-    fontSize: 12,
-    color: '#44403c',
-    fontWeight: '600',
-  },
-  endDate: {
-    fontSize: 12,
-    color: '#78716c',
-  },
-  charityFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  minDonation: {
-    fontSize: 12,
-    color: '#78716c',
-  },
-  supportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  supportButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#92400e',
-  },
-  
-  // DONATION SCREEN STYLES
-  donationGradient: {
-    flex: 1,
-  },
-  donationImageContainer: {
-    height: 280,
+    height: 250, // ✅ Zmienione z 280 na 200
     position: 'relative',
   },
   donationBgImage: {
@@ -1159,23 +855,6 @@ const styles = StyleSheet.create({
     color: '#1c1917',
     marginBottom: 12,
   },
-  amountInputLarge: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1c1917',
-    textAlign: 'center',
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: '#e7e5e4',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
   donationInputContainer: {
     flexDirection: 'column',
     gap: 8,
@@ -1195,6 +874,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  amountInputError: {
+    borderColor: '#dc2626',
+    borderWidth: 2,
   },
   multiplierContainer: {
     flexDirection: 'row',
@@ -1233,34 +916,6 @@ const styles = StyleSheet.create({
   multiplierButtonTextDisabled: {
     color: '#78716c',
   },
-  infoButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#e7e5e4',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  infoCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#fbbf24',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  infoText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#92400e',
-  },
   minTokensInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1270,6 +925,17 @@ const styles = StyleSheet.create({
   minTokensInfoText: {
     fontSize: 14,
     color: '#78716c',
+  },
+  errorMessageInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  errorMessageInfoText: {
+    fontSize: 14,
+    color: '#dc2626',
+    fontWeight: '500',
   },
   donateButtonLarge: {
     borderRadius: 16,
@@ -1324,24 +990,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#92400e',
-  },
-
-  // ✅ NOWE STYLE
-  amountInputError: {
-    borderColor: '#dc2626',
-    borderWidth: 2,
-  },
-  
-  // ✅ NOWY STYL - identyczny jak minTokensInfo
-  errorMessageInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  errorMessageInfoText: {
-    fontSize: 14,
-    color: '#dc2626',
-    fontWeight: '500',
   },
 });

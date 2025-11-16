@@ -1,15 +1,13 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { User, Settings, BookOpen, Quote, Calendar, RefreshCw, Flame, Globe, FileText, Shield, HelpCircle, Info, LogOut, ChevronRight, ArrowLeft, Coins } from 'lucide-react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { router, useFocusEffect } from 'expo-router'; // ✅ Dodane useFocusEffect
-import { useState, useEffect, useCallback } from 'react'; // ✅ Dodane useCallback
+import { router, useFocusEffect } from 'expo-router';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/contexts/AuthContext';
-import { getCurrentUserId } from '@/config/currentUser';
+import { useUserData } from '@/hooks/useUserData';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
 interface UserData {
   id: string;
@@ -34,10 +32,9 @@ interface BibleQuote {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-// Helper function to calculate level and experience
 const calculateLevel = (totalEarned: number) => {
-  const baseXP = 100; // XP needed for level 1->2
-  const multiplier = 1.5; // Each level requires 50% more XP
+  const baseXP = 100;
+  const multiplier = 1.5;
   
   let level = 1;
   let xpForCurrentLevel = 0;
@@ -63,94 +60,28 @@ const calculateLevel = (totalEarned: number) => {
 
 export default function HomeScreen() {
   const { t } = useLanguage();
-  const { logout, user, authenticated } = useAuth();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [dailyQuote, setDailyQuote] = useState<BibleQuote | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { logout } = useAuth();
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const { userData, dailyQuote, loading, refreshing, refreshQuote, refresh } = useUserData();
 
-  // ✅ NOWE: Odświeżaj dane po powrocie do zakładki
   useFocusEffect(
     useCallback(() => {
       console.log('Home tab focused - refreshing user data');
-      loadData();
-    }, [])
+      refresh();
+    }, [refresh])
   );
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      let userId = getCurrentUserId();
-      
-      try {
-        const userResponse = await fetch(`${API_URL}/api/users/${userId}`);
-        if (userResponse.ok) {
-          const user = await userResponse.json();
-          setUserData(user);
-          await AsyncStorage.setItem('userId', userId);
-        } else if (userResponse.status === 404) {
-          const createResponse = await fetch(`${API_URL}/api/users`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              username: userId,
-              email: `${userId}@example.com`
-            })
-          });
-          
-          if (createResponse.ok) {
-            const newUser = await createResponse.json();
-            await AsyncStorage.setItem('userId', newUser.id);
-            setUserData(newUser);
-          }
-        }
-      } catch (userError) {
-        console.error(`Error with user "${userId}":`, userError);
-        
-        const storedUserId = await AsyncStorage.getItem('userId');
-        if (storedUserId && storedUserId !== userId) {
-          const fallbackResponse = await fetch(`${API_URL}/api/users/${storedUserId}`);
-          if (fallbackResponse.ok) {
-            const user = await fallbackResponse.json();
-            setUserData(user);
-          }
-        }
-      }
-
-      // ✅ ZMIENIONE - Load short quote (z quotes.py)
-      const quoteResponse = await fetch(`${API_URL}/api/bible/short-quote`);
-      if (quoteResponse.ok) {
-        const quote = await quoteResponse.json();
-        setDailyQuote(quote);
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (!loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     }
-  };
-
-  const refreshQuote = async () => {
-    try {
-      setRefreshing(true);
-      // ✅ ZMIENIONE - Refresh też używa short-quote
-      const response = await fetch(`${API_URL}/api/bible/short-quote`);
-      if (response.ok) {
-        const quote = await response.json();
-        setDailyQuote(quote);
-      }
-    } catch (error) {
-      console.error('Error refreshing quote:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  }, [loading]);
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('userId');
@@ -174,10 +105,8 @@ export default function HomeScreen() {
   const prayersCount = userData?.prayers_count || 0;
   const totalEarned = userData?.total_earned || 0;
   
-  // Calculate level
   const levelData = calculateLevel(totalEarned);
 
-  // Settings Screen
   if (settingsVisible) {
     return (
       <View style={styles.container}>
@@ -190,8 +119,7 @@ export default function HomeScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.settingsScrollContent}
           >
-            {/* ✅ Header ze strzałką - wyżej */}
-            <Animated.View entering={FadeInDown} style={styles.settingsHeaderSection}>
+            <Animated.View style={[styles.settingsHeaderSection, { opacity: fadeAnim }]}>
               <Pressable 
                 onPress={() => setSettingsVisible(false)} 
                 style={styles.backButtonFloating}
@@ -200,59 +128,58 @@ export default function HomeScreen() {
               </Pressable>
 
               <View style={styles.settingsHeaderContent}>
-                <View style={styles.iconContainer}>
-                  <Settings size={40} color="#92400e" strokeWidth={2} />
+                <View style={styles.titleRow}>
+                  <Settings size={32} color="#92400e" strokeWidth={2} />
+                  <Text style={styles.settingsTitleLarge}>Settings</Text>
                 </View>
-                <Text style={styles.settingsTitleLarge}>Settings</Text>
                 <Text style={styles.settingsSubtitle}>Manage your preferences</Text>
               </View>
             </Animated.View>
 
-            {/* Settings Items */}
             <View style={styles.settingsItemsContainer}>
-              <Animated.View entering={FadeInDown.delay(150)}>
+              <View>
                 <SettingItem
                   icon={Globe}
                   title="App Language"
                   subtitle="English"
-                  onPress={() => {/* Handle language change */}}
+                  onPress={() => {}}
                 />
-              </Animated.View>
+              </View>
               
-              <Animated.View entering={FadeInDown.delay(200)}>
+              <View>
                 <SettingItem
                   icon={FileText}
                   title="Terms of Service"
-                  onPress={() => {/* Handle terms */}}
+                  onPress={() => {}}
                 />
-              </Animated.View>
+              </View>
               
-              <Animated.View entering={FadeInDown.delay(250)}>
+              <View>
                 <SettingItem
                   icon={Shield}
                   title="Privacy Policy"
-                  onPress={() => {/* Handle privacy */}}
+                  onPress={() => {}}
                 />
-              </Animated.View>
+              </View>
               
-              <Animated.View entering={FadeInDown.delay(300)}>
+              <View>
                 <SettingItem
                   icon={HelpCircle}
                   title="Help & Support"
-                  onPress={() => {/* Handle support */}}
+                  onPress={() => {}}
                 />
-              </Animated.View>
+              </View>
               
-              <Animated.View entering={FadeInDown.delay(350)}>
+              <View>
                 <SettingItem
                   icon={Info}
                   title="About App"
                   subtitle="Version 1.0.0"
-                  onPress={() => {/* Handle about */}}
+                  onPress={() => {}}
                 />
-              </Animated.View>
+              </View>
               
-              <Animated.View entering={FadeInDown.delay(400)}>
+              <View>
                 <Pressable 
                   onPress={handleLogout}
                   style={styles.logoutButton}
@@ -262,7 +189,7 @@ export default function HomeScreen() {
                   </View>
                   <Text style={styles.logoutText}>Log Out</Text>
                 </Pressable>
-              </Animated.View>
+              </View>
             </View>
           </ScrollView>
         </LinearGradient>
@@ -270,7 +197,6 @@ export default function HomeScreen() {
     );
   }
 
-  // Main Home Screen
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -278,7 +204,7 @@ export default function HomeScreen() {
         style={styles.gradient}
       >
         <ScrollView showsVerticalScrollIndicator={false}>
-          <Animated.View entering={FadeInUp} style={styles.header}>
+          <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
             <View style={styles.userSection}>
               <View style={styles.userInfo}>
                 <Text style={styles.greeting}>Welcome back,</Text>
@@ -295,60 +221,11 @@ export default function HomeScreen() {
             </View>
           </Animated.View>
 
-          {/* USUŃ CAŁY TEN BLOK - stary tokensCard */}
-          {/* <Animated.View entering={FadeInDown.delay(100)} style={styles.heroCardWrapper}>
-            <LinearGradient
-              colors={['#ffffff', '#fafaf9']}
-              style={styles.tokensCard}
-            >
-              <View style={styles.tokensHeader}>
-                <LinearGradient
-                  colors={['#92400e', '#78350f']}
-                  style={styles.logoContainer}
-                >
-                  <View style={styles.crossWrapper}>
-                    <View style={styles.crossVertical} />
-                    <View style={styles.crossHorizontal} />
-                  </View>
-                </LinearGradient>
-                <View style={styles.tokensContent}>
-                  <Text style={styles.tokensLabel}>Your Balance</Text>
-                  <View style={styles.tokensValueRow}>
-                    <Text style={styles.tokensValue}>{tokens}</Text>
-                    <Text style={styles.tokensUnit}>PRAY</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.statsGrid}>
-                <View style={styles.statBox}>
-                  <View style={styles.statIconWrapper}>
-                    <BookOpen size={18} color="#92400e" strokeWidth={2.5} />
-                  </View>
-                  <Text style={styles.statValue}>{prayersCount}</Text>
-                  <Text style={styles.statLabel}>Prayers</Text>
-                </View>
-                
-                <View style={styles.statBox}>
-                  <View style={styles.statIconWrapper}>
-                    <Flame size={18} color="#ea580c" strokeWidth={2.5} />
-                  </View>
-                  <Text style={[styles.statValue, { color: '#ea580c' }]}>{streak}</Text>
-                  <Text style={styles.statLabel}>Day Streak 🔥</Text>
-                </View>
-              </View>
-            </LinearGradient>
-          </Animated.View> */}
-
-          {/* ✅ ZOSTAW TYLKO TEN - Compact Balance Card z Level */}
-          <Animated.View entering={FadeInDown.delay(100)} style={styles.balanceCardCompact}>
+          <Animated.View style={[styles.balanceCardCompact, { opacity: fadeAnim }]}>
             <LinearGradient 
               colors={['#ffffff', '#fafaf9']} 
               style={styles.balanceGradientCompact}
             >
-              {/* Balance Row */}
               <View style={styles.balanceRowCompact}>
                 <View style={styles.balanceIconCompact}>
                   <Image 
@@ -366,7 +243,6 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              {/* Level Progress Bar */}
               <View style={styles.levelContainer}>
                 <View style={styles.levelHeader}>
                   <View style={styles.levelBadge}>
@@ -388,10 +264,8 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              {/* Divider */}
               <View style={styles.divider} />
 
-              {/* Stats Row */}
               <View style={styles.statsRowCompact}>
                 <View style={styles.statItemCompact}>
                   <View style={styles.statIconSmall}>
@@ -415,9 +289,8 @@ export default function HomeScreen() {
           </Animated.View>
 
           <View style={styles.content}>
-            {/* Daily Quote Card */}
             {dailyQuote && (
-              <Animated.View entering={FadeInDown.delay(200)}>
+              <Animated.View style={{ opacity: fadeAnim }}>
                 <LinearGradient
                   colors={['#92400e', '#78350f']}
                   style={styles.quoteCard}
@@ -442,7 +315,6 @@ export default function HomeScreen() {
               </Animated.View>
             )}
 
-            {/* Action Cards */}
             <Text style={styles.sectionTitle}>Explore Scripture</Text>
             <View style={styles.actionsGrid}>
               <ActionCard
@@ -486,8 +358,7 @@ export default function HomeScreen() {
 
 function ActionCard({ icon: Icon, title, description, gradient, delay, onPress, style }: any) {
   return (
-    <AnimatedPressable
-      entering={FadeInDown.delay(delay)}
+    <Pressable
       onPress={onPress}
       style={[styles.actionCard, style]}
     >
@@ -498,7 +369,7 @@ function ActionCard({ icon: Icon, title, description, gradient, delay, onPress, 
         <Text style={styles.actionTitle}>{title}</Text>
         <Text style={styles.actionDescription}>{description}</Text>
       </LinearGradient>
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
@@ -901,6 +772,12 @@ const styles = StyleSheet.create({
   settingsHeaderContent: {
     alignItems: 'center',
     paddingTop: 8,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
   iconContainer: {
     alignItems: 'center',

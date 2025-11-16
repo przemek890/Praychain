@@ -3,9 +3,10 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import 'react-native-reanimated';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { UserDataProvider } from '@/contexts/UserDataContext';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -36,13 +37,17 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <LanguageProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="login" options={{ presentation: 'fullScreenModal' }} />
-        </Stack>
-      </LanguageProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <LanguageProvider>
+          <UserDataProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="login" options={{ presentation: 'fullScreenModal' }} />
+            </Stack>
+          </UserDataProvider>
+        </LanguageProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
