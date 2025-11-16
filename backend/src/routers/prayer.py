@@ -283,6 +283,21 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
                 focus_score=focus_score
             )
             
+            # ✅ NOWE: Aktualizacja salda użytkownika w tabeli users
+            await db.users.update_one(
+                {"_id": request.user_id},
+                {
+                    "$inc": {
+                        "tokens_balance": tokens_earned,
+                        "total_earned": tokens_earned,
+                        "prayers_count": 1
+                    },
+                    "$set": {
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
             logger.info(f"Awarded {tokens_earned} tokens to user {request.user_id}")
             message = f"Success! You earned {tokens_earned} tokens (Voice verified ✓, Human: {voice_verification['human_confidence']*100:.0f}%)"
         else:

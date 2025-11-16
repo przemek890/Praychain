@@ -1,7 +1,7 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Quote, ChevronLeft, RefreshCw } from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Quote, ArrowLeft, RefreshCw } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 
@@ -49,6 +49,7 @@ export default function RandomQuoteScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#92400e" />
+        <Text style={styles.loadingText}>Loading inspiration...</Text>
       </View>
     );
   }
@@ -56,48 +57,53 @@ export default function RandomQuoteScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
-        <Animated.View entering={FadeInDown} style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <ChevronLeft size={24} color="#1c1917" />
-          </Pressable>
-          <View style={styles.headerContent}>
-            <View style={styles.iconContainer}>
-              <Quote size={32} color="#92400e" />
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* ✅ Header - niżej na ekranie */}
+          <Animated.View entering={FadeInDown} style={styles.headerSection}>
+            <Pressable 
+              onPress={() => router.back()} 
+              style={styles.backButton}
+            >
+              <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
+            </Pressable>
+
+            <View style={styles.headerContent}>
+              <View style={styles.iconContainer}>
+                <Quote size={40} color="#92400e" strokeWidth={2} />
+              </View>
+              <Text style={styles.title}>Random Quote</Text>
+              <Text style={styles.subtitle}>Get inspired by scripture</Text>
             </View>
-            <Text style={styles.title}>Random Quote</Text>
-            <Text style={styles.subtitle}>Get inspired by scripture</Text>
-          </View>
-        </Animated.View>
+          </Animated.View>
 
-        <View style={styles.content}>
-          {quote && (
-            <Animated.View entering={FadeInDown.delay(100)}>
-              <LinearGradient colors={['#fef3c7', '#fde68a']} style={styles.quoteCard}>
-                <Text style={styles.quoteText}>"{quote.text}"</Text>
-                <Text style={styles.quoteReference}>— {quote.reference}</Text>
-                
-                {quote.category && (
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{quote.category}</Text>
+          {/* ✅ Quote Card - zaraz pod headerem */}
+          <View style={styles.content}>
+            {quote && (
+              <Animated.View entering={FadeInDown.delay(200)}>
+                <LinearGradient 
+                  colors={['#b45309', '#92400e']} 
+                  style={styles.quoteCard}
+                >
+                  <Text style={styles.quoteText}>{quote.text}</Text>
+                  
+                  <View style={styles.quoteFooter}>
+                    <View style={styles.quoteDivider} />
+                    <Text style={styles.quoteReference}>{quote.reference}</Text>
                   </View>
-                )}
-              </LinearGradient>
-            </Animated.View>
-          )}
 
-          <Pressable
-            style={styles.refreshButton}
-            onPress={handleRefresh}
-            disabled={refreshing}
-          >
-            <LinearGradient colors={['#92400e', '#78350f']} style={styles.refreshGradient}>
-              <RefreshCw size={20} color="#ffffff" style={refreshing ? { opacity: 0.5 } : {}} />
-              <Text style={styles.refreshText}>
-                {refreshing ? 'Loading...' : 'New Quote'}
-              </Text>
-            </LinearGradient>
-          </Pressable>
-        </View>
+                  {quote.category && (
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.categoryText}>{quote.category}</Text>
+                    </View>
+                  )}
+                </LinearGradient>
+              </Animated.View>
+            )}
+          </View>
+        </ScrollView>
       </LinearGradient>
     </View>
   );
@@ -110,100 +116,136 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
-    paddingTop: 60,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fafaf9',
+    gap: 12,
   },
-  header: {
+  loadingText: {
+    fontSize: 14,
+    color: '#78716c',
+    marginTop: 8,
+  },
+
+  // ✅ Header - zwiększony paddingTop
+  headerSection: {
+    paddingTop: 60, // ✅ ZMIENIONE z 20 na 60
     paddingHorizontal: 16,
-    marginBottom: 32,
+    marginBottom: 16,
+    position: 'relative',
   },
   backButton: {
+    position: 'absolute',
+    top: 60, // ✅ ZMIENIONE z 20 na 60
+    left: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 10,
   },
   headerContent: {
     alignItems: 'center',
+    paddingTop: 8,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 12,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1c1917',
-    marginTop: 8,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#78716c',
-    marginTop: 4,
+    textAlign: 'center',
   },
+
+  // ✅ Content Area - bez justifyContent center
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    justifyContent: 'center',
-    paddingBottom: 100,
+    gap: 20,
   },
+
+  // ✅ Quote Card - jaśniejszy gradient
   quoteCard: {
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 28,
-    marginBottom: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
   },
   quoteText: {
-    fontSize: 20,
-    lineHeight: 32,
-    color: '#44403c',
+    fontSize: 18,
+    lineHeight: 30,
+    color: '#ffffff',
     fontStyle: 'italic',
-    marginBottom: 16,
-    textAlign: 'center',
+    fontWeight: '400',
+    marginBottom: 24,
+    letterSpacing: 0.2,
+    textAlign: 'left',
+  },
+  quoteFooter: {
+    alignItems: 'flex-end',
+  },
+  quoteDivider: {
+    width: 60,
+    height: 2,
+    backgroundColor: '#fcd34d',
+    marginBottom: 10,
+    borderRadius: 1,
+    opacity: 0.6,
   },
   quoteReference: {
-    fontSize: 14,
-    color: '#78716c',
-    fontWeight: '600',
-    textAlign: 'right',
+    fontSize: 15,
+    color: '#fcd34d',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   categoryBadge: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(252, 211, 77, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    alignSelf: 'center',
+    alignSelf: 'flex-start',
     marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(252, 211, 77, 0.3)',
   },
   categoryText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#92400e',
+    color: '#fcd34d',
     textTransform: 'capitalize',
   },
+
+  // ✅ Refresh Button - jaśniejszy gradient
   refreshButton: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#92400e',
+    shadowColor: '#d97706',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -214,11 +256,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    paddingVertical: 16,
+    paddingVertical: 18,
   },
   refreshText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#ffffff',
+    letterSpacing: 0.3,
   },
 });

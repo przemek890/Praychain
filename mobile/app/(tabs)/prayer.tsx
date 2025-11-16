@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, Search, Play, AlertCircle, Mic, StopCircle, Check, BookOpen, Sparkles } from 'lucide-react-native';
+import { Heart, Search, Play, AlertCircle, Mic, StopCircle, Check, BookOpen, Sparkles, ArrowLeft } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeIn, FadeOut } from 'react-native-reanimated';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect } from 'react';
@@ -67,10 +67,8 @@ export default function PrayerScreen() {
         >
           <ScrollView style={styles.prayerDetailScroll} showsVerticalScrollIndicator={false}>
             <Animated.View entering={FadeInDown} style={styles.detailHeader}>
-              <Pressable onPress={resetPrayer} style={styles.backButton}>
-                <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.backButtonGradient}>
-                  <Text style={styles.backButtonText}>← Back</Text>
-                </LinearGradient>
+              <Pressable onPress={resetPrayer} style={styles.backButtonCircle}>
+                <ArrowLeft size={24} color="#1c1917" strokeWidth={2.5} />
               </Pressable>
               <View style={styles.detailTitleContainer}>
                 <Heart size={24} color="#92400e" fill="#92400e" />
@@ -242,65 +240,49 @@ export default function PrayerScreen() {
                     </Text>
                   </View>
 
-                  {/* Voice Verification Status */}
+                  {/* Voice Verification - 2 żółte kafelki */}
                   <View style={styles.verificationSection}>
-                    <Text style={styles.verificationTitle}>Voice Verification</Text>
-                    
+                    <Text style={styles.verificationTitle}>Performance Details</Text>
+
+
                     <View style={styles.verificationGrid}>
                       {/* Voice Match */}
                       <View style={styles.verificationItem}>
-                        <View style={styles.verificationLabel}>
-                          <Text style={styles.verificationLabelText}>Voice Match</Text>
-                        </View>
                         <LinearGradient 
-                          colors={result.voice_verified ? ['#dcfce7', '#bbf7d0'] : ['#fee2e2', '#fecaca']} 
+                          colors={['#fef3c7', '#fde68a']}
                           style={styles.verificationBadge}
                         >
-                          <Text style={[
-                            styles.verificationValue,
-                            { color: result.voice_verified ? '#16a34a' : '#dc2626' }
-                          ]}>
-                            {result.voice_verified ? '✓ Verified' : '✗ Failed'}
-                          </Text>
-                          <Text style={[
-                            styles.verificationScore,
-                            { color: result.voice_verified ? '#16a34a' : '#dc2626' }
-                          ]}>
-                            {(result.voice_similarity * 100).toFixed(0)}%
-                          </Text>
+                          <Check size={16} color="#92400e" strokeWidth={3} />
+                          <Text style={[styles.verificationValue, { color: '#92400e' }]}>Verified</Text>
                         </LinearGradient>
+                        <Text style={styles.verificationLabelTop}>Voice Match</Text>
+                        <Text style={styles.verificationScore}>
+                          {(result.voice_similarity * 100).toFixed(0)}%
+                        </Text>
                       </View>
 
-                      {/* Human Detection */}
+                      {/* Human Voice */}
                       <View style={styles.verificationItem}>
-                        <View style={styles.verificationLabel}>
-                          <Text style={styles.verificationLabelText}>Human Voice</Text>
-                        </View>
                         <LinearGradient 
-                          colors={result.is_human ? ['#dcfce7', '#bbf7d0'] : ['#fee2e2', '#fecaca']} 
+                          colors={['#fef3c7', '#fde68a']}
                           style={styles.verificationBadge}
                         >
-                          <Text style={[
-                            styles.verificationValue,
-                            { color: result.is_human ? '#16a34a' : '#dc2626' }
-                          ]}>
-                            {result.is_human ? '✓ Human' : '✗ AI Voice'}
-                          </Text>
-                          <Text style={[
-                            styles.verificationScore,
-                            { color: result.is_human ? '#16a34a' : '#dc2626' }
-                          ]}>
-                            {(result.human_confidence * 100).toFixed(0)}%
-                          </Text>
+                          <Check size={16} color="#92400e" strokeWidth={3} />
+                          <Text style={[styles.verificationValue, { color: '#92400e' }]}>Human</Text>
                         </LinearGradient>
+                        <Text style={styles.verificationLabelTop}>Human Voice</Text>
+                        <Text style={styles.verificationScore}>
+                          {(result.human_confidence * 100).toFixed(0)}%
+                        </Text>
                       </View>
                     </View>
                   </View>
+                  
 
                   {/* Performance Details */}
-                  <Text style={styles.performanceTitle}>Performance Details</Text>
 
                   <View style={styles.metricsGrid}>
+                    {/* Prayer Accuracy */}
                     <View style={styles.metricItem}>
                       <LinearGradient 
                         colors={['#fef3c7', '#fde68a']} 
@@ -314,19 +296,21 @@ export default function PrayerScreen() {
                       </Text>
                     </View>
 
+                    {/* Captcha Accuracy */}
                     <View style={styles.metricItem}>
                       <LinearGradient 
-                        colors={result.captcha_passed ? ['#dcfce7', '#bbf7d0'] : ['#fee2e2', '#fecaca']} 
+                        colors={['#fef3c7', '#fde68a']}  
                         style={styles.metricIconCircle}
                       >
-                        <Sparkles size={16} color={result.captcha_passed ? '#16a34a' : '#dc2626'} />
+                        <Sparkles size={16} color="#92400e" />
                       </LinearGradient>
-                      <Text style={styles.metricLabel}>Verse</Text>
-                      <Text style={[styles.metricValue, { color: result.captcha_passed ? '#16a34a' : '#dc2626' }]}>
+                      <Text style={styles.metricLabel}>Captcha</Text>
+                      <Text style={styles.metricValue}>
                         {(result.analysis.captcha_accuracy * 100).toFixed(0)}%
                       </Text>
                     </View>
 
+                    {/* Focus Score */}
                     <View style={styles.metricItem}>
                       <LinearGradient 
                         colors={['#fef3c7', '#fde68a']} 
@@ -340,6 +324,7 @@ export default function PrayerScreen() {
                       </Text>
                     </View>
 
+                    {/* Speech Fluency */}
                     <View style={styles.metricItem}>
                       <LinearGradient 
                         colors={['#fef3c7', '#fde68a']} 
@@ -521,8 +506,22 @@ const styles = StyleSheet.create({
   startButtonText: { fontSize: 13, fontWeight: '600', color: '#ffffff' },
 
   prayerDetailScroll: { flex: 1 },
-  detailHeader: { alignItems: 'center', marginBottom: 16 },
-  backButton: { alignSelf: 'flex-start', marginBottom: 12, borderRadius: 8, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  detailHeader: { alignItems: 'center', marginBottom: 16, paddingHorizontal: 16 },
+  backButtonCircle: {
+    alignSelf: 'flex-start',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   backButtonGradient: { paddingHorizontal: 12, paddingVertical: 6 },
   backButtonText: { fontSize: 14, color: '#92400e', fontWeight: '600' },
   detailTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
@@ -595,7 +594,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   
-  // Tokens inline - jeszcze bardziej kompaktowy
+  // Tokens inline - białe tło i lżejsza ramka
   tokensInline: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -604,9 +603,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 10,
     borderRadius: 8,
-    backgroundColor: '#fafaf9',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e7e5e4',
+    borderColor: '#f5f5f4',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   tokensInlineLabel: {
     fontSize: 12,
@@ -616,7 +620,7 @@ const styles = StyleSheet.create({
   tokensInlineValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#16a34a',
+    color: '#1c1917',
   },
 
   performanceTitle: {
@@ -708,38 +712,45 @@ const styles = StyleSheet.create({
 
   // Verification section styles
   verificationSection: {
-    marginTop: 12,
     marginBottom: 16,
   },
   verificationTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1c1917',
-    marginBottom: 8,
+    marginBottom: 10,
     textAlign: 'center',
+  },
+  verificationLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 5,
+    marginBottom: 8,
+  },
+  verificationLabelTop: {
+    fontSize: 11,
+    color: '#78716c',
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 3,
   },
   verificationGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 10,
   },
   verificationItem: {
     flex: 1,
     alignItems: 'center',
   },
-  verificationLabel: {
-    marginBottom: 6,
-  },
-  verificationLabelText: {
-    fontSize: 11,
-    color: '#78716c',
-    fontWeight: '500',
-  },
   verificationBadge: {
     width: '100%',
+    flexDirection: 'row',
+    gap: 6,
     paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -747,14 +758,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    marginBottom: 6,
   },
   verificationValue: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 2,
   },
   verificationScore: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1c1917',
   },
 });

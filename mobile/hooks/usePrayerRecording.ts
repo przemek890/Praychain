@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
+import { getCurrentUserId } from '@/config/currentUser';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -25,7 +25,6 @@ interface AnalysisResult {
   analysis: {
     focus_score: number;
     engagement_score: number;
-    // sentiment: string;  ❌ USUNIĘTE
     text_accuracy: number;
     captcha_accuracy: number;
     emotional_stability: number;
@@ -70,11 +69,9 @@ export const usePrayerRecording = () => {
 
   const initializeUserId = async () => {
     try {
-      // Always use "test" as the primary user
-      let storedUserId = 'test';
+      let storedUserId = getCurrentUserId(); // ✅ Zmienione
       
       try {
-        // Try to fetch user "test"
         const response = await fetch(`${API_URL}/api/users/${storedUserId}`);
         
         if (response.ok) {
@@ -83,13 +80,12 @@ export const usePrayerRecording = () => {
           setUserId(storedUserId);
           await AsyncStorage.setItem('userId', storedUserId);
         } else if (response.status === 404) {
-          // User "test" doesn't exist, create it
           const createResponse = await fetch(`${API_URL}/api/users`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              username: 'test',
-              email: 'test@example.com'
+              username: storedUserId, // ✅ Zmienione
+              email: `${storedUserId}@example.com` // ✅ Zmienione
             })
           });
           
@@ -101,23 +97,21 @@ export const usePrayerRecording = () => {
           }
         }
       } catch (error) {
-        console.error('Error with user "test":', error);
+        console.error(`Error with user "${storedUserId}":`, error);
         
-        // Fallback: check AsyncStorage
         const fallbackUserId = await AsyncStorage.getItem('userId');
         if (fallbackUserId) {
           await fetchUserData(fallbackUserId);
           setUserId(fallbackUserId);
         } else {
-          // Last resort: generate new UUID
-          const newId = Crypto.randomUUID();
+          const newId = getCurrentUserId(); // ✅ Zmienione
           setUserId(newId);
           await AsyncStorage.setItem('userId', newId);
         }
       }
     } catch (error) {
       console.error('Error initializing user ID:', error);
-      const fallbackId = Crypto.randomUUID();
+      const fallbackId = getCurrentUserId(); // ✅ Zmienione
       setUserId(fallbackId);
       await AsyncStorage.setItem('userId', fallbackId);
     }
@@ -150,7 +144,6 @@ export const usePrayerRecording = () => {
       
       const data = await response.json();
       
-      // Pobierz pełne teksty modlitw z osobnego endpointu
       const prayersWithText = await Promise.all(
         data.prayers.map(async (p: any) => {
           try {
@@ -196,7 +189,6 @@ export const usePrayerRecording = () => {
       });
     } catch (error) {
       console.error('Error fetching captcha:', error);
-      Alert.alert('Error', 'Failed to load verification quote. Please try again.');
     }
   };
 
@@ -215,22 +207,21 @@ export const usePrayerRecording = () => {
         playsInSilentModeIOS: true,
       });
 
-      // ✅ ZOPTYMALIZOWANA KONFIGURACJA - 16kHz mono WAV
       const { recording } = await Audio.Recording.createAsync({
         android: {
           extension: '.wav',
           outputFormat: Audio.AndroidOutputFormat.DEFAULT,
           audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-          sampleRate: 16000,  // ✅ 16kHz od razu
-          numberOfChannels: 1, // ✅ Mono
+          sampleRate: 16000,
+          numberOfChannels: 1,
           bitRate: 128000,
         },
         ios: {
           extension: '.wav',
           outputFormat: Audio.IOSOutputFormat.LINEARPCM,
           audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 16000,  // ✅ 16kHz od razu
-          numberOfChannels: 1, // ✅ Mono
+          sampleRate: 16000,
+          numberOfChannels: 1,
           bitRate: 128000,
           linearPCMBitDepth: 16,
           linearPCMIsBigEndian: false,
@@ -246,7 +237,6 @@ export const usePrayerRecording = () => {
       setIsPrayerRecording(true);
     } catch (err) {
       console.error('Failed to start recording:', err);
-      Alert.alert('Error', 'Failed to start recording');
     }
   };
 
@@ -266,8 +256,8 @@ export const usePrayerRecording = () => {
       const formData = new FormData();
       formData.append('file', {
         uri,
-        type: 'audio/wav',  // ZMIANA: było audio/m4a
-        name: 'prayer.wav',  // ZMIANA: było prayer.m4a
+        type: 'audio/wav',
+        name: 'prayer.wav',
       } as any);
 
       const response = await fetch(`${API_URL}/api/transcribe?audio_type=prayer`, {
@@ -280,11 +270,9 @@ export const usePrayerRecording = () => {
       const data = await response.json();
       setPrayerTranscriptionId(data.transcription.id);
       
-      Alert.alert('Success!', 'Prayer recorded! Now read the verification verse.');
       setPrayerRecording(null);
     } catch (error: any) {
       console.error('Processing error:', error);
-      Alert.alert('Error', `Failed to process: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -292,7 +280,7 @@ export const usePrayerRecording = () => {
 
   const startCaptchaRecording = async () => {
     if (!prayerTranscriptionId) {
-      Alert.alert('Error', 'Please record the prayer first!');
+      console.warn('Please record the prayer first!');
       return;
     }
 
@@ -302,22 +290,21 @@ export const usePrayerRecording = () => {
         playsInSilentModeIOS: true,
       });
 
-      // ✅ ZOPTYMALIZOWANA KONFIGURACJA - 16kHz mono WAV
       const { recording } = await Audio.Recording.createAsync({
         android: {
           extension: '.wav',
           outputFormat: Audio.AndroidOutputFormat.DEFAULT,
           audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-          sampleRate: 16000,  // ✅ 16kHz od razu
-          numberOfChannels: 1, // ✅ Mono
+          sampleRate: 16000,
+          numberOfChannels: 1,
           bitRate: 128000,
         },
         ios: {
           extension: '.wav',
           outputFormat: Audio.IOSOutputFormat.LINEARPCM,
           audioQuality: Audio.IOSAudioQuality.HIGH,
-          sampleRate: 16000,  // ✅ 16kHz od razu
-          numberOfChannels: 1, // ✅ Mono
+          sampleRate: 16000,
+          numberOfChannels: 1,
           bitRate: 128000,
           linearPCMBitDepth: 16,
           linearPCMIsBigEndian: false,
@@ -333,7 +320,6 @@ export const usePrayerRecording = () => {
       setIsCaptchaRecording(true);
     } catch (err) {
       console.error('Failed to start recording:', err);
-      Alert.alert('Error', 'Failed to start recording');
     }
   };
 
@@ -353,8 +339,8 @@ export const usePrayerRecording = () => {
       const formData = new FormData();
       formData.append('file', {
         uri,
-        type: 'audio/wav',  // ZMIANA: było audio/m4a
-        name: 'captcha.wav',  // ZMIANA: było captcha.m4a
+        type: 'audio/wav',
+        name: 'captcha.wav',
       } as any);
 
       const response = await fetch(`${API_URL}/api/transcribe?audio_type=captcha`, {
@@ -372,7 +358,6 @@ export const usePrayerRecording = () => {
       setCaptchaRecording(null);
     } catch (error: any) {
       console.error('Processing error:', error);
-      Alert.alert('Error', `Failed to process: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -398,25 +383,8 @@ export const usePrayerRecording = () => {
 
       const analysisData = await analysisResponse.json();
       setResult(analysisData);
-
-      const tokensEarned = analysisData.analysis.tokens_earned || 0;
-
-      if (analysisData.captcha_passed) {
-        Alert.alert(
-          'Success!',
-          `You earned ${tokensEarned} tokens!\n\nPrayer Accuracy: ${(analysisData.analysis.text_accuracy * 100).toFixed(0)}%\nVerse Verification: ${(analysisData.analysis.captcha_accuracy * 100).toFixed(0)}%`,
-          [{ text: 'Continue', style: 'default' }]
-        );
-      } else {
-        Alert.alert(
-          'Verification Failed',
-          `Verse accuracy: ${(analysisData.analysis.captcha_accuracy * 100).toFixed(0)}%\n\nRequired: 50%+\n\nPlease read the verse more carefully and try again.`,
-          [{ text: 'Try Again', style: 'default' }]
-        );
-      }
     } catch (error: any) {
       console.error('Analysis error:', error);
-      Alert.alert('Error', `Failed to analyze: ${error.message}`);
     }
   };
 

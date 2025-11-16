@@ -3,33 +3,34 @@ import logging
 from pathlib import Path
 
 from web3 import Web3
-from web3.middleware import ExtraDataToPOAMiddleware  # Zmieniono import
+from web3.middleware import ExtraDataToPOAMiddleware
 from eth_account import Account
 
 from src.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Połączenie z Celo
-w3 = Web3(Web3.HTTPProvider(settings.CELO_RPC_URL))
-w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)  # Zmieniono nazwę
+# Połączenie z Celo (tylko jeśli włączone)
+if settings.CELO_ENABLED:
+    w3 = Web3(Web3.HTTPProvider(settings.CELO_RPC_URL))
+    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
-# Wczytanie ABI PRAY
-ABI_PATH = Path(__file__).resolve().parent.parent / "abi" / "pray_token.json"
-with ABI_PATH.open() as f:
-    PRAY_ABI = json.load(f)
+    # Wczytanie ABI PRAY
+    ABI_PATH = Path(__file__).resolve().parent.parent / "abi" / "pray_token.json"
+    with ABI_PATH.open() as f:
+        PRAY_ABI = json.load(f)
 
-PRAY_CONTRACT = w3.eth.contract(
-    address=Web3.to_checksum_address(settings.PRAY_CONTRACT_ADDRESS),
-    abi=PRAY_ABI,
-)
+    PRAY_CONTRACT = w3.eth.contract(
+        address=Web3.to_checksum_address(settings.PRAY_CONTRACT_ADDRESS),
+        abi=PRAY_ABI,
+    )
 
-# Konta demo
-TREASURY_ACCOUNT = Account.from_key(settings.TREASURY_PRIVATE_KEY)
-TREASURY_ADDRESS = TREASURY_ACCOUNT.address
+    # Konta demo
+    TREASURY_ACCOUNT = Account.from_key(settings.TREASURY_PRIVATE_KEY)
+    TREASURY_ADDRESS = TREASURY_ACCOUNT.address
 
-USER_ACCOUNT = Account.from_key(settings.USER_PRIVATE_KEY)
-USER_ADDRESS = USER_ACCOUNT.address
+    USER_ACCOUNT = Account.from_key(settings.USER_PRIVATE_KEY)
+    USER_ADDRESS = USER_ACCOUNT.address
 
 
 def _send_pray(from_account: Account, to_address: str, amount_tokens: int) -> str:
@@ -37,6 +38,9 @@ def _send_pray(from_account: Account, to_address: str, amount_tokens: int) -> st
     Wysyła amount_tokens PRAY z konta `from_account` na `to_address`.
     Zwraca tx_hash (hex).
     """
+    if not settings.CELO_ENABLED:
+        return ""
+    
     if amount_tokens <= 0:
         raise ValueError("amount_tokens must be > 0")
 
@@ -56,7 +60,7 @@ def _send_pray(from_account: Account, to_address: str, amount_tokens: int) -> st
         "nonce": nonce,
         "chainId": settings.CELO_CHAIN_ID,
         "gas": 200_000,
-        "gasPrice": gas_price,  # Użyj dynamicznej ceny
+        "gasPrice": gas_price,
     })
 
     signed = from_account.sign_transaction(tx)
@@ -74,6 +78,8 @@ def send_pray_to_user(amount_tokens: int) -> str:
     Bank tokenów (treasury) -> demo user wallet.
     Używane przy nagradzaniu modlitwy.
     """
+    if not settings.CELO_ENABLED:
+        return ""
     return _send_pray(TREASURY_ACCOUNT, USER_ADDRESS, amount_tokens)
 
 
@@ -82,4 +88,6 @@ def send_pray_back_to_treasury(amount_tokens: int) -> str:
     Demo user wallet -> bank tokenów (treasury).
     Używane przy donate.
     """
+    if not settings.CELO_ENABLED:
+        return ""
     return _send_pray(USER_ACCOUNT, TREASURY_ADDRESS, amount_tokens)

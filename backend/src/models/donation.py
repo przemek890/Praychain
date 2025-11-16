@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional  # ✅ Dodaj
 
 class DonationRequest(BaseModel):
     user_id: str
@@ -21,4 +22,5 @@ class DonationResponse(BaseModel):
     tokens_spent: int
     charity_title: str
     new_balance: int
+    tx_hash: Optional[str] = None  # ✅ Dodaj
     message: str

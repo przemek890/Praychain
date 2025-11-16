@@ -12,45 +12,41 @@ export interface UserTokens {
 
 export function useTokens(userId: string) {
   const [balance, setBalance] = useState(0);
-  const [totalEarned, setTotalEarned] = useState(0);
-  const [totalDonated, setTotalDonated] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (userId) {
-      fetchBalance();
-    }
-  }, [userId]);
 
   const fetchBalance = async () => {
+    if (!userId) {
+      console.warn('useTokens: No userId provided');
+      return;
+    }
+
     try {
       setLoading(true);
+      console.log(`Fetching balance for user: ${userId}`); // ✅ Debug log
+      
       const response = await fetch(`${API_URL}/api/users/${userId}`);
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Balance fetched: ${data.tokens_balance}`); // ✅ Debug log
+        setBalance(data.tokens_balance || 0);
+      } else {
+        console.error(`Failed to fetch balance: ${response.status}`);
       }
-      
-      const data = await response.json();
-      setBalance(data.tokens_balance || 0);
-      setTotalEarned(data.total_earned || 0);
-      setTotalDonated(data.total_donated || 0);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch balance');
-      console.error('Error fetching balance:', err);
+    } catch (error) {
+      console.error('Error fetching token balance:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchBalance();
+  }, [userId]);
+
   return {
     balance,
-    totalEarned,
-    totalDonated,
     loading,
-    error,
-    refresh: fetchBalance,
+    refresh: fetchBalance, // ✅ Zwraca funkcję odświeżania
   };
 }

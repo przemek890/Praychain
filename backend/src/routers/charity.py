@@ -40,28 +40,36 @@ async def donate_to_charity(request: DonationRequest):
         if not charity.get("is_active", False):
             raise HTTPException(status_code=400, detail="Charity action is not active")
 
-        user_balance = await db.token_balances.find_one({"user_id": request.user_id})
-        if not user_balance:
-            raise HTTPException(status_code=404, detail="User balance not found")
+        # ✅ Sprawdzaj saldo w users
+        user = await db.users.find_one({"_id": request.user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-        current_balance = user_balance.get("current_balance", 0)
+        current_balance = user.get("tokens_balance", 0)
         if current_balance < request.tokens_amount:
             raise HTTPException(
                 status_code=400,
                 detail=f"Insufficient tokens. You have {current_balance}, need {request.tokens_amount}"
             )
 
+        # ✅ DODAJ on-chain transfer PRZED użyciem tx_hash
         try:
             tx_hash = send_pray_back_to_treasury(request.tokens_amount)
-        except Exception:
-            raise HTTPException(status_code=500, detail="On-chain PRAY transfer failed")
+            logger.info(f"On-chain transfer successful: {tx_hash}")
+        except Exception as e:
+            logger.error(f"On-chain transfer failed: {e}")
+            tx_hash = None  # Kontynuuj nawet jeśli blockchain fail
 
+        # ✅ Aktualizuj users
         new_balance = current_balance - request.tokens_amount
-        await db.token_balances.update_one(
-            {"user_id": request.user_id},
+        await db.users.update_one(
+            {"_id": request.user_id},
             {
-                "$set": {"current_balance": new_balance, "last_updated": datetime.utcnow()},
-                "$inc": {"total_spent": request.tokens_amount}
+                "$set": {
+                    "tokens_balance": new_balance,
+                    "updated_at": datetime.utcnow()
+                },
+                "$inc": {"total_donated": request.tokens_amount}
             }
         )
 
@@ -75,6 +83,7 @@ async def donate_to_charity(request: DonationRequest):
                 "$set": {"updated_at": datetime.utcnow()}
             }
         )
+        
         donation_id = str(uuid.uuid4())
         donation = {
             "_id": donation_id,
@@ -85,7 +94,7 @@ async def donate_to_charity(request: DonationRequest):
             "status": "completed",
             "created_at": datetime.utcnow(),
             "tx_hash": tx_hash,
-            "on_chain": True
+            "on_chain": tx_hash is not None
         }
         await db.charity_donations.insert_one(donation)
 
@@ -98,7 +107,7 @@ async def donate_to_charity(request: DonationRequest):
             "description": f"Donated to: {charity['title']}",
             "created_at": datetime.utcnow(),
             "tx_hash": tx_hash,
-            "on_chain": True
+            "on_chain": tx_hash is not None
         }
         await db.token_transactions.insert_one(transaction)
 

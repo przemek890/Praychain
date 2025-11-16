@@ -1,10 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, ChevronLeft } from 'lucide-react-native';
+import { BookOpen, ArrowLeft, ChevronDown, X } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { Picker } from '@react-native-picker/picker';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -29,6 +28,10 @@ export default function BibleReaderScreen() {
   const [content, setContent] = useState<BibleChapter | null>(null);
   const [loading, setLoading] = useState(false);
   const [structureLoading, setStructureLoading] = useState(true);
+  
+  // ✅ NOWE - Modal states
+  const [bookModalVisible, setBookModalVisible] = useState(false);
+  const [chapterModalVisible, setChapterModalVisible] = useState(false);
 
   useEffect(() => {
     loadBibleStructure();
@@ -76,6 +79,19 @@ export default function BibleReaderScreen() {
     }
   };
 
+  // ✅ NOWE - Handle book selection
+  const handleBookSelect = (book: string) => {
+    setSelectedBook(book);
+    setSelectedChapter(1);
+    setBookModalVisible(false);
+  };
+
+  // ✅ NOWE - Handle chapter selection
+  const handleChapterSelect = (chapter: number) => {
+    setSelectedChapter(chapter);
+    setChapterModalVisible(false);
+  };
+
   if (structureLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -99,83 +115,181 @@ export default function BibleReaderScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
-        <Animated.View entering={FadeInDown} style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <ChevronLeft size={24} color="#1c1917" />
-          </Pressable>
-          <View style={styles.headerContent}>
-            <View style={styles.iconContainer}>
-              <BookOpen size={32} color="#92400e" />
-            </View>
-            <Text style={styles.title}>Bible Reader</Text>
-            <Text style={styles.subtitle}>Read any book and chapter</Text>
-          </View>
-        </Animated.View>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Header */}
+          <Animated.View entering={FadeInDown} style={styles.headerSection}>
+            <Pressable 
+              onPress={() => router.back()} 
+              style={styles.backButton}
+            >
+              <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
+            </Pressable>
 
-        {/* Selectors */}
-        <View style={styles.selectors}>
-          <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.selectorCard}>
-            <Text style={styles.selectorLabel}>Book</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={selectedBook}
-                onValueChange={(value) => {
-                  setSelectedBook(value);
-                  setSelectedChapter(1);
-                }}
-                style={styles.picker}
-              >
-                {bibleStructure.books.map((book) => (
-                  <Picker.Item key={book} label={book} value={book} />
-                ))}
-              </Picker>
+            <View style={styles.headerContent}>
+              <View style={styles.iconContainer}>
+                <BookOpen size={40} color="#92400e" strokeWidth={2} />
+              </View>
+              <Text style={styles.title}>Bible Reader</Text>
+              <Text style={styles.subtitle}>Read any book and chapter</Text>
             </View>
-          </LinearGradient>
+          </Animated.View>
 
-          <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.selectorCard}>
-            <Text style={styles.selectorLabel}>Chapter</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={selectedChapter}
-                onValueChange={(value) => setSelectedChapter(value)}
-                style={styles.picker}
-              >
-                {chapters.map((ch) => (
-                  <Picker.Item key={ch} label={ch.toString()} value={ch} />
-                ))}
-              </Picker>
-            </View>
-          </LinearGradient>
-        </View>
-
-        {/* Content */}
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#92400e" />
-            </View>
-          ) : content ? (
-            <Animated.View entering={FadeInDown.delay(100)}>
-              <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.contentCard}>
-                <View style={styles.contentHeader}>
-                  <Text style={styles.reference}>
-                    {content.book_name} {content.chapter}
-                  </Text>
-                </View>
-
-                <View style={styles.verses}>
-                  {content.verses.map((verse, index) => (
-                    <View key={index} style={styles.verseContainer}>
-                      <Text style={styles.verseNumber}>{verse.verse}</Text>
-                      <Text style={styles.verseText}>{verse.text}</Text>
-                    </View>
-                  ))}
-                </View>
-              </LinearGradient>
+          {/* ✅ NOWE Selectors - clickable cards */}
+          <View style={styles.selectorsContainer}>
+            <Animated.View entering={FadeInDown.delay(150)} style={styles.selectorWrapper}>
+              <Pressable onPress={() => setBookModalVisible(true)}>
+                <LinearGradient 
+                  colors={['#d97706', '#b45309']} 
+                  style={styles.selectorCard}
+                >
+                  <Text style={styles.selectorLabel}>BOOK</Text>
+                  <View style={styles.selectorValueRow}>
+                    <Text style={styles.selectorValue} numberOfLines={1}>
+                      {selectedBook}
+                    </Text>
+                    <ChevronDown size={20} color="#ffffff" strokeWidth={2.5} />
+                  </View>
+                </LinearGradient>
+              </Pressable>
             </Animated.View>
-          ) : null}
+
+            <Animated.View entering={FadeInDown.delay(200)} style={styles.selectorWrapper}>
+              <Pressable onPress={() => setChapterModalVisible(true)}>
+                <LinearGradient 
+                  colors={['#d97706', '#b45309']} 
+                  style={styles.selectorCard}
+                >
+                  <Text style={styles.selectorLabel}>CHAPTER</Text>
+                  <View style={styles.selectorValueRow}>
+                    <Text style={styles.selectorValue}>{selectedChapter}</Text>
+                    <ChevronDown size={20} color="#ffffff" strokeWidth={2.5} />
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+          </View>
+
+          {/* Content */}
+          <View style={styles.contentContainer}>
+            {loading ? (
+              <View style={styles.loadingCard}>
+                <ActivityIndicator size="large" color="#92400e" />
+                <Text style={styles.loadingText}>Loading chapter...</Text>
+              </View>
+            ) : content ? (
+              <Animated.View entering={FadeInDown.delay(250)}>
+                <View style={styles.contentCard}>
+                  <View style={styles.referenceHeader}>
+                    <Text style={styles.reference}>
+                      {content.book_name} {content.chapter}
+                    </Text>
+                    <Text style={styles.verseCount}>
+                      {content.verses.length} verse{content.verses.length !== 1 ? 's' : ''}
+                    </Text>
+                  </View>
+
+                  <View style={styles.verses}>
+                    {content.verses.map((verse, index) => (
+                      <View key={index} style={styles.verseRow}>
+                        <View style={styles.verseNumberCircle}>
+                          <Text style={styles.verseNumber}>{verse.verse}</Text>
+                        </View>
+                        <Text style={styles.verseText}>{verse.text}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </Animated.View>
+            ) : null}
+          </View>
         </ScrollView>
       </LinearGradient>
+
+      {/* ✅ NOWY Book Selection Modal */}
+      <Modal
+        visible={bookModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setBookModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Book</Text>
+              <Pressable onPress={() => setBookModalVisible(false)} style={styles.closeButton}>
+                <X size={24} color="#1c1917" strokeWidth={2} />
+              </Pressable>
+            </View>
+            
+            <FlatList
+              data={bibleStructure.books}
+              keyExtractor={(item) => item}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={[
+                    styles.modalItem,
+                    selectedBook === item && styles.modalItemSelected
+                  ]}
+                  onPress={() => handleBookSelect(item)}
+                >
+                  <Text style={[
+                    styles.modalItemText,
+                    selectedBook === item && styles.modalItemTextSelected
+                  ]}>
+                    {item}
+                  </Text>
+                  {selectedBook === item && (
+                    <View style={styles.selectedIndicator} />
+                  )}
+                </Pressable>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ✅ NOWY Chapter Selection Modal */}
+      <Modal
+        visible={chapterModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setChapterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Chapter</Text>
+              <Pressable onPress={() => setChapterModalVisible(false)} style={styles.closeButton}>
+                <X size={24} color="#1c1917" strokeWidth={2} />
+              </Pressable>
+            </View>
+            
+            <View style={styles.chaptersGrid}>
+              {chapters.map((chapter) => (
+                <Pressable
+                  key={chapter}
+                  style={[
+                    styles.chapterButton,
+                    selectedChapter === chapter && styles.chapterButtonSelected
+                  ]}
+                  onPress={() => handleChapterSelect(chapter)}
+                >
+                  <Text style={[
+                    styles.chapterButtonText,
+                    selectedChapter === chapter && styles.chapterButtonTextSelected
+                  ]}>
+                    {chapter}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -187,7 +301,10 @@ const styles = StyleSheet.create({
   },
   gradient: {
     flex: 1,
-    paddingTop: 60,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -207,124 +324,263 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 32,
   },
-  header: {
+
+  // Header
+  headerSection: {
+    paddingTop: 60,
     paddingHorizontal: 16,
     marginBottom: 20,
+    position: 'relative',
   },
   backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 10,
   },
   headerContent: {
     alignItems: 'center',
+    paddingTop: 8,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 12,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1c1917',
-    marginTop: 8,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#78716c',
-    marginTop: 4,
+    textAlign: 'center',
   },
-  selectors: {
+
+  // Selectors
+  selectorsContainer: {
     flexDirection: 'row',
     gap: 12,
     paddingHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  selectorWrapper: {
+    flex: 1,
   },
   selectorCard: {
-    flex: 1,
-    borderRadius: 12,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#d97706',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+    minHeight: 80,
   },
   selectorLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#78716c',
-    marginBottom: 6,
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.8)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#e7e5e4',
-    borderRadius: 8,
-    overflow: 'hidden',
+  selectorValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  picker: {
-    height: 40,
+  selectorValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+    flex: 1,
   },
-  content: {
+
+  // Content
+  contentContainer: {
     flex: 1,
     paddingHorizontal: 16,
   },
-  contentCard: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
+  loadingCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 40,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 3,
   },
-  contentHeader: {
-    marginBottom: 20,
+  contentCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  referenceHeader: {
     paddingBottom: 16,
-    borderBottomWidth: 1,
+    marginBottom: 20,
+    borderBottomWidth: 2,
     borderBottomColor: '#e7e5e4',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   reference: {
     fontSize: 20,
     fontWeight: '700',
     color: '#92400e',
-    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  verseCount: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#78716c',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   verses: {
-    gap: 16,
+    gap: 20,
   },
-  verseContainer: {
+  verseRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
+    alignItems: 'flex-start',
+  },
+  verseNumberCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fcd34d',
+    marginTop: 2,
   },
   verseNumber: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#92400e',
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    minWidth: 28,
-    textAlign: 'center',
   },
   verseText: {
     flex: 1,
-    fontSize: 15,
-    lineHeight: 24,
-    color: '#44403c',
+    fontSize: 16,
+    lineHeight: 26,
+    color: '#1c1917',
+    letterSpacing: 0.1,
+  },
+
+  // ✅ NOWE Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7e5e4',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1c1917',
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f5f5f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f4',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalItemSelected: {
+    backgroundColor: '#fef3c7',
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: '#1c1917',
+    fontWeight: '500',
+  },
+  modalItemTextSelected: {
+    fontWeight: '700',
+    color: '#92400e',
+  },
+  selectedIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#92400e',
+  },
+
+  // ✅ Chapters Grid
+  chaptersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 20,
+    gap: 12,
+  },
+  chapterButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#f5f5f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  chapterButtonSelected: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#fcd34d',
+  },
+  chapterButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#78716c',
+  },
+  chapterButtonTextSelected: {
+    fontWeight: '800',
+    color: '#92400e',
   },
 });
