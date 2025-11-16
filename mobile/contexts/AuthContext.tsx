@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuthState = async () => {
     try {
-      const storedUser = await AsyncStorage.getItem('privyUser');
+      const storedUser = await AsyncStorage.getItem('user');
       if (storedUser) {
         setUser(JSON.parse(storedUser));
         setAuthenticated(true);
@@ -36,7 +36,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async () => {
     try {
-      // Mock user for now - replace with real Privy integration later
       const mockUser = {
         id: `user-${Date.now()}`,
         email: { address: 'user@praychain.com' },
@@ -45,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       setUser(mockUser);
       setAuthenticated(true);
-      await AsyncStorage.setItem('privyUser', JSON.stringify(mockUser));
+      await AsyncStorage.setItem('user', JSON.stringify(mockUser));
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -56,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setUser(null);
       setAuthenticated(false);
-      await AsyncStorage.removeItem('privyUser');
+      await AsyncStorage.removeItem('user');
       await AsyncStorage.removeItem('userId');
     } catch (error) {
       console.error('Logout error:', error);
