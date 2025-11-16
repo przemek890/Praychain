@@ -1,31 +1,27 @@
 from pydantic import BaseModel
-from datetime import datetime
 from typing import Optional
+from datetime import datetime
 
-class User(BaseModel):
-    id: str
+class UserBase(BaseModel):
     username: str
-    email: Optional[str] = None
+    email: str  # ✅ Zmienione z EmailStr na str
+
+class UserCreate(UserBase):
+    pass
+
+class UserResponse(UserBase):
+    id: str
     created_at: datetime
     updated_at: datetime
-    is_active: bool = True
-    tokens_balance: int = 50
-    total_earned: int = 50
-    total_donated: int = 0
-    prayers_count: int = 0
-    streak_days: int = 0
-
-class UserCreate(BaseModel):
-    username: str
-    email: Optional[str] = None
-
-class UserResponse(BaseModel):
-    id: str
-    username: str
-    email: Optional[str]
+    is_active: bool
     tokens_balance: int
     total_earned: int
     total_donated: int
     prayers_count: int
     streak_days: int
-    created_at: datetime
+    level: int = 1
+    experience: int = 0
+    experience_to_next_level: int = 100
+
+    class Config:
+        from_attributes = True

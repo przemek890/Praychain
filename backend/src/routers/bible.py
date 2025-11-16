@@ -43,11 +43,14 @@ async def get_random_bible_quote():
 
 @router.get("/short-quote")
 async def get_short_quote():
+    """
+    Zwraca krótki cytat biblijny z quotes.py - używany dla Daily Inspiration
+    """
     quote = random.choice(SHORT_BIBLE_QUOTES)
     return {
         "text": quote["text"],
         "reference": quote["reference"],
-        "category": quote["category"],
+        "category": quote.get("category", "inspiration"),
         "type": "short_quote"
     }
 
@@ -75,10 +78,10 @@ async def list_prayers():
 @router.get("/daily-reading")
 async def get_daily_reading():
     """
-    Generuje czytanie na dzisiaj na podstawie daty
+    Generuje czytanie na dzisiaj na podstawie daty - zawsze to samo dla danego dnia
     """
     try:
-        from src.data.bible_structure import BIBLE_BOOKS_ORDER, CHAPTERS_PER_BOOK
+        from datetime import datetime
         import random
         
         # Use date as seed for consistent daily reading
@@ -86,37 +89,45 @@ async def get_daily_reading():
         seed = int(today.strftime('%Y%m%d'))
         random.seed(seed)
         
-        # Select random book and chapter
+        # Select random book and chapter based on today's seed
         book = random.choice(BIBLE_BOOKS_ORDER)
         max_chapter = CHAPTERS_PER_BOOK.get(book, 1)
         chapter = random.randint(1, max_chapter)
         
         # Fetch chapter content
-        response = requests.get(
-            f"{BASE_URL}/{book}/{chapter}",
-            timeout=BIBLE_API_TIMEOUT
-        )
+        url = f"{BASE_URL}/{book} {chapter}"
+        response = requests.get(url, timeout=BIBLE_API_TIMEOUT)
         
         if response.status_code != 200:
+            logger.error(f"Bible API returned status {response.status_code}")
             raise HTTPException(status_code=500, detail="Failed to fetch daily reading")
             
         data = response.json()
         
-        # Format response
+        # Format verses
         verses = []
         for verse in data.get("verses", []):
             verses.append({
                 "verse": verse.get("verse"),
-                "text": verse.get("text", "")
+                "text": verse.get("text", "").strip()
             })
+        
+        logger.info(f"Daily reading for {today}: {book} {chapter} ({len(verses)} verses)")
         
         return {
             "book_name": book,
             "chapter": chapter,
             "verses": verses,
-            "date": today.isoformat()
+            "date": today.isoformat(),
+            "reference": f"{book} {chapter}"
         }
         
+    except requests.exceptions.Timeout:
+        logger.error("Bible API timeout")
+        raise HTTPException(
+            status_code=504,
+            detail=f"Bible API timeout after {BIBLE_API_TIMEOUT} seconds"
+        )
     except Exception as e:
         logger.error(f"Error getting daily reading: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     BACKEND_HOST: str = "0.0.0.0"
     BACKEND_PORT: int = 8000
 
+    CELO_ENABLED: bool
     CELO_RPC_URL: str
     PRAY_CONTRACT_ADDRESS: str
     CELO_CHAIN_ID: int = 11142220
@@ -100,19 +101,19 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # Allowed audio file formats
 ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm", ".ogg"}
 
-<<<<<<< HEAD
+# Maximum file size: 100MB
+MAX_FILE_SIZE = 100 * 1024 * 1024
+
+BIBLE_API_TIMEOUT = 5.0
+BIBLE_API_ENABLED = True
+
+# Voice verification settings
+VOICE_VERIFICATION_ENABLED = True
+ASSEMBLYAI_MIN_SIMILARITY = 0.65
+
+# Delay między dwoma wywołaniami detektora (bezpieczny bufor)
+REPLICATE_DELAY_SECONDS = int(os.getenv("VOICE_DETECT_DELAY_SECONDS", "8"))
+
 # Resemble Detect
 RESEMBLE_API_TOKEN = os.getenv("RESEMBLE_API_TOKEN", "")
 RESEMBLE_DETECT_URL = os.getenv("RESEMBLE_DETECT_URL", "https://api.resemble.ai/v1/detect")
-=======
-# Maximum upload file size: 100MB
-MAX_FILE_SIZE = 100 * 1024 * 1024
-
-# ============================================
-# AI MODEL SETTINGS
-# ============================================
-# Whisper model for transcription
-WHISPER_MODEL_SIZE = os.getenv("WHISPER_MODEL_SIZE", "base")  # tiny, base, small, medium, large-v2
-WHISPER_DEVICE = "cpu"
-WHISPER_COMPUTE_TYPE = "int8"
->>>>>>> 9830925 (-)

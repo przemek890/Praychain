@@ -1,12 +1,13 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Settings, BookOpen, Quote, Calendar, RefreshCw, Flame, Globe, FileText, Shield, HelpCircle, Info, LogOut, ChevronRight, ArrowLeft } from 'lucide-react-native';
+import { User, Settings, BookOpen, Quote, Calendar, RefreshCw, Flame, Globe, FileText, Shield, HelpCircle, Info, LogOut, ChevronRight, ArrowLeft, Coins } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { router } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { router, useFocusEffect } from 'expo-router'; // ✅ Dodane useFocusEffect
+import { useState, useEffect, useCallback } from 'react'; // ✅ Dodane useCallback
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/contexts/AuthContext';
+import { getCurrentUserId } from '@/config/currentUser';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -14,8 +15,13 @@ interface UserData {
   id: string;
   username: string;
   tokens_balance: number;
-  streak_days: number;
   prayers_count: number;
+  streak_days: number;
+  total_earned: number;
+  total_donated: number;
+  level?: number;
+  experience?: number;
+  experience_to_next_level?: number;
 }
 
 interface BibleQuote {
@@ -27,6 +33,33 @@ interface BibleQuote {
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+// Helper function to calculate level and experience
+const calculateLevel = (totalEarned: number) => {
+  const baseXP = 100; // XP needed for level 1->2
+  const multiplier = 1.5; // Each level requires 50% more XP
+  
+  let level = 1;
+  let xpForCurrentLevel = 0;
+  let xpForNextLevel = baseXP;
+  
+  while (totalEarned >= xpForNextLevel) {
+    level++;
+    xpForCurrentLevel = xpForNextLevel;
+    xpForNextLevel += Math.floor(baseXP * Math.pow(multiplier, level - 1));
+  }
+  
+  const currentLevelXP = totalEarned - xpForCurrentLevel;
+  const xpNeededForNext = xpForNextLevel - xpForCurrentLevel;
+  const progress = (currentLevelXP / xpNeededForNext) * 100;
+  
+  return {
+    level,
+    experience: currentLevelXP,
+    experience_to_next_level: xpNeededForNext,
+    progress: Math.min(progress, 100)
+  };
+};
 
 export default function HomeScreen() {
   const { t } = useLanguage();
@@ -41,12 +74,19 @@ export default function HomeScreen() {
     loadData();
   }, []);
 
+  // ✅ NOWE: Odświeżaj dane po powrocie do zakładki
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Home tab focused - refreshing user data');
+      loadData();
+    }, [])
+  );
+
   const loadData = async () => {
     try {
       setLoading(true);
       
-      // Always try to load user "test" first
-      let userId = 'test';
+      let userId = getCurrentUserId();
       
       try {
         const userResponse = await fetch(`${API_URL}/api/users/${userId}`);
@@ -55,13 +95,12 @@ export default function HomeScreen() {
           setUserData(user);
           await AsyncStorage.setItem('userId', userId);
         } else if (userResponse.status === 404) {
-          // User "test" doesn't exist, create it
           const createResponse = await fetch(`${API_URL}/api/users`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              username: 'test',
-              email: 'test@example.com'
+              username: userId,
+              email: `${userId}@example.com`
             })
           });
           
@@ -72,11 +111,10 @@ export default function HomeScreen() {
           }
         }
       } catch (userError) {
-        console.error('Error with user "test":', userError);
+        console.error(`Error with user "${userId}":`, userError);
         
-        // Fallback: check if there's a stored userId
         const storedUserId = await AsyncStorage.getItem('userId');
-        if (storedUserId && storedUserId !== 'test') {
+        if (storedUserId && storedUserId !== userId) {
           const fallbackResponse = await fetch(`${API_URL}/api/users/${storedUserId}`);
           if (fallbackResponse.ok) {
             const user = await fallbackResponse.json();
@@ -85,7 +123,7 @@ export default function HomeScreen() {
         }
       }
 
-      // Load daily quote
+      // ✅ ZMIENIONE - Load short quote (z quotes.py)
       const quoteResponse = await fetch(`${API_URL}/api/bible/short-quote`);
       if (quoteResponse.ok) {
         const quote = await quoteResponse.json();
@@ -101,7 +139,8 @@ export default function HomeScreen() {
   const refreshQuote = async () => {
     try {
       setRefreshing(true);
-      const response = await fetch(`${API_URL}/api/bible/random-quote`);
+      // ✅ ZMIENIONE - Refresh też używa short-quote
+      const response = await fetch(`${API_URL}/api/bible/short-quote`);
       if (response.ok) {
         const quote = await response.json();
         setDailyQuote(quote);
@@ -133,6 +172,10 @@ export default function HomeScreen() {
   const tokens = userData?.tokens_balance || 0;
   const streak = userData?.streak_days || 0;
   const prayersCount = userData?.prayers_count || 0;
+  const totalEarned = userData?.total_earned || 0;
+  
+  // Calculate level
+  const levelData = calculateLevel(totalEarned);
 
   // Settings Screen
   if (settingsVisible) {
@@ -142,72 +185,85 @@ export default function HomeScreen() {
           colors={['#78350f20', '#44403c30', '#78350f25']}
           style={styles.gradient}
         >
-          <Animated.View entering={FadeInUp} style={styles.settingsHeader}>
-            <Pressable onPress={() => setSettingsVisible(false)} style={styles.backButton}>
-              <ArrowLeft size={24} color="#1c1917" strokeWidth={2.5} />
-            </Pressable>
-            <Text style={styles.settingsTitle}>Ustawienia</Text>
-            <View style={{ width: 40 }} />
-          </Animated.View>
-
           <ScrollView 
-            style={styles.settingsContent} 
+            style={styles.settingsScrollView} 
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.settingsScrollContent}
           >
-            <Animated.View entering={FadeInDown.delay(100)}>
-              <SettingItem
-                icon={Globe}
-                title="Język aplikacji"
-                subtitle="Polski"
-                onPress={() => {/* Handle language change */}}
-              />
-            </Animated.View>
-            
-            <Animated.View entering={FadeInDown.delay(150)}>
-              <SettingItem
-                icon={FileText}
-                title="Regulamin"
-                onPress={() => {/* Handle terms */}}
-              />
-            </Animated.View>
-            
-            <Animated.View entering={FadeInDown.delay(200)}>
-              <SettingItem
-                icon={Shield}
-                title="Polityka prywatności"
-                onPress={() => {/* Handle privacy */}}
-              />
-            </Animated.View>
-            
-            <Animated.View entering={FadeInDown.delay(250)}>
-              <SettingItem
-                icon={HelpCircle}
-                title="Pomoc i wsparcie"
-                onPress={() => {/* Handle support */}}
-              />
-            </Animated.View>
-            
-            <Animated.View entering={FadeInDown.delay(300)}>
-              <SettingItem
-                icon={Info}
-                title="O aplikacji"
-                subtitle="Wersja 1.0.0"
-                onPress={() => {/* Handle about */}}
-              />
-            </Animated.View>
-            
-            <Animated.View entering={FadeInDown.delay(350)}>
+            {/* ✅ Header ze strzałką - wyżej */}
+            <Animated.View entering={FadeInDown} style={styles.settingsHeaderSection}>
               <Pressable 
-                onPress={handleLogout}
-                style={styles.logoutButton}
+                onPress={() => setSettingsVisible(false)} 
+                style={styles.backButtonFloating}
               >
-                <View style={styles.logoutIconWrapper}>
-                  <LogOut size={20} color="#dc2626" strokeWidth={2.5} />
-                </View>
-                <Text style={styles.logoutText}>Wyloguj się</Text>
+                <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
               </Pressable>
+
+              <View style={styles.settingsHeaderContent}>
+                <View style={styles.iconContainer}>
+                  <Settings size={40} color="#92400e" strokeWidth={2} />
+                </View>
+                <Text style={styles.settingsTitleLarge}>Settings</Text>
+                <Text style={styles.settingsSubtitle}>Manage your preferences</Text>
+              </View>
             </Animated.View>
+
+            {/* Settings Items */}
+            <View style={styles.settingsItemsContainer}>
+              <Animated.View entering={FadeInDown.delay(150)}>
+                <SettingItem
+                  icon={Globe}
+                  title="App Language"
+                  subtitle="English"
+                  onPress={() => {/* Handle language change */}}
+                />
+              </Animated.View>
+              
+              <Animated.View entering={FadeInDown.delay(200)}>
+                <SettingItem
+                  icon={FileText}
+                  title="Terms of Service"
+                  onPress={() => {/* Handle terms */}}
+                />
+              </Animated.View>
+              
+              <Animated.View entering={FadeInDown.delay(250)}>
+                <SettingItem
+                  icon={Shield}
+                  title="Privacy Policy"
+                  onPress={() => {/* Handle privacy */}}
+                />
+              </Animated.View>
+              
+              <Animated.View entering={FadeInDown.delay(300)}>
+                <SettingItem
+                  icon={HelpCircle}
+                  title="Help & Support"
+                  onPress={() => {/* Handle support */}}
+                />
+              </Animated.View>
+              
+              <Animated.View entering={FadeInDown.delay(350)}>
+                <SettingItem
+                  icon={Info}
+                  title="About App"
+                  subtitle="Version 1.0.0"
+                  onPress={() => {/* Handle about */}}
+                />
+              </Animated.View>
+              
+              <Animated.View entering={FadeInDown.delay(400)}>
+                <Pressable 
+                  onPress={handleLogout}
+                  style={styles.logoutButton}
+                >
+                  <View style={styles.logoutIconWrapper}>
+                    <LogOut size={20} color="#dc2626" strokeWidth={2.5} />
+                  </View>
+                  <Text style={styles.logoutText}>Log Out</Text>
+                </Pressable>
+              </Animated.View>
+            </View>
           </ScrollView>
         </LinearGradient>
       </View>
@@ -239,7 +295,8 @@ export default function HomeScreen() {
             </View>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.delay(100)} style={styles.heroCardWrapper}>
+          {/* USUŃ CAŁY TEN BLOK - stary tokensCard */}
+          {/* <Animated.View entering={FadeInDown.delay(100)} style={styles.heroCardWrapper}>
             <LinearGradient
               colors={['#ffffff', '#fafaf9']}
               style={styles.tokensCard}
@@ -283,6 +340,78 @@ export default function HomeScreen() {
                 </View>
               </View>
             </LinearGradient>
+          </Animated.View> */}
+
+          {/* ✅ ZOSTAW TYLKO TEN - Compact Balance Card z Level */}
+          <Animated.View entering={FadeInDown.delay(100)} style={styles.balanceCardCompact}>
+            <LinearGradient 
+              colors={['#ffffff', '#fafaf9']} 
+              style={styles.balanceGradientCompact}
+            >
+              {/* Balance Row */}
+              <View style={styles.balanceRowCompact}>
+                <View style={styles.balanceIconCompact}>
+                  <Image 
+                    source={require('@/components/icons/logo.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.balanceTextContainer}>
+                  <Text style={styles.balanceLabel}>YOUR BALANCE</Text>
+                  <View style={styles.balanceAmountRow}>
+                    <Text style={styles.balanceAmount}>{tokens}</Text>
+                    <Text style={styles.balanceCurrency}>PRAY</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Level Progress Bar */}
+              <View style={styles.levelContainer}>
+                <View style={styles.levelHeader}>
+                  <View style={styles.levelBadge}>
+                    <Text style={styles.levelText}>Level {levelData.level}</Text>
+                  </View>
+                  <Text style={styles.levelXPText}>
+                    {levelData.experience}/{levelData.experience_to_next_level} XP
+                  </Text>
+                </View>
+                <View style={styles.progressBarContainer}>
+                  <View style={styles.progressBarBackground}>
+                    <LinearGradient
+                      colors={['#d97706', '#f59e0b']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[styles.progressBarFill, { width: `${levelData.progress}%` }]}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Divider */}
+              <View style={styles.divider} />
+
+              {/* Stats Row */}
+              <View style={styles.statsRowCompact}>
+                <View style={styles.statItemCompact}>
+                  <View style={styles.statIconSmall}>
+                    <BookOpen size={14} color="#92400e" />
+                  </View>
+                  <Text style={styles.statValueCompact}>{prayersCount}</Text>
+                  <Text style={styles.statLabelCompact}>Prayers</Text>
+                </View>
+
+                <View style={styles.statDivider} />
+
+                <View style={styles.statItemCompact}>
+                  <View style={styles.statIconSmall}>
+                    <Flame size={14} color="#dc2626" />
+                  </View>
+                  <Text style={[styles.statValueCompact, { color: '#dc2626' }]}>{streak}</Text>
+                  <Text style={styles.statLabelCompact}>Day Streak</Text>
+                </View>
+              </View>
+            </LinearGradient>
           </Animated.View>
 
           <View style={styles.content}>
@@ -307,7 +436,7 @@ export default function HomeScreen() {
                       />
                     </Pressable>
                   </View>
-                  <Text style={styles.quoteText}>"{dailyQuote.text}"</Text>
+                  <Text style={styles.quoteText}>{dailyQuote.text}</Text>
                   <Text style={styles.quoteReference}>— {dailyQuote.reference}</Text>
                 </LinearGradient>
               </Animated.View>
@@ -340,7 +469,7 @@ export default function HomeScreen() {
                 icon={Calendar}
                 title="Bible Reader"
                 description="Read any chapter"
-                gradient={['#92400e', '#78350f']}
+                gradient={['#78350f', '#451a03']} // ✅ ZMIENIONE z ['#92400e', '#78350f']
                 delay={400}
                 onPress={() => router.push('/bible-reader')}
                 style={styles.fullCard}
@@ -444,122 +573,164 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  heroCardWrapper: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
+  // ❌ USUŃ te style - już nie potrzebne
+  // heroCardWrapper, tokensCard, tokensHeader, logoContainer, 
+  // crossWrapper, crossVertical, crossHorizontal, tokensContent,
+  // tokensLabel, tokensValueRow, tokensValue, tokensUnit,
+  // statsGrid, statBox, statIconWrapper, statValue, statLabel
+
+  // ✅ ZAKTUALIZUJ - dodaj marginesy jak w heroCardWrapper
+  balanceCardCompact: {
+    paddingHorizontal: 16, // ✅ Dodane
+    marginBottom: 20, // ✅ Zmienione z 16 na 20
   },
-  tokensCard: {
-    borderRadius: 20,
-    padding: 20,
+  balanceGradientCompact: {
+    padding: 16,
+    paddingBottom: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 20, // ✅ Dodane
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
   },
-  tokensHeader: {
+  balanceRowCompact: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    marginBottom: 16,
+    gap: 14, // ✅ Zwiększone z 12 na 14
+    marginBottom: 12,
   },
-  logoContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 16,
+  balanceIconCompact: {
+    width: 56, // ✅ Zwiększone z 48 na 56
+    height: 56, // ✅ Zwiększone z 48 na 56
+    borderRadius: 16, // ✅ Zwiększone z 12 na 16
+    backgroundColor: '#92400e',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#92400e',
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  crossWrapper: {
-    width: 34,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 40, // ✅ Nowe
+    height: 40, // ✅ Nowe
   },
-  crossVertical: {
-    position: 'absolute',
-    width: 7,
-    height: 34,
-    backgroundColor: '#ffffff',
-    borderRadius: 3.5,
-  },
-  crossHorizontal: {
-    position: 'absolute',
-    width: 34,
-    height: 7,
-    backgroundColor: '#ffffff',
-    borderRadius: 3.5,
-  },
-  tokensContent: {
+  balanceTextContainer: {
     flex: 1,
   },
-  tokensLabel: {
-    fontSize: 11,
+  balanceLabel: {
+    fontSize: 11, // ✅ Zwiększone z 10 na 11
     fontWeight: '600',
     color: '#78716c',
-    marginBottom: 4,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1, // ✅ Zwiększone z 0.5 na 1
+    marginBottom: 4, // ✅ Zwiększone z 2 na 4
   },
-  tokensValueRow: {
+  balanceAmountRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 6,
+    gap: 8, // ✅ Zwiększone z 6 na 8
   },
-  tokensValue: {
-    fontSize: 36,
+  balanceAmount: {
+    fontSize: 36, // ✅ Zwiększone z 32 na 36
     fontWeight: 'bold',
     color: '#16a34a',
     letterSpacing: -1,
   },
-  tokensUnit: {
-    fontSize: 18,
+  balanceCurrency: {
+    fontSize: 18, // ✅ Zwiększone z 16 na 18
     fontWeight: '700',
     color: '#16a34a',
     opacity: 0.7,
   },
+
   divider: {
     height: 1,
     backgroundColor: '#e7e5e4',
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  statsGrid: {
+
+  // Level Progress
+  levelContainer: {
+    marginBottom: 12,
+  },
+  levelHeader: {
     flexDirection: 'row',
-    gap: 12,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: '#fafaf9',
-    borderRadius: 14,
-    padding: 14,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 4,
+    marginBottom: 6,
   },
-  statIconWrapper: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+  levelBadge: {
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#fbbf24',
+  },
+  levelText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#92400e',
+  },
+  levelXPText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#78716c',
+  },
+  progressBarContainer: {
+    marginTop: 4,
+  },
+  progressBarBackground: {
+    height: 8,
+    backgroundColor: '#e7e5e4',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+
+  statsRowCompact: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  statItemCompact: {
+    flex: 1,
+    flexDirection: 'row', // ✅ Dodane - wszystko w jednej linii
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8, // ✅ Zwiększone z 4 na 8
+  },
+  statIconSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     backgroundColor: '#fef3c7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
   },
-  statValue: {
-    fontSize: 26,
+  statValueCompact: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1c1917',
-    letterSpacing: -0.5,
   },
-  statLabel: {
-    fontSize: 12,
+  statLabelCompact: {
+    fontSize: 11,
     color: '#78716c',
-    fontWeight: '600',
+    fontWeight: '500',
   },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#e7e5e4',
+  },
+
   content: {
     paddingHorizontal: 16,
     paddingBottom: 100,
@@ -701,6 +872,57 @@ const styles = StyleSheet.create({
   settingsScrollContent: {
     paddingBottom: 40,
   },
+  settingsScrollView: {
+    flex: 1,
+  },
+  settingsHeaderSection: {
+    paddingTop: 20,
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    position: 'relative',
+  },
+  backButtonFloating: {
+    position: 'absolute',
+    top: 20,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
+  },
+  settingsHeaderContent: {
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  settingsTitleLarge: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1c1917',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  settingsSubtitle: {
+    fontSize: 14,
+    color: '#78716c',
+    textAlign: 'center',
+  },
+  settingsItemsContainer: {
+    paddingHorizontal: 16,
+  },
+
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -758,4 +980,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#dc2626',
   },
+
+  // ❌ USUŃ stare style:
+  // settingsHeader, backButton, settingsTitle, settingsContent, settingsScrollContent (stary)
 });
