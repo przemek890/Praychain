@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 
+const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
+const API_URL = `http://${API_HOST}:${API_PORT}`;
+
 export interface CharityAction {
   _id: string;
   title: string;
@@ -18,9 +22,14 @@ export interface CharityAction {
   created_at: string;
 }
 
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
-const API_URL = `http://${API_HOST}:${API_PORT}`;
+// ✅ DODAJ TEN NOWY INTERFACE
+interface Donor {
+  user_id: string;
+  username: string;
+  total_donated: number;
+  donation_count: number;
+  last_donation: string;
+}
 
 export function useCharity() {
   const [charities, setCharities] = useState<CharityAction[]>([]);
@@ -80,4 +89,41 @@ export function useCharity() {
     donateToCharity,
     refresh: fetchCharities,
   };
+}
+
+// ✅ DODAJ TEN NOWY HOOK
+export function useCharityDonors(charityId: string | null) {
+  const [donors, setDonors] = useState<Donor[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchDonors = async () => {
+    if (!charityId) {
+      setDonors([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/api/charity/actions/${charityId}/donors`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setDonors(data.donors || []);
+      } else {
+        console.error('Failed to fetch donors:', response.status);
+        setDonors([]);
+      }
+    } catch (error) {
+      console.error('Error fetching donors:', error);
+      setDonors([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDonors();
+  }, [charityId]);
+
+  return { donors, loading, refresh: fetchDonors };
 }
