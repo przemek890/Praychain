@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
- backend:
+  backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -12,7 +12,26 @@ services:
     env_file:
       - ./backend/.env
     restart: unless-stopped
+    volumes:
+      - audio-storage:/app/uploads
+
+  voice-service:
+    build:
+      context: ./voice-service
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    networks:
+      - praychain-network
+    restart: unless-stopped
+    volumes:
+      - audio-storage:/app/uploads
+    profiles:
+      - voice-verification
 
 networks:
   praychain-network:
     driver: bridge
+
+volumes:
+  audio-storage:

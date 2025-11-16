@@ -57,11 +57,13 @@ FOCUS_POINTS_MULTIPLIER = 10
 # VOICE VERIFICATION SETTINGS (Proof-of-Prayer)
 # ============================================
 # Enable/disable voice biometric verification
-VOICE_VERIFICATION_ENABLED = True
+VOICE_VERIFICATION_ENABLED = os.getenv("VOICE_VERIFICATION_ENABLED", "false").lower() == "true"
+
+VOICE_SERVICE_URL = os.getenv("VOICE_SERVICE_URL", "http://voice-service:8001")
 
 # Minimum voice similarity threshold for verification (0.0 - 1.0)
 # Compares prayer audio with CAPTCHA audio biometrics
-VOICE_SIMILARITY_THRESHOLD = 0.85
+VOICE_SIMILARITY_THRESHOLD = float(os.getenv("VOICE_SIMILARITY_THRESHOLD", "0.85"))
 
 # Bonus points multiplier for high voice similarity
 VOICE_SIMILARITY_BONUS_MULTIPLIER = 10
