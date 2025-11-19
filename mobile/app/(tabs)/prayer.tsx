@@ -100,7 +100,7 @@ export default function PrayerScreen() {
                 <Heart size={48} color="#92400e" strokeWidth={2} />
                 <Text style={styles.loginPromptTitle}>{t.prayer.pleaseLogin}</Text>
                 <Text style={styles.loginPromptSubtitle}>
-                  Please check your internet connection
+                  {t.bibleReader.checkConnection}
                 </Text>
                 <Pressable style={styles.retryButtonError} onPress={() => window.location.reload()}>
                   <LinearGradient colors={['#92400e', '#78350f']} style={styles.retryButtonGradient}>

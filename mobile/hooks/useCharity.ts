@@ -18,6 +18,7 @@ export interface CharityAction {
   tokens_remaining?: number;
   deadline?: string;
   created_at: string;
+  patron?: string;
 }
 
 interface Donor {

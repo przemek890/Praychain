@@ -259,7 +259,7 @@ export const en = {
     email: 'Email',
     username: 'Username',
     appLanguage: 'App Language',
-    termsOfService: 'Terms of Service',
+    termsOfService: 'About us',
     privacyPolicy: 'Privacy Policy',
     helpSupport: 'Help & Support',
     logOut: 'Log Out',
@@ -376,6 +376,51 @@ export const en = {
     privacyPolicy: 'Privacy Policy',
     configurationError: 'Configuration Error',
     checkEnvFile: 'Please check your .env file or app.json configuration',
+  },
+
+  // Terms & Conditions
+  terms: {
+    title: 'About us',
+    subtitle: 'Learn about Praychain mission',
+    mission: {
+      title: 'Our Mission',
+      description: 'Praychain is an application designed to build spiritual depth through conscious focus on prayer. Only mindful prayer earns tokens. Our goal is to help discover and rebuild the depth of recognizing true values and finding meaning in dynamic life.',
+    },
+    tokens: {
+      title: 'PRAY Tokens',
+      description: 'PRAY tokens are a spiritual currency of good that you earn for conscious prayer practice.',
+      earning: 'Earn tokens for mindful and focused prayer',
+      usage: 'Tokens can only be exchanged for charity help from verified partners',
+      value: 'Token value is pegged to the US dollar',
+    },
+    blockchain: {
+      title: 'Blockchain Technology',
+      description: 'We use blockchain technology for transparency and security of transferred funds.',
+      transparency: 'Full transparency of all transactions',
+      security: 'Secure fund transfers without intermediaries',
+      accessibility: 'Reaching countries where financial systems lack trust',
+      celo: 'Integration with CELO network - popular in African countries',
+    },
+    governance: {
+      title: 'Community Governance',
+      description: 'Most engaged users (holding most tokens) decide where the help goes.',
+      voting: 'In case of fraud attempts, the community can vote by absolute majority to block further payments to a given charity entity.',
+    },
+    verification: {
+      title: 'Proof-of-Prayer Protocol',
+      description: 'Verification of prayer correctness and mindfulness uses our proprietary Proof-of-Prayer protocol:',
+      voiceAI: 'Voice AI models analyzing speech patterns',
+      llm: 'LLM agents evaluating content and focus',
+      captcha: 'VoiceCaptcha ensuring user authenticity',
+    },
+    tokenomics: {
+      title: 'Token Economics',
+      description: 'PRAY token has unique economic properties:',
+      stability: 'Partially locked liquidity pool for value stabilization',
+      liquidity: 'Part of tokens admitted to exchange trading for value building',
+      transfer: 'Ability to transfer purchased tokens to wallet created during registration',
+    },
+    impact: 'Together we build a transparent ecosystem of spiritual growth and real charity help, eliminating transaction costs and ensuring funds reach those who need them.',
   },
 
   // Common

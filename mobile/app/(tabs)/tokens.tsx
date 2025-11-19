@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Image, Dimensions, StatusBar, Animated, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, ArrowRight, Coins, RefreshCw, ArrowLeft, Info, Users, Target, X, TrendingUp, Trophy } from 'lucide-react-native';
+import { Heart, ArrowRight, Coins, RefreshCw, ArrowLeft, Info, Users, Target, X, TrendingUp, Trophy, Crown, Building2, Tag } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useCharity, CharityAction, useCharityDonors } from '@/hooks/useCharity';
@@ -9,7 +9,18 @@ import { useFocusEffect } from 'expo-router';
 import { useUserDataRefresh } from '@/contexts/UserDataContext';
 import { useUserData } from '@/hooks/useUserData';
 
-const { width } = Dimensions.get('window');
+const getCategoryColor = (category: string) => {
+  const colors: Record<string, { bg: string; border: string; text: string }> = {
+    health: { bg: '#dcfce7', border: '#16a34a', text: '#166534' },
+    education: { bg: '#dbeafe', border: '#2563eb', text: '#1e40af' },
+    environment: { bg: '#d1fae5', border: '#10b981', text: '#047857' },
+    humanitarian: { bg: '#fce7f3', border: '#db2777', text: '#9f1239' },
+    animals: { bg: '#fed7aa', border: '#ea580c', text: '#9a3412' },
+    children: { bg: '#e0e7ff', border: '#6366f1', text: '#4338ca' },
+  };
+  return colors[category] || { bg: '#f3f4f6', border: '#6b7280', text: '#374151' };
+};
+
 
 export default function TokensScreen() {
   const { t } = useLanguage();
@@ -219,57 +230,88 @@ export default function TokensScreen() {
     );
   }
 
-  if (selectedCharity) {
-    const amount = parseInt(donationAmount) || 0;
-    const isValidAmount = amount >= selectedCharity.cost_tokens && amount <= userTokens && !amountError;
-    const progress = selectedCharity.goal_tokens 
-      ? (selectedCharity.total_tokens_raised / selectedCharity.goal_tokens) * 100 
-      : 0;
+  // ...existing code...
 
-    return (
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" />
-        
-        <ScrollView 
-          style={styles.detailContainer}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          {/* Hero Section with Image */}
-          <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
-            {selectedCharity.image_url && (
-              <Image
-                source={{ uri: selectedCharity.image_url }}
-                style={styles.heroImage}
-              />
-            )}
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.8)']}
-              style={styles.heroGradient}
+if (selectedCharity) {
+  const amount = parseInt(donationAmount) || 0;
+  const isValidAmount = amount >= selectedCharity.cost_tokens && amount <= userTokens && !amountError;
+  const progress = selectedCharity.goal_tokens 
+    ? (selectedCharity.total_tokens_raised / selectedCharity.goal_tokens) * 100 
+    : 0;
+  
+  const categoryColors = getCategoryColor(selectedCharity.category);
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      
+      <ScrollView 
+        style={styles.detailContainer}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
+        {/* Hero Section with Image */}
+        <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
+          {selectedCharity.image_url && (
+            <Image
+              source={{ uri: selectedCharity.image_url }}
+              style={styles.heroImage}
             />
-            
-            {/* Back Button */}
-            <Pressable
-              style={styles.backButton}
-              onPress={() => {
-                setSelectedCharity(null);
-                setDonationAmount('');
-                setAmountError(null);
-              }}
-            >
-              <View style={styles.backButtonInner}>
-                <ArrowLeft size={20} color="#1c1917" strokeWidth={2.5} />
-              </View>
-            </Pressable>
-
-            {/* Title Overlay */}
-            <View style={styles.heroContent}>
-              <View style={styles.orgBadgeNew}>
-                <Text style={styles.orgBadgeText}>{selectedCharity.organization}</Text>
-              </View>
-              <Text style={styles.heroTitle}>{selectedCharity.title}</Text>
+          )}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            style={styles.heroGradient}
+          />
+          
+          {/* Back Button */}
+          <Pressable
+            style={styles.backButton}
+            onPress={() => {
+              setSelectedCharity(null);
+              setDonationAmount('');
+              setAmountError(null);
+            }}
+          >
+            <View style={styles.backButtonInner}>
+              <ArrowLeft size={20} color="#1c1917" strokeWidth={2.5} />
             </View>
-          </Animated.View>
+          </Pressable>
+
+          {/* ✅ Title Overlay with Badges */}
+          <View style={styles.heroContent}>
+            {/* ✅ BADGE'Y - Category + Organization */}
+            <View style={styles.heroBadgesRow}>
+              {/* Category Badge */}
+              <View style={[styles.heroCategoryBadge, { 
+                backgroundColor: `${categoryColors.bg}dd`,
+                borderColor: categoryColors.border 
+              }]}>
+                <Tag size={12} color={categoryColors.text} strokeWidth={2.5} />
+                <Text style={[styles.heroCategoryText, { color: categoryColors.text }]}>
+                  {selectedCharity.category}
+                </Text>
+              </View>
+
+              {/* Organization Badge */}
+              <View style={styles.heroOrgBadge}>
+                <Building2 size={12} color="#ffffff" strokeWidth={2.5} />
+                <Text style={styles.heroOrgText}>{selectedCharity.organization}</Text>
+              </View>
+            </View>
+
+            {/* ✅ Patron Badge - jeśli istnieje */}
+            {selectedCharity.patron && (
+              <View style={styles.heroPatronBadge}>
+                <Crown size={16} color="#fbbf24" strokeWidth={2.5} fill="#fbbf24" />
+                <Text style={styles.heroPatronText}>{selectedCharity.patron}</Text>
+              </View>
+            )}
+
+            <Text style={styles.heroTitle}>{selectedCharity.title}</Text>
+          </View>
+        </Animated.View>
+
+        {/* ...existing code continues... */}
 
           {/* Content Section */}
           <View style={styles.contentSection}>
@@ -552,6 +594,8 @@ function CharityCard({ charity, onSelect, t }: { charity: CharityAction; onSelec
     ? new Date(charity.deadline).toLocaleDateString() 
     : null;
 
+  const categoryColors = getCategoryColor(charity.category);
+
   return (
     <Pressable onPress={onSelect}>
       <LinearGradient
@@ -567,10 +611,39 @@ function CharityCard({ charity, onSelect, t }: { charity: CharityAction; onSelec
         )}
 
         <View style={styles.charityContent}>
+          {/* ✅ BADGE'Y - Category + Organization */}
+          <View style={styles.badgesRow}>
+            {/* Category Badge */}
+            <View style={[styles.categoryBadge, { 
+              backgroundColor: categoryColors.bg,
+              borderColor: categoryColors.border 
+            }]}>
+              <Tag size={12} color={categoryColors.text} strokeWidth={2.5} />
+              <Text style={[styles.categoryBadgeText, { color: categoryColors.text }]}>
+                {charity.category}
+              </Text>
+            </View>
+
+            {/* Organization Badge */}
+            <View style={styles.organizationBadge}>
+              <Building2 size={12} color="#92400e" strokeWidth={2.5} />
+              <Text style={styles.organizationBadgeText}>
+                {charity.organization}
+              </Text>
+            </View>
+          </View>
+
+          {/* ✅ Patron Badge - jeśli istnieje */}
+          {charity.patron && (
+            <View style={styles.patronBadge}>
+              <Crown size={14} color="#f59e0b" strokeWidth={2.5} />
+              <Text style={styles.patronText}>{charity.patron}</Text>
+            </View>
+          )}
+
           <View style={styles.charityHeader}>
             <View style={styles.charityInfo}>
               <Text style={styles.charityTitle}>{charity.title}</Text>
-              <Text style={styles.charityOrg}>{charity.organization}</Text>
               <Text style={styles.charityDescription} numberOfLines={2}>
                 {charity.description}
               </Text>
@@ -829,7 +902,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '800',
     color: '#1c1917',
     marginTop: 8,
@@ -1240,5 +1313,117 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
+  },
+    badgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  categoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  categoryBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  organizationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  organizationBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#92400e',
+  },
+  patronBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fffbeb',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#fbbf24',
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  patronText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#92400e',
+  },
+
+  // ✅ NOWE STYLE DLA BADGE'ÓW - HERO DETAIL
+  heroBadgesRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  heroCategoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  heroCategoryText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  heroOrgBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backdropFilter: 'blur(10px)',
+  },
+    heroOrgText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  heroPatronBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(251, 191, 36, 0.3)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+    borderWidth: 2,
+    borderColor: 'rgba(251, 191, 36, 0.6)',
+    backdropFilter: 'blur(10px)',
+  },
+  heroPatronText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useEmbeddedWallet } from '@privy-io/expo';
 import { API_CONFIG, ENDPOINTS } from '@/config/api';
 
@@ -39,13 +39,7 @@ const getEmailFromPrivyUser = (user: any): string | null => {
 
 // ✅ Wyciąga WALLET ADDRESS z linked_accounts
 const getWalletFromPrivyUser = (user: any): string | null => {
-  if (!user?.linked_accounts) {
-    console.log('No linked accounts found');
-    return null;
-  }
-  
-  console.log('Searching for wallet in', user.linked_accounts.length, 'linked accounts');
-  console.log('Linked accounts:', JSON.stringify(user.linked_accounts, null, 2));
+  if (!user?.linked_accounts) return null;
   
   // 1. PRIORYTET 1: Embedded Ethereum wallet
   const ethWallet = user.linked_accounts.find(
@@ -55,10 +49,7 @@ const getWalletFromPrivyUser = (user: any): string | null => {
       account.connector_type === 'embedded'
   );
   
-  if (ethWallet?.address) {
-    console.log('✅ Found Ethereum embedded wallet:', ethWallet.address);
-    return ethWallet.address;
-  }
+  if (ethWallet?.address) return ethWallet.address;
   
   // 2. PRIORYTET 2: Embedded Solana wallet
   const solWallet = user.linked_accounts.find(
@@ -68,10 +59,7 @@ const getWalletFromPrivyUser = (user: any): string | null => {
       account.connector_type === 'embedded'
   );
   
-  if (solWallet?.address) {
-    console.log('✅ Found Solana embedded wallet:', solWallet.address);
-    return solWallet.address;
-  }
+  if (solWallet?.address) return solWallet.address;
   
   // 3. PRIORYTET 3: Cross-app embedded wallet
   const crossAppAccount = user.linked_accounts.find(
@@ -79,7 +67,6 @@ const getWalletFromPrivyUser = (user: any): string | null => {
   );
   
   if (crossAppAccount?.embedded_wallets?.[0]?.address) {
-    console.log('✅ Found cross-app embedded wallet:', crossAppAccount.embedded_wallets[0].address);
     return crossAppAccount.embedded_wallets[0].address;
   }
   
@@ -88,24 +75,28 @@ const getWalletFromPrivyUser = (user: any): string | null => {
     (account: any) => account.type === 'wallet' && account.address
   );
   
-  if (anyWallet?.address) {
-    console.log('✅ Found wallet:', anyWallet.address);
-    return anyWallet.address;
-  }
-  
-  console.log('❌ No wallet found');
-  return null;
+  return anyWallet?.address || null;
 };
 
 export function useUserData() {
   const { user, isReady } = usePrivy();
-  const wallet = useEmbeddedWallet();  // ✅ POPRAWKA
+  const wallet = useEmbeddedWallet();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [dailyQuote, setDailyQuote] = useState<BibleQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // ✅ FLAGA - zapobiega wielokrotnym wywołaniom
+  const isFetchingRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
   const fetchUserData = useCallback(async () => {
+    // ✅ Jeśli już fetchujemy, przerwij
+    if (isFetchingRef.current) {
+      console.log('⚠️ Already fetching user data, skipping...');
+      return;
+    }
+
     if (!user) {
       console.log('User not authenticated');
       setLoading(false);
@@ -113,34 +104,18 @@ export function useUserData() {
     }
 
     const email = getEmailFromPrivyUser(user);
-    let walletAddress = getWalletFromPrivyUser(user);
-    
-    // ✅ Jeśli nie ma wallet, utwórz go
-    if (!walletAddress && wallet) {
-      console.log('No wallet found - creating embedded wallet...');
-      try {
-        await wallet.create();  // ✅ Utwórz wallet
-        // Odczekaj chwilę na synchronizację
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        // Sprawdź ponownie
-        walletAddress = getWalletFromPrivyUser(user) || wallet.address;
-        console.log('✅ Wallet created:', walletAddress);
-      } catch (error) {
-        console.error('Failed to create wallet:', error);
-      }
-    }
     
     if (!email) {
-      console.error('No email found in user linked accounts');
+      console.error('No email found');
       setLoading(false);
       return;
     }
 
+    // ✅ Ustaw flagę
+    isFetchingRef.current = true;
+
     try {
-      console.log('Fetching user data for email:', email);
-      if (walletAddress) {
-        console.log('Wallet address:', walletAddress);
-      }
+      console.log('🔄 Fetching user data for:', email);
       
       let userResponse = await fetch(
         `${API_CONFIG.BASE_URL}${ENDPOINTS.USER_BY_EMAIL(email)}`,
@@ -151,7 +126,22 @@ export function useUserData() {
       );
 
       if (userResponse.status === 404) {
-        console.log('User not found, creating new user...');
+        console.log('User not found, creating...');
+        
+        // ✅ Spróbuj uzyskać wallet przed utworzeniem użytkownika
+        let walletAddress = getWalletFromPrivyUser(user);
+        
+        if (!walletAddress && wallet) {
+          console.log('Creating embedded wallet...');
+          try {
+            await wallet.create();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            walletAddress = wallet.address;
+            console.log('✅ Wallet created:', walletAddress);
+          } catch (error) {
+            console.error('Wallet creation failed:', error);
+          }
+        }
         
         const username = email.split('@')[0];
         const createResponse = await fetch(
@@ -168,29 +158,38 @@ export function useUserData() {
         );
 
         if (!createResponse.ok) {
-          console.error('Failed to create user:', createResponse.status);
-          const errorText = await createResponse.text();
-          console.error('Error details:', errorText);
           throw new Error('Failed to create user');
         }
 
         const newUser = await createResponse.json();
-        console.log('New user created:', newUser.username);
+        console.log('✅ New user created:', newUser.username);
         setUserData(newUser);
         return;
       }
 
       if (!userResponse.ok) {
-        console.error('Failed to fetch user:', userResponse.status);
-        const errorText = await userResponse.text();
-        console.error('Error details:', errorText);
         throw new Error('Failed to fetch user data');
       }
 
       const userData = await userResponse.json();
-      console.log('User data loaded:', userData.username);
+      console.log('✅ User data loaded:', userData.username);
       
-      // ✅ Aktualizuj wallet address jeśli się zmienił lub nie istnieje
+      // ✅ Aktualizuj wallet tylko jeśli jest nowy i użytkownik już istnieje
+      let walletAddress = getWalletFromPrivyUser(user);
+      
+      if (!walletAddress && wallet && !wallet.address) {
+        console.log('Creating wallet for existing user...');
+        try {
+          await wallet.create();
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          walletAddress = wallet.address;
+        } catch (error) {
+          console.error('Wallet creation failed:', error);
+        }
+      } else if (wallet?.address) {
+        walletAddress = wallet.address;
+      }
+      
       if (walletAddress && userData.wallet_address !== walletAddress) {
         console.log('Updating wallet address...');
         const updateResponse = await fetch(
@@ -204,24 +203,24 @@ export function useUserData() {
         
         if (updateResponse.ok) {
           userData.wallet_address = walletAddress;
-          console.log('Wallet address updated');
+          console.log('✅ Wallet address updated');
         }
       }
       
       setUserData(userData);
 
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('❌ Error fetching user data:', error);
     } finally {
       setLoading(false);
+      // ✅ Zwolnij flagę
+      isFetchingRef.current = false;
     }
-  }, [user, wallet]);
+  }, [user]); // ✅ USUŃ wallet z dependencies!
 
   const fetchDailyQuote = useCallback(async () => {
     try {
       const endpoint = `${API_CONFIG.BASE_URL}/api/bible/random-quote`;
-      console.log('Fetching daily quote from:', endpoint);
-      
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -229,10 +228,7 @@ export function useUserData() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Daily quote loaded');
         setDailyQuote(data);
-      } else {
-        console.error('Failed to fetch daily quote:', response.status);
       }
     } catch (error) {
       console.error('Error fetching daily quote:', error);
@@ -246,7 +242,7 @@ export function useUserData() {
   }, [fetchDailyQuote]);
 
   const refresh = useCallback(async () => {
-    console.log('Refreshing user data and quote...');
+    console.log('🔄 Manual refresh triggered');
     setLoading(true);
     await Promise.all([
       fetchUserData(),
@@ -255,12 +251,30 @@ export function useUserData() {
     setLoading(false);
   }, [fetchUserData, fetchDailyQuote]);
 
+  // ✅ GŁÓWNY EFFECT - tylko raz po zalogowaniu
   useEffect(() => {
-    if (isReady && user) {
-      console.log('User authenticated, loading data...');
-      refresh();
+    if (isReady && user && !hasInitializedRef.current) {
+      console.log('🚀 Initial data load');
+      hasInitializedRef.current = true;
+      
+      const loadData = async () => {
+        await Promise.all([
+          fetchUserData(),
+          fetchDailyQuote()
+        ]);
+      };
+      
+      loadData();
     }
-  }, [isReady, user, refresh]);
+    
+    // ✅ Reset przy wylogowaniu
+    if (!user) {
+      hasInitializedRef.current = false;
+      isFetchingRef.current = false;
+      setUserData(null);
+      setDailyQuote(null);
+    }
+  }, [isReady, user]); // ✅ Tylko isReady i user!
 
   const email = getEmailFromPrivyUser(user);
   const username = userData?.username || (email ? email.split('@')[0] : 'Guest');

@@ -263,7 +263,7 @@ export const pl = {
     email: 'Email',
     username: 'Nazwa użytkownika',
     appLanguage: 'Język aplikacji',
-    termsOfService: 'Regulamin',
+    termsOfService: 'O nas',
     privacyPolicy: 'Polityka prywatności',
     helpSupport: 'Pomoc i wsparcie',
     logOut: 'Wyloguj się',
@@ -371,6 +371,51 @@ export const pl = {
     raised: 'zebrano',
     goal: 'cel',
     supporters: 'wspierających',
+  },
+
+  // Terms & Conditions
+  terms: {
+    title: 'O nas',
+    subtitle: 'Poznaj misję Praychain',
+    mission: {
+      title: 'Nasza Misja',
+      description: 'Praychain to aplikacja służąca budowaniu głębi duchowej poprzez świadome skupienie się na modlitwie. Tylko uważna modlitwa przynosi tokeny. Naszym celem jest pomoc w odkrywaniu i odbudowywaniu głębi dostrzegania prawdziwych wartości oraz znalezieniu sensu w dynamicznym życiu.',
+    },
+    tokens: {
+      title: 'Tokeny PRAY',
+      description: 'Tokeny PRAY to duchowa waluta dobra, którą zarabiasz za świadome praktykowanie modlitwy.',
+      earning: 'Zarabiasz tokeny za uważną i skupioną modlitwę',
+      usage: 'Tokeny można wymienić tylko na pomoc charytatywną u zweryfikowanych partnerów',
+      value: 'Wartość tokenów jest powiązana z dolarem amerykańskim',
+    },
+    blockchain: {
+      title: 'Technologia Blockchain',
+      description: 'Wykorzystujemy technologię blockchain dla transparentności i bezpieczeństwa przekazywanych środków.',
+      transparency: 'Pełna przejrzystości wszystkich transakcji',
+      security: 'Bezpieczne przesyłanie środków bez pośredników',
+      accessibility: 'Dotarcie do krajów, gdzie systemy finansowe nie budzą zaufania',
+      celo: 'Integracja z siecią CELO - popularną w krajach afrykańskich',
+    },
+    governance: {
+      title: 'Zarządzanie Społecznościowe',
+      description: 'Użytkownicy najbardziej zaangażowani (posiadający najwięcej tokenów) decydują, dla kogo pójdzie pomoc.',
+      voting: 'W przypadku prób defraudacji, społeczność może zagłosować bezwzględną większością za blokadą dalszych wypłat dla danego podmiotu pomocowego.',
+    },
+    verification: {
+      title: 'Protokół Proof-of-Prayer',
+      description: 'Weryfikacja poprawności i uważności modlitwy odbywa się przy wykorzystaniu autorskiego protokołu Proof-of-Prayer:',
+      voiceAI: 'Modele głosowe AI analizujące sposób wypowiedzi',
+      llm: 'Agenci LLM oceniający treść i skupienie',
+      captcha: 'VoiceCaptcha zapewniająca autentyczność użytkownika',
+    },
+    tokenomics: {
+      title: 'Ekonomia Tokenów',
+      description: 'Token PRAY posiada unikalne właściwości ekonomiczne:',
+      stability: 'Częściowo zamknięta pula płynności dla stabilizacji wartości',
+      liquidity: 'Część tokenów dopuszczona do handlu na giełdzie dla budowania wartości',
+      transfer: 'Możliwość transferu zakupionych tokenów na portfel utworzony podczas rejestracji',
+    },
+    impact: 'Razem budujemy transparentny ekosystem duchowego wzrostu i realnej pomocy charytatywnej, eliminując koszty transakcyjne i zapewniając dotarcie środków do tych, którzy ich potrzebują.',
   },
 
   // Common
