@@ -7,9 +7,9 @@ import { usePrivy, useLoginWithEmail } from '@privy-io/expo';
 
 export default function LoginScreen() {
   const privy = usePrivy() as any;   // tymczasowy hack
-  const ready = privy.ready ?? true;
-  const authenticated = privy.authenticated ?? !!privy.user;
-  const user = privy.user;
+  const ready = privy.ready ?? true;  // tymczasowy hack
+  const authenticated = privy.authenticated ?? !!privy.user;  // tymczasowy hack
+  const user = privy.user;          // tymczasowy hack
   const { sendCode, loginWithCode } = useLoginWithEmail();
   
   const [email, setEmail] = useState('');
