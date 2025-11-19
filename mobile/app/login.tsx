@@ -1,12 +1,22 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Animated, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { LogIn, Mail, Wallet } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { LogIn, Mail, Wallet, ArrowLeft } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { usePrivy, useLoginWithEmail } from '@privy-io/expo';
 
 export default function LoginScreen() {
-  const { login, ready, authenticated, user } = useAuth();
+  const privy = usePrivy() as any;   // tymczasowy hack
+  const ready = privy.ready ?? true;
+  const authenticated = privy.authenticated ?? !!privy.user;
+  const user = privy.user;
+  const { sendCode, loginWithCode } = useLoginWithEmail();
+  
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -25,12 +35,36 @@ export default function LoginScreen() {
     }
   }, [ready]);
 
-  const handleEmailLogin = async () => {
+  const handleSendCode = async () => {
+    if (!email.trim()) return;
+    
     try {
-      await login();
+      setLoading(true);
+      await sendCode({ email: email.trim() });
+      setCodeSent(true);
+    } catch (error) {
+      console.error('Send code error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!code.trim()) return;
+    
+    try {
+      setLoading(true);
+      await loginWithCode({ email: email.trim(), code: code.trim() });
     } catch (error) {
       console.error('Login error:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleBack = () => {
+    setCodeSent(false);
+    setCode('');
   };
 
   if (!ready) {
@@ -62,33 +96,74 @@ export default function LoginScreen() {
           <Text style={styles.tagline}>Connect through prayer</Text>
         </Animated.View>
 
-        {/* Login Options */}
+        {/* Login Section */}
         <Animated.View style={[styles.loginSection, { opacity: fadeAnim }]}>
           <Text style={styles.welcomeText}>Welcome</Text>
           <Text style={styles.subtitleText}>Sign in to continue your spiritual journey</Text>
 
-          <View style={styles.buttonsContainer}>
-            {/* Email Login */}
-            <Pressable onPress={handleEmailLogin} style={styles.loginButton}>
-              <LinearGradient
-                colors={['#92400e', '#78350f']}
-                style={styles.buttonGradient}
-              >
-                <Mail size={22} color="#ffffff" strokeWidth={2.5} />
-                <Text style={styles.buttonText}>Continue with Email</Text>
-              </LinearGradient>
-            </Pressable>
+          <View style={styles.formContainer}>
+            {/* Email Input */}
+            <View style={styles.inputWrapper}>
+              <Mail size={20} color="#78716c" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#a8a29e"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!codeSent && !loading}
+              />
+            </View>
 
-            {/* Wallet Login */}
-            <Pressable onPress={handleEmailLogin} style={styles.loginButton}>
-              <LinearGradient
-                colors={['#44403c', '#292524']}
-                style={styles.buttonGradient}
+            {/* Code Input (shown after email sent) */}
+            {codeSent && (
+              <View style={styles.inputWrapper}>
+                <LogIn size={20} color="#78716c" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter verification code"
+                  placeholderTextColor="#a8a29e"
+                  value={code}
+                  onChangeText={setCode}
+                  keyboardType="number-pad"
+                  editable={!loading}
+                />
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            <View style={styles.buttonsContainer}>
+              {codeSent && (
+                <Pressable onPress={handleBack} style={styles.backButton} disabled={loading}>
+                  <ArrowLeft size={20} color="#78716c" />
+                  <Text style={styles.backButtonText}>Back</Text>
+                </Pressable>
+              )}
+              
+              <Pressable 
+                onPress={codeSent ? handleLogin : handleSendCode} 
+                style={styles.loginButton}
+                disabled={loading || (!codeSent && !email.trim()) || (codeSent && !code.trim())}
               >
-                <Wallet size={22} color="#ffffff" strokeWidth={2.5} />
-                <Text style={styles.buttonText}>Connect Wallet</Text>
-              </LinearGradient>
-            </Pressable>
+                <LinearGradient
+                  colors={['#92400e', '#78350f']}
+                  style={styles.buttonGradient}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <Mail size={22} color="#ffffff" strokeWidth={2.5} />
+                      <Text style={styles.buttonText}>
+                        {codeSent ? 'Verify & Sign In' : 'Send Verification Code'}
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </Pressable>
+            </View>
           </View>
 
           <Text style={styles.termsText}>
@@ -184,9 +259,48 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     lineHeight: 24,
   },
+  formContainer: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e7e5e4',
+    paddingHorizontal: 16,
+    height: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1c1917',
+    fontWeight: '500',
+  },
   buttonsContainer: {
     gap: 12,
-    marginBottom: 24,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#78716c',
   },
   loginButton: {
     borderRadius: 16,

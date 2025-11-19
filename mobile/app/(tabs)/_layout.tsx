@@ -1,14 +1,16 @@
 import { Tabs, router } from 'expo-router';
 import { Home, Heart, Trophy, Users, Coins } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePrivy } from '@privy-io/expo';
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { t } = useLanguage();
-  const { ready, authenticated } = useAuth();
+  const privy = usePrivy() as any; // tymczasowy hack
+  const ready = privy.ready ?? true;          // default: true, żeby nie blokować
+  const authenticated = privy.authenticated ?? !!privy.user;
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function TabLayout() {
         },
         headerShown: false,
         tabBarLabelStyle: {
-          fontSize: 9, // zmniejszone z 12 na 10
+          fontSize: 9,
           fontWeight: '600',
         },
       }}

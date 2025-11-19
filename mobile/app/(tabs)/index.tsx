@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { router, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePrivy } from '@privy-io/expo';
 import { useUserData } from '@/hooks/useUserData';
 
 
@@ -60,7 +60,7 @@ const calculateLevel = (totalEarned: number) => {
 
 export default function HomeScreen() {
   const { t } = useLanguage();
-  const { logout } = useAuth();
+  const { logout } = usePrivy();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
