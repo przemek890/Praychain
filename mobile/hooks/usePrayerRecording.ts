@@ -97,28 +97,43 @@ export const usePrayerRecording = () => {
     try {
       setLoading(true);
       setError(null);
+      
+      console.log('Fetching prayers from:', `${API_URL}/api/bible/prayers`);
       const response = await fetch(`${API_URL}/api/bible/prayers`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch prayers');
+        throw new Error(`Failed to fetch prayers: ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('Prayers response:', data);
+      
+      if (!data.prayers || data.prayers.length === 0) {
+        console.warn('No prayers returned from API');
+        setError('No prayers available');
+        return;
+      }
       
       const prayersWithText = await Promise.all(
         data.prayers.map(async (p: any) => {
           try {
-            const prayerResponse = await fetch(`${API_URL}/api/bible/prayer/${p.id}`);
+            console.log(`Fetching prayer details: ${p.id}`);
+            const prayerResponse = await fetch(`${API_URL}/api/bible/prayer/${p.id}?lang=en`);
+            
             if (prayerResponse.ok) {
               const prayerData = await prayerResponse.json();
+              console.log(`Prayer ${p.id} data:`, prayerData);
+              
               return {
                 id: p.id,
                 title: prayerData.title,
                 reference: prayerData.reference,
                 text: prayerData.text
               };
+            } else {
+              console.error(`Failed to fetch prayer ${p.id}: ${prayerResponse.status}`);
+              return null;
             }
-            return null;
           } catch (err) {
             console.error(`Error fetching prayer ${p.id}:`, err);
             return null;
@@ -126,7 +141,14 @@ export const usePrayerRecording = () => {
         })
       );
       
-      setPrayers(prayersWithText.filter(p => p !== null) as Prayer[]);
+      const validPrayers = prayersWithText.filter(p => p !== null) as Prayer[];
+      console.log('Valid prayers:', validPrayers);
+      
+      if (validPrayers.length === 0) {
+        setError('Failed to load prayer details');
+      }
+      
+      setPrayers(validPrayers);
     } catch (err) {
       console.error('Error fetching prayers:', err);
       setError(err instanceof Error ? err.message : 'Failed to load prayers');

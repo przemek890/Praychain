@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
-const API_URL = `http://${API_HOST}:${API_PORT}`;
+import { useLanguage } from '@/contexts/LanguageContext';
+import { API_CONFIG } from '@/config/api';
 
 export interface CharityAction {
   _id: string;
@@ -22,7 +20,6 @@ export interface CharityAction {
   created_at: string;
 }
 
-// ✅ DODAJ TEN NOWY INTERFACE
 interface Donor {
   user_id: string;
   username: string;
@@ -35,15 +32,18 @@ export function useCharity() {
   const [charities, setCharities] = useState<CharityAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { language } = useLanguage();
 
   useEffect(() => {
     fetchCharities();
-  }, []);
+  }, [language]);
 
   const fetchCharities = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/charity/actions`);
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/api/charity/actions?lang=${language}`
+      );
       const data = await response.json();
       setCharities(data.actions || []);
       setError(null);
@@ -57,7 +57,7 @@ export function useCharity() {
 
   const donateToCharity = async (userId: string, charityId: string, amount: number) => {
     try {
-      const response = await fetch(`${API_URL}/api/charity/donate`, {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/charity/donate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +75,7 @@ export function useCharity() {
       }
 
       const result = await response.json();
-      await fetchCharities(); // Refresh data
+      await fetchCharities();
       return result;
     } catch (err) {
       throw err;
@@ -91,7 +91,6 @@ export function useCharity() {
   };
 }
 
-// ✅ DODAJ TEN NOWY HOOK
 export function useCharityDonors(charityId: string | null) {
   const [donors, setDonors] = useState<Donor[]>([]);
   const [loading, setLoading] = useState(false);
@@ -104,7 +103,9 @@ export function useCharityDonors(charityId: string | null) {
 
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/charity/actions/${charityId}/donors`);
+      const response = await fetch(
+        `${API_CONFIG.BASE_URL}/api/charity/actions/${charityId}/donors`
+      );
       
       if (response.ok) {
         const data = await response.json();

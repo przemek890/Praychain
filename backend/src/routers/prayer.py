@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from difflib import SequenceMatcher
 from datetime import datetime
@@ -16,6 +16,7 @@ from src.config import (
     STABILITY_POINTS_MULTIPLIER,
     FLUENCY_POINTS_MULTIPLIER,
     FOCUS_POINTS_MULTIPLIER,
+    VOICE_SERVICE_URL,
     VOICE_SIMILARITY_THRESHOLD,
     VOICE_SIMILARITY_BONUS_MULTIPLIER,
 )
@@ -118,7 +119,10 @@ async def get_prayer_stats():
     }
 
 @router.post("/analyze-dual", response_model=DualAnalysisResponse)
-async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalysisResponse:
+async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Query("en", regex="^(en|pl|es)$")):
+    """
+    Analiza modlitwy i weryfikacja głosu z obsługą języka
+    """
     try:
         db = get_database()
         
@@ -330,5 +334,3 @@ async def analyze_dual_transcription(request: DualAnalysisRequest) -> DualAnalys
         logger.error(f"Error in dual analysis: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error analyzing prayer: {str(e)}")
 
-
-# Pozostałe endpointy bez zmian...

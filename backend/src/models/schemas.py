@@ -9,27 +9,21 @@ class TokenBalance(BaseModel):
     current_balance: int = 0
     last_updated: datetime
 
-class CharityAction(BaseModel):
-    id: str
-    title: str
-    description: str
-    cost_tokens: int
-    category: str  # "health", "education", "environment", "humanitarian"
-    organization: str
-    impact_description: str
-    image_url: str
-    is_active: bool = True
-    total_supported: int = 0  # ile razy wsparto
-    created_at: datetime
 
 class CharityDonation(BaseModel):
+    """Model dla dokumentu donacji w bazie danych"""
     id: str
     user_id: str
     charity_id: str
     tokens_spent: int
-    charity_title: str
     created_at: datetime
-    status: str 
+    status: str = "completed"
+    transaction_hash: Optional[str] = None
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 class TranscriptionRequest(BaseModel):
     language: Optional[str] = None

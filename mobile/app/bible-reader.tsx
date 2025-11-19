@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Modal, FlatList, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, ArrowLeft, ChevronDown, X } from 'lucide-react-native';
+import { BookOpen, ArrowLeft, ChevronDown, X, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { useBibleStructure, useBibleChapter } from '@/hooks/useBible';
@@ -15,8 +15,7 @@ export default function BibleReaderScreen() {
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // ✅ Użyj hooków
-  const { structure: bibleStructure, loading: structureLoading } = useBibleStructure();
+  const { structure: bibleStructure, loading: structureLoading, refresh: refreshStructure } = useBibleStructure();
   const { content, loading } = useBibleChapter(selectedBook, selectedChapter);
 
   useEffect(() => {
@@ -29,14 +28,12 @@ export default function BibleReaderScreen() {
     }
   }, [structureLoading]);
 
-  // ✅ NOWE - Handle book selection
   const handleBookSelect = (book: string) => {
     setSelectedBook(book);
     setSelectedChapter(1);
     setBookModalVisible(false);
   };
 
-  // ✅ NOWE - Handle chapter selection
   const handleChapterSelect = (chapter: number) => {
     setSelectedChapter(chapter);
     setChapterModalVisible(false);
@@ -46,15 +43,43 @@ export default function BibleReaderScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#92400e" />
-        <Text style={styles.loadingText}>Loading Bible...</Text>
+        <Text style={styles.loadingText}>{t.bibleReader.loading}</Text>
       </View>
     );
   }
 
   if (!bibleStructure) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Failed to load Bible structure</Text>
+      <View style={styles.container}>
+        <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
+          <Pressable 
+            onPress={() => router.back()} 
+            style={styles.backButtonFloat}
+          >
+            <ArrowLeft size={24} color="#1c1917" />
+          </Pressable>
+
+          <View style={styles.centerContent}>
+            <View style={styles.errorPromptCard}>
+              <LinearGradient
+                colors={['#ffffff', '#fafaf9']}
+                style={styles.errorPromptGradient}
+              >
+                <BookOpen size={48} color="#92400e" strokeWidth={2} />
+                <Text style={styles.errorPromptTitle}>{t.bibleReader.error}</Text>
+                <Text style={styles.errorPromptSubtitle}>
+                  {t.bibleReader.checkConnection}
+                </Text>
+                <Pressable style={styles.retryButtonError} onPress={refreshStructure}>
+                  <LinearGradient colors={['#92400e', '#78350f']} style={styles.retryButtonGradient}>
+                    <RefreshCw size={16} color="#ffffff" />
+                    <Text style={styles.retryButtonText}>Try Again</Text>
+                  </LinearGradient>
+                </Pressable>
+              </LinearGradient>
+            </View>
+          </View>
+        </LinearGradient>
       </View>
     );
   }
@@ -73,7 +98,7 @@ export default function BibleReaderScreen() {
             >
               <ArrowLeft size={24} color="#1c1917" />
             </Pressable>
-            
+            {/* ✅ USUŃ tę dziwną linię */}
             <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
               <View style={styles.titleRow}>
                 <BookOpen size={28} color="#92400e" strokeWidth={2} />
@@ -279,6 +304,23 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   backButton: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
+  },
+  backButtonFloat: {
     position: 'absolute',
     top: 60,
     left: 16,
@@ -527,5 +569,61 @@ const styles = StyleSheet.create({
   chapterButtonTextSelected: {
     fontWeight: '800',
     color: '#92400e',
+  },
+
+  // NOWE STYLE
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  errorPromptCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+    maxWidth: 400,
+  },
+  errorPromptGradient: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  errorPromptTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1c1917',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorPromptSubtitle: {
+    fontSize: 14,
+    color: '#78716c',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // ✅ DODAJ na końcu
+  retryButtonError: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  retryButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

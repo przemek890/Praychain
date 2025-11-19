@@ -1,26 +1,16 @@
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BookOpen, ArrowLeft, Calendar } from 'lucide-react-native';
+import { BookOpen, ArrowLeft, Calendar, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { useDailyReading } from '@/hooks/useBible';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
-
 export default function DailyReadingScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const { t } = useLanguage();
 
-  // ✅ Użyj hooka
   const { reading, loading, error, refresh } = useDailyReading();
-
-  // ✅ USUŃ te linie:
-  // const [reading, setReading] = useState<DailyReading | null>(null);
-  // const [loading, setLoading] = useState(true);
-  // const [error, setError] = useState<string | null>(null);
-  // useEffect(() => { loadDailyReading(); }, []);
-  // const loadDailyReading = async () => { ... };
 
   useEffect(() => {
     if (!loading) {
@@ -32,13 +22,45 @@ export default function DailyReadingScreen() {
     }
   }, [loading]);
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#92400e" />
+        <Text style={styles.loadingText}>{t.dailyReading.loading}</Text>
+      </View>
+    );
+  }
+
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{t.dailyReading.error}</Text>
-        <Pressable style={styles.retryButton} onPress={refresh}>
-          <Text style={styles.retryText}>{t.dailyReading.retry}</Text>
-        </Pressable>
+      <View style={styles.container}>
+        <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
+          <Pressable 
+            onPress={() => router.back()} 
+            style={styles.backButtonFloat}
+          >
+            <ArrowLeft size={24} color="#1c1917" />
+          </Pressable>
+
+          <View style={styles.centerContent}>
+            <View style={styles.errorPromptCard}>
+              <LinearGradient
+                colors={['#ffffff', '#fafaf9']}
+                style={styles.errorPromptGradient}
+              >
+                <BookOpen size={48} color="#92400e" strokeWidth={2} />
+                <Text style={styles.errorPromptTitle}>{t.dailyReading.error}</Text>
+                <Text style={styles.errorPromptSubtitle}>{error}</Text>
+                <Pressable style={styles.retryButtonError} onPress={refresh}>
+                  <LinearGradient colors={['#92400e', '#78350f']} style={styles.retryButtonGradient}>
+                    <RefreshCw size={16} color="#ffffff" />
+                    <Text style={styles.retryButtonText}>{t.dailyReading.retry}</Text>
+                  </LinearGradient>
+                </Pressable>
+              </LinearGradient>
+            </View>
+          </View>
+        </LinearGradient>
       </View>
     );
   }
@@ -181,6 +203,23 @@ const styles = StyleSheet.create({
     elevation: 3,
     zIndex: 10,
   },
+  backButtonFloat: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
+  },
   headerContent: {
     alignItems: 'center',
     paddingTop: 8,
@@ -205,6 +244,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#78716c',
     textAlign: 'center',
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
 
   // Content
@@ -280,5 +325,54 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: '#1c1917',
     letterSpacing: 0.1,
+  },
+
+  // ✅ NOWE STYLE
+  errorPromptCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+    maxWidth: 400,
+  },
+  errorPromptGradient: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  errorPromptTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1c1917',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorPromptSubtitle: {
+    fontSize: 14,
+    color: '#78716c',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  retryButtonError: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  retryButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

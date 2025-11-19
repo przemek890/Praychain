@@ -4,7 +4,7 @@ import requests
 import random
 from datetime import datetime
 from ..data.prayers import CLASSIC_PRAYERS
-from ..data.quotes import SHORT_BIBLE_QUOTES
+from src.data.quotes import SHORT_BIBLE_QUOTES
 from ..data.bible_structure import BIBLE_BOOKS_ORDER, CHAPTERS_PER_BOOK
 from src.config import BIBLE_API_TIMEOUT, BIBLE_API_ENABLED
 
@@ -42,24 +42,42 @@ async def get_random_bible_quote():
         raise HTTPException(status_code=500, detail="Error fetching Bible quote")
 
 @router.get("/short-quote")
-async def get_short_quote():
+async def get_short_quote(lang: str = Query("en", regex="^(en|pl|es)$")):
     """
-    Zwraca krótki cytat biblijny z quotes.py - używany dla Daily Inspiration
+    Zwraca krótki cytat biblijny w języku angielskim (wymuszone)
     """
+    lang = "en"  # Wymuszenie języka angielskiego
     quote = random.choice(SHORT_BIBLE_QUOTES)
+    text_key = f"text_{lang}"
+    
+    if text_key not in quote:
+        raise HTTPException(status_code=400, detail=f"Language '{lang}' not supported")
+    
     return {
-        "text": quote["text"],
+        "text": quote[text_key],
         "reference": quote["reference"],
         "category": quote.get("category", "inspiration"),
         "type": "short_quote"
     }
 
 @router.get("/prayer/{prayer_type}")
-async def get_prayer(prayer_type: str):
+async def get_prayer(prayer_type: str, lang: str = Query("en", regex="^(en|pl|es)$")):
+    """
+    Zwraca tekst modlitwy w języku angielskim (wymuszone)
+    """
+    lang = "en"  # Wymuszenie języka angielskiego
     if prayer_type not in CLASSIC_PRAYERS:
         raise HTTPException(status_code=404, detail="Prayer not found")
     
-    return CLASSIC_PRAYERS[prayer_type]
+    prayer = CLASSIC_PRAYERS[prayer_type]
+    if lang not in prayer["text"]:
+        raise HTTPException(status_code=400, detail=f"Language '{lang}' not supported")
+    
+    return {
+        "title": prayer["title"],
+        "text": prayer["text"][lang],
+        "reference": prayer["reference"]
+    }
 
 @router.get("/prayers")
 async def list_prayers():

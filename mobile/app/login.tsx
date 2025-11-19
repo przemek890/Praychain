@@ -18,22 +18,38 @@ export default function LoginScreen() {
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [hasRedirected, setHasRedirected] = useState(false); // ✅ DODAJ
+  const hasRedirectedRef = useRef(false); // ✅ ZMIEŃ na useRef
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // ✅ Reset ref when component mounts
+  useEffect(() => {
+    hasRedirectedRef.current = false;
+    
+    // Reset animation
+    fadeAnim.setValue(0);
+    
+    return () => {
+      hasRedirectedRef.current = false;
+    };
+  }, []);
+
   // ✅ Pojedyncze przekierowanie po zalogowaniu
   useEffect(() => {
-    if (ready && authenticated && user && !hasRedirected) {
+    if (ready && authenticated && user && !hasRedirectedRef.current) {
       console.log('✅ User authenticated, redirecting...');
-      setHasRedirected(true);
-      router.replace('/(tabs)');
+      hasRedirectedRef.current = true;
+      
+      // ✅ Małe opóźnienie przed przekierowaniem
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 100);
     }
-  }, [ready, authenticated, user, hasRedirected]);
+  }, [ready, authenticated, user]);
 
   // ✅ Animacja tylko gdy ready i nie ma użytkownika
   useEffect(() => {
-    if (ready && !authenticated) {
+    if (ready && !authenticated && !hasRedirectedRef.current) {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 400,
@@ -75,7 +91,7 @@ export default function LoginScreen() {
   };
 
   // ✅ Loader gdy czekamy na Privy
-  if (!ready) {
+  if (!ready || hasRedirectedRef.current) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#92400e" />
