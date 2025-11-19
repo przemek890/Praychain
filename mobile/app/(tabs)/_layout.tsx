@@ -10,8 +10,8 @@ export default function TabLayout() {
   const { t } = useLanguage();
   const privy = usePrivy() as any; // tymczasowy hack
   const ready = privy.ready ?? true;          // default: true, żeby nie blokować
-  const authenticated = privy.authenticated ?? !!privy.user;
-  const insets = useSafeAreaInsets();
+  const authenticated = privy.authenticated ?? !!privy.user;  // tymczasowy hack
+  const insets = useSafeAreaInsets();     // tymczasowy hack
 
   useEffect(() => {
     if (ready && !authenticated) {
