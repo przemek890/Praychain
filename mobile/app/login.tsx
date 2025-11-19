@@ -1,12 +1,22 @@
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Animated, TextInput, Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { LogIn, Mail, Wallet } from 'lucide-react-native';
-import { useEffect, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { LogIn, Mail } from 'lucide-react-native';
+import { useEffect, useRef, useState } from 'react';
+import { usePrivy, useLoginWithEmail } from '@privy-io/expo';
 
 export default function LoginScreen() {
-  const { login, ready, authenticated, user } = useAuth();
+  const privy = usePrivy() as any;
+  const ready = privy.ready ?? true;
+  const authenticated = privy.authenticated ?? !!privy.user;
+  const user = privy.user;
+  const { sendCode, loginWithCode } = useLoginWithEmail();
+  
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -25,11 +35,34 @@ export default function LoginScreen() {
     }
   }, [ready]);
 
-  const handleEmailLogin = async () => {
+  const handleSendCode = async () => {
+    if (!email.trim()) return;
+    
+    Keyboard.dismiss();
+    
     try {
-      await login();
+      setLoading(true);
+      await sendCode({ email: email.trim() });
+      setCodeSent(true);
+    } catch (error) {
+      console.error('Send code error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!code.trim()) return;
+    
+    Keyboard.dismiss();
+    
+    try {
+      setLoading(true);
+      await loginWithCode({ email: email.trim(), code: code.trim() });
     } catch (error) {
       console.error('Login error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -42,63 +75,120 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#78350f20', '#44403c30', '#78350f25']}
-        style={styles.gradient}
-      >
-        {/* Logo Section */}
-        <Animated.View style={[styles.logoSection, { opacity: fadeAnim }]}>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.container}>
           <LinearGradient
-            colors={['#92400e', '#78350f']}
-            style={styles.logoContainer}
+            colors={['#78350f20', '#44403c30', '#78350f25']}
+            style={styles.gradient}
           >
-            <View style={styles.crossWrapper}>
-              <View style={styles.crossVertical} />
-              <View style={styles.crossHorizontal} />
-            </View>
+            <ScrollView 
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Logo Section */}
+              <Animated.View style={[styles.logoSection, { opacity: fadeAnim }]}>
+                <LinearGradient
+                  colors={['#92400e', '#78350f']}
+                  style={styles.logoContainer}
+                >
+                  <View style={styles.crossWrapper}>
+                    <View style={styles.crossVertical} />
+                    <View style={styles.crossHorizontal} />
+                  </View>
+                </LinearGradient>
+                <Text style={styles.appName}>PrayChain</Text>
+                <Text style={styles.tagline}>Connect through prayer</Text>
+              </Animated.View>
+
+              {/* Login Form */}
+              <Animated.View style={[styles.formSection, { opacity: fadeAnim }]}>
+                {/* Single Input - Email lub Code */}
+                <View style={styles.inputWrapper}>
+                  {codeSent ? (
+                    <LogIn size={20} color="#78716c" style={styles.inputIcon} />
+                  ) : (
+                    <Mail size={20} color="#78716c" style={styles.inputIcon} />
+                  )}
+                  <TextInput
+                    style={styles.input}
+                    placeholder={codeSent ? "Enter verification code" : "Enter your email"}
+                    placeholderTextColor="#a8a29e"
+                    value={codeSent ? code : email}
+                    onChangeText={codeSent ? setCode : setEmail}
+                    autoCapitalize="none"
+                    keyboardType={codeSent ? "number-pad" : "email-address"}
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      if (codeSent && code.trim()) {
+                        handleLogin();
+                      } else if (!codeSent && email.trim()) {
+                        handleSendCode();
+                      }
+                    }}
+                    editable={!loading}
+                    autoFocus={codeSent}
+                  />
+                </View>
+
+                {/* Single Action Button */}
+                <Pressable 
+                  onPress={codeSent ? handleLogin : handleSendCode} 
+                  style={styles.loginButton}
+                  disabled={loading || (!codeSent && !email.trim()) || (codeSent && !code.trim())}
+                >
+                  <LinearGradient
+                    colors={['#92400e', '#78350f']}
+                    style={styles.buttonGradient}
+                  >
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <>
+                        {codeSent ? (
+                          <LogIn size={22} color="#ffffff" strokeWidth={2.5} />
+                        ) : (
+                          <Mail size={22} color="#ffffff" strokeWidth={2.5} />
+                        )}
+                        <Text style={styles.buttonText}>
+                          {codeSent ? 'Verify & Sign In' : 'Send Code'}
+                        </Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </Pressable>
+
+                {/* Change email link - tylko gdy code sent */}
+                {codeSent && (
+                  <Pressable 
+                    onPress={() => {
+                      setCodeSent(false);
+                      setCode('');
+                      Keyboard.dismiss();
+                    }} 
+                    style={styles.changeEmailButton}
+                    disabled={loading}
+                  >
+                    <Text style={styles.changeEmailText}>Change email</Text>
+                  </Pressable>
+                )}
+
+                <Text style={styles.termsText}>
+                  By continuing, you agree to our{'\n'}
+                  <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
+                  <Text style={styles.termsLink}>Privacy Policy</Text>
+                </Text>
+              </Animated.View>
+            </ScrollView>
           </LinearGradient>
-          <Text style={styles.appName}>PrayChain</Text>
-          <Text style={styles.tagline}>Connect through prayer</Text>
-        </Animated.View>
-
-        {/* Login Options */}
-        <Animated.View style={[styles.loginSection, { opacity: fadeAnim }]}>
-          <Text style={styles.welcomeText}>Welcome</Text>
-          <Text style={styles.subtitleText}>Sign in to continue your spiritual journey</Text>
-
-          <View style={styles.buttonsContainer}>
-            {/* Email Login */}
-            <Pressable onPress={handleEmailLogin} style={styles.loginButton}>
-              <LinearGradient
-                colors={['#92400e', '#78350f']}
-                style={styles.buttonGradient}
-              >
-                <Mail size={22} color="#ffffff" strokeWidth={2.5} />
-                <Text style={styles.buttonText}>Continue with Email</Text>
-              </LinearGradient>
-            </Pressable>
-
-            {/* Wallet Login */}
-            <Pressable onPress={handleEmailLogin} style={styles.loginButton}>
-              <LinearGradient
-                colors={['#44403c', '#292524']}
-                style={styles.buttonGradient}
-              >
-                <Wallet size={22} color="#ffffff" strokeWidth={2.5} />
-                <Text style={styles.buttonText}>Connect Wallet</Text>
-              </LinearGradient>
-            </Pressable>
-          </View>
-
-          <Text style={styles.termsText}>
-            By continuing, you agree to our{'\n'}
-            <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
-          </Text>
-        </Animated.View>
-      </LinearGradient>
-    </View>
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -110,6 +200,12 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingTop: 80,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -117,10 +213,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafaf9',
   },
   logoSection: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 60,
+    marginBottom: 60,
   },
   logoContainer: {
     width: 100,
@@ -167,26 +261,32 @@ const styles = StyleSheet.create({
     color: '#78716c',
     fontWeight: '500',
   },
-  loginSection: {
-    paddingHorizontal: 24,
-    paddingBottom: 60,
+  formSection: {
+    gap: 16,
   },
-  welcomeText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1c1917',
-    letterSpacing: -0.5,
-    marginBottom: 8,
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e7e5e4',
+    paddingHorizontal: 16,
+    height: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  subtitleText: {
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
     fontSize: 16,
-    color: '#78716c',
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  buttonsContainer: {
-    gap: 12,
-    marginBottom: 24,
+    color: '#1c1917',
+    fontWeight: '500',
   },
   loginButton: {
     borderRadius: 16,
@@ -196,6 +296,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    marginTop: 8,
   },
   buttonGradient: {
     flexDirection: 'row',
@@ -210,11 +311,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
   },
+  changeEmailButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  changeEmailText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+  },
   termsText: {
     fontSize: 12,
     color: '#78716c',
     textAlign: 'center',
     lineHeight: 18,
+    marginTop: 16,
   },
   termsLink: {
     color: '#92400e',

@@ -6,22 +6,29 @@
     "orientation": "portrait",
     "scheme": "praychain",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
+      "icon": "./assets/icon.png",
       "bundleIdentifier": "com.praychain.app",
-      "newArchEnabled": false
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "PrayChain needs access to your microphone to record prayers.",
+        "NSSpeechRecognitionUsageDescription": "PrayChain needs access to speech recognition to transcribe your prayers."
+      }
     },
     "android": {
       "package": "com.praychain.app",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
       },
-      "newArchEnabled": false
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -29,10 +36,24 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "PrayChain needs access to your microphone to record prayers."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2edb1ea5-c0d6-4252-b61e-b5f67d958570"
+      }
+    },
+    "owner": "trzciano"
   }
 }
