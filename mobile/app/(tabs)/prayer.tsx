@@ -5,12 +5,13 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect, useRef } from 'react';
 import { usePrayerRecording } from '@/hooks/usePrayerRecording';
 import { Audio } from 'expo-av';
-import { appEvents, APP_EVENTS } from '@/utils/events';
 import { useUserDataRefresh } from '@/contexts/UserDataContext';
+import { useUserData } from '@/hooks/useUserData'; // ✅ NOWE
 
 export default function PrayerScreen() {
   const { t } = useLanguage();
   const { triggerRefresh } = useUserDataRefresh();
+  const { userData, loading: userDataLoading } = useUserData(); // ✅ NOWE
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -42,11 +43,18 @@ export default function PrayerScreen() {
       if (status !== 'granted') {
         alert('Please grant microphone permissions');
       }
-      await initializeUserId();
-      await fetchPrayers();
+      
+      // ✅ NOWE - Poczekaj na userData przed inicjalizacją
+      if (userData?.id) {
+        await initializeUserId(userData.id);
+        await fetchPrayers();
+      }
     };
-    init();
-  }, []);
+    
+    if (!userDataLoading) {
+      init();
+    }
+  }, [userData, userDataLoading]);
 
   useEffect(() => {
     if (!loading && prayers.length > 0) {
@@ -77,6 +85,19 @@ export default function PrayerScreen() {
       triggerRefresh();
     }
   }, [result, triggerRefresh]);
+
+  // ✅ NOWE - Sprawdź czy userData jest dostępny
+  if (!userData && !userDataLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
+          <View style={[styles.container, styles.loadingContainer]}>
+            <Text style={styles.errorText}>Please log in to pray</Text>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
 
   if (selectedPrayer) {
     return (

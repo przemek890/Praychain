@@ -2,25 +2,27 @@ import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, Activi
 import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, ArrowRight, Coins, RefreshCw, ArrowLeft, Info, Users, Target, X } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useState, useCallback, useEffect, useRef } from 'react'; // ✅ Dodane useEffect, useRef
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useCharity, CharityAction, useCharityDonors } from '@/hooks/useCharity';
 import { useTokens } from '@/hooks/useTokens';
-import { getCurrentUserId } from '@/config/currentUser';
-import { useFocusEffect } from 'expo-router'; // ✅ Dodane
+import { useFocusEffect } from 'expo-router';
 import { useUserDataRefresh } from '@/contexts/UserDataContext';
+import { useUserData } from '@/hooks/useUserData'; // ✅ NOWE
 
 const { width } = Dimensions.get('window');
 
 export default function TokensScreen() {
   const { t } = useLanguage();
-  const userId = getCurrentUserId();
+  const { userData, loading: userDataLoading } = useUserData(); // ✅ NOWE
+  const userId = userData?.id || ''; // ✅ NOWE - pobierz userId z userData
+  
   const { balance: userTokens, loading: tokensLoading, refresh: refreshTokens } = useTokens(userId);
   const { charities, loading: charitiesLoading, error, donateToCharity, refresh: refreshCharities } = useCharity();
   const [selectedCharity, setSelectedCharity] = useState<CharityAction | null>(null);
   const [donationAmount, setDonationAmount] = useState('');
   const [selectedMultiplier, setSelectedMultiplier] = useState<number | null>(null);
   const [donating, setDonating] = useState(false);
-  const [amountError, setAmountError] = useState<string | null>(null); // ✅ NOWE
+  const [amountError, setAmountError] = useState<string | null>(null);
   const [infoModalVisible, setInfoModalVisible] = useState(false);
   const { donors, loading: donorsLoading } = useCharityDonors(selectedCharity?._id || null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -29,28 +31,29 @@ export default function TokensScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log('Tokens tab focused - refreshing balance');
-      refreshTokens();
-    }, [])
+      if (userId) {
+        refreshTokens();
+      }
+    }, [userId, refreshTokens])
   );
 
   useEffect(() => {
-    if (!tokensLoading && !charitiesLoading) {
+    if (!tokensLoading && !charitiesLoading && !userDataLoading) {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 300,
         useNativeDriver: true,
       }).start();
     }
-  }, [tokensLoading, charitiesLoading]);
+  }, [tokensLoading, charitiesLoading, userDataLoading]);
 
   const handleSelectCharity = (charity: CharityAction) => {
     setSelectedCharity(charity);
     setDonationAmount('');
     setSelectedMultiplier(null);
-    setAmountError(null); // ✅ NOWE
+    setAmountError(null);
   };
 
-  // ✅ NOWA FUNKCJA - walidacja w czasie rzeczywistym
   const validateAmount = (text: string) => {
     setDonationAmount(text);
     setSelectedMultiplier(null);
@@ -73,7 +76,7 @@ export default function TokensScreen() {
     }
     
     if (amount > userTokens) {
-      setAmountError(`Insufficient balance. You have ${userTokens} PRAY tokens`); // ✅ KOMUNIKAT
+      setAmountError(`Insufficient balance. You have ${userTokens} PRAY tokens`);
       return;
     }
     
@@ -81,7 +84,7 @@ export default function TokensScreen() {
   };
 
   const handleDonate = async () => {
-    if (!selectedCharity || !donationAmount || amountError) return;
+    if (!selectedCharity || !donationAmount || amountError || !userId) return;
 
     const amount = parseInt(donationAmount);
     
@@ -120,7 +123,16 @@ export default function TokensScreen() {
     }
   };
 
-  const loading = tokensLoading || charitiesLoading;
+  const loading = tokensLoading || charitiesLoading || userDataLoading;
+
+  // ✅ NOWE - Sprawdź czy userId jest dostępny
+  if (!userId && !loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>Please log in to view tokens</Text>
+      </View>
+    );
+  }
 
   if (loading) {
     return (

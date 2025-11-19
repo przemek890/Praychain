@@ -11,15 +11,24 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.praychain.app"
+      "icon": "./assets/icon.png",
+      "bundleIdentifier": "com.praychain.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "PrayChain needs access to your microphone to record prayers.",
+        "NSSpeechRecognitionUsageDescription": "PrayChain needs access to speech recognition to transcribe your prayers."
+      }
     },
     "android": {
       "package": "com.praychain.app",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -28,7 +37,13 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "PrayChain needs access to your microphone to record prayers."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
