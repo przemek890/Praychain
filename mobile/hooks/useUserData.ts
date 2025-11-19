@@ -219,7 +219,7 @@ export function useUserData() {
 
   const fetchDailyQuote = useCallback(async () => {
     try {
-      const endpoint = `${API_CONFIG.BASE_URL}/api/bible/short-quote`;
+      const endpoint = `${API_CONFIG.BASE_URL}/api/bible/random-quote`;
       console.log('Fetching daily quote from:', endpoint);
       
       const response = await fetch(endpoint, {

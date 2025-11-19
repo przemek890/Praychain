@@ -1,13 +1,13 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Alert, ActivityIndicator, Image, Dimensions, StatusBar, Animated, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, ArrowRight, Coins, RefreshCw, ArrowLeft, Info, Users, Target, X } from 'lucide-react-native';
+import { Heart, ArrowRight, Coins, RefreshCw, ArrowLeft, Info, Users, Target, X, TrendingUp, Trophy } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useCharity, CharityAction, useCharityDonors } from '@/hooks/useCharity';
 import { useTokens } from '@/hooks/useTokens';
 import { useFocusEffect } from 'expo-router';
 import { useUserDataRefresh } from '@/contexts/UserDataContext';
-import { useUserData } from '@/hooks/useUserData'; // ✅ NOWE
+import { useUserData } from '@/hooks/useUserData';
 
 const { width } = Dimensions.get('window');
 
@@ -23,9 +23,10 @@ export default function TokensScreen() {
   const [selectedMultiplier, setSelectedMultiplier] = useState<number | null>(null);
   const [donating, setDonating] = useState(false);
   const [amountError, setAmountError] = useState<string | null>(null);
-  const [infoModalVisible, setInfoModalVisible] = useState(false);
+  const [supportersModalVisible, setSupportersModalVisible] = useState(false);
   const { donors, loading: donorsLoading } = useCharityDonors(selectedCharity?._id || null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
   const { triggerRefresh } = useUserDataRefresh();
 
   useFocusEffect(
@@ -34,16 +35,26 @@ export default function TokensScreen() {
       if (userId) {
         refreshTokens();
       }
+      // Reset animations
+      fadeAnim.setValue(0);
+      slideAnim.setValue(50);
     }, [userId, refreshTokens])
   );
 
   useEffect(() => {
     if (!tokensLoading && !charitiesLoading && !userDataLoading) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   }, [tokensLoading, charitiesLoading, userDataLoading]);
 
@@ -52,6 +63,24 @@ export default function TokensScreen() {
     setDonationAmount('');
     setSelectedMultiplier(null);
     setAmountError(null);
+    fadeAnim.setValue(0);
+    slideAnim.setValue(50);
+    
+    // Trigger animation after a short delay
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 100);
   };
 
   const validateAmount = (text: string) => {
@@ -125,7 +154,6 @@ export default function TokensScreen() {
 
   const loading = tokensLoading || charitiesLoading || userDataLoading;
 
-  // ✅ NOWE - Sprawdź czy userId jest dostępny
   if (!userId && !userDataLoading) {
     return (
       <View style={styles.container}>
@@ -142,8 +170,20 @@ export default function TokensScreen() {
                 <Coins size={48} color="#92400e" strokeWidth={2} />
                 <Text style={styles.loginPromptTitle}>{t.tokens.pleaseLogin}</Text>
                 <Text style={styles.loginPromptSubtitle}>
-                  Sign in to view and manage your spiritual tokens
+                  {t.bibleReader.checkConnection}
                 </Text>
+                <Pressable 
+                  style={styles.retryButtonError} 
+                  onPress={() => {
+                    refreshTokens();
+                    refreshCharities();
+                  }}
+                >
+                  <LinearGradient colors={['#92400e', '#78350f']} style={styles.retryButtonGradient}>
+                    <RefreshCw size={16} color="#ffffff" />
+                    <Text style={styles.retryButtonText}>{t.tokens.retry}</Text>
+                  </LinearGradient>
+                </Pressable>
               </LinearGradient>
             </View>
           </View>
@@ -190,180 +230,202 @@ export default function TokensScreen() {
       <View style={styles.container}>
         <StatusBar barStyle="light-content" />
         
-        <LinearGradient colors={['#fef3c7', '#fde68a', '#fbbf24']} style={styles.donationGradient}>
-          {/* Header with Image Background */}
-          <Animated.View style={[styles.donationImageContainer, { opacity: fadeAnim }]}>
+        <ScrollView 
+          style={styles.detailContainer}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {/* Hero Section with Image */}
+          <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
             {selectedCharity.image_url && (
               <Image
                 source={{ uri: selectedCharity.image_url }}
-                style={styles.donationBgImage}
-                blurRadius={3}
+                style={styles.heroImage}
               />
             )}
             <LinearGradient
-              colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']}
-              style={styles.imageOverlay}
+              colors={['transparent', 'rgba(0,0,0,0.8)']}
+              style={styles.heroGradient}
             />
             
+            {/* Back Button */}
             <Pressable
-              style={styles.backButtonFloating}
+              style={styles.backButton}
               onPress={() => {
                 setSelectedCharity(null);
                 setDonationAmount('');
                 setAmountError(null);
               }}
             >
-              <ArrowLeft size={24} color="#ffffff" />
+              <View style={styles.backButtonInner}>
+                <ArrowLeft size={20} color="#1c1917" strokeWidth={2.5} />
+              </View>
             </Pressable>
 
-            <Animated.View style={[styles.donationHeaderOverlay, { opacity: fadeAnim }]}>
-              <Text style={styles.donationTitleLarge}>{selectedCharity.title}</Text>
-              <View style={styles.orgBadge}>
-                <Text style={styles.donationOrgWhite}>{selectedCharity.organization}</Text>
+            {/* Title Overlay */}
+            <View style={styles.heroContent}>
+              <View style={styles.orgBadgeNew}>
+                <Text style={styles.orgBadgeText}>{selectedCharity.organization}</Text>
               </View>
-              <View style={{ height: 8 }} />
-            </Animated.View>
+              <Text style={styles.heroTitle}>{selectedCharity.title}</Text>
+            </View>
           </Animated.View>
 
-          <ScrollView 
-            style={styles.donationScrollContent} 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.donationScrollPadding}
-          >
-
-            {/* Progress Card */}
-            {selectedCharity.goal_tokens && (
-              <Animated.View style={{ opacity: fadeAnim }}>
-                <LinearGradient colors={['#ffffff', '#f3f4f6']} style={styles.progressCard}>
-                  <View style={styles.progressCardHeader}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                      <Target size={20} color="#92400e" />
-                      <Text style={styles.progressCardTitle}>{t.tokens.campaignProgress}</Text>
-                    </View>
-                    
-                    {/* ✅ NOWY - Info Button */}
-                    <Pressable 
-                      onPress={() => setInfoModalVisible(true)}
-                      style={styles.infoButton}
-                    >
-                      <Info size={20} color="#92400e" strokeWidth={2.5} />
-                    </Pressable>
-                  </View>
-                  
-                  <View style={styles.progressStatsRow}>
-                    <View style={styles.progressStat}>
-                      <Text style={styles.progressStatValue}>{selectedCharity.total_tokens_raised}</Text>
-                      <Text style={styles.progressStatLabel}>{t.tokens.raised}</Text>
-                    </View>
-                    <View style={styles.progressStatDivider} />
-                    <View style={styles.progressStat}>
-                      <Text style={styles.progressStatValue}>{selectedCharity.goal_tokens}</Text>
-                      <Text style={styles.progressStatLabel}>{t.tokens.goal}</Text>
-                    </View>
-                    <View style={styles.progressStatDivider} />
-                    <View style={styles.progressStat}>
-                      <Text style={styles.progressStatValue}>{selectedCharity.total_supported}</Text>
-                      <Text style={styles.progressStatLabel}>{t.tokens.supporters}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.progressBarLarge}>
-                    <View 
-                      style={[styles.progressFillLarge, { width: `${Math.min(progress, 100)}%` }]}
-                    >
-                      <LinearGradient
-                        colors={['#22c55e', '#16a34a']}
-                        style={styles.progressGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                      />
-                    </View>
-                  </View>
-                  <Text style={styles.progressPercentage}>{Math.round(progress)}% {t.tokens.funded}</Text>
+          {/* Content Section */}
+          <View style={styles.contentSection}>
+            {/* Stats Row */}
+            <Animated.View style={[styles.statsRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+              <View style={styles.statCard}>
+                <LinearGradient colors={['#dcfce7', '#bbf7d0']} style={styles.statGradient}>
+                  <TrendingUp size={20} color="#166534" strokeWidth={2.5} />
+                  <Text style={styles.statValue}>{selectedCharity.total_tokens_raised}</Text>
+                  <Text style={styles.statLabel}>{t.tokens.raised}</Text>
                 </LinearGradient>
+              </View>
+              
+              <View style={styles.statCard}>
+                <LinearGradient colors={['#dbeafe', '#bfdbfe']} style={styles.statGradient}>
+                  <Target size={20} color="#1e40af" strokeWidth={2.5} />
+                  <Text style={styles.statValue}>{selectedCharity.goal_tokens || 'N/A'}</Text>
+                  <Text style={styles.statLabel}>{t.tokens.goal}</Text>
+                </LinearGradient>
+              </View>
+              
+              <View style={styles.statCard}>
+                <LinearGradient colors={['#fce7f3', '#fbcfe8']} style={styles.statGradient}>
+                  <Heart size={20} color="#9f1239" strokeWidth={2.5} />
+                  <Text style={styles.statValue}>{selectedCharity.total_supported}</Text>
+                  <Text style={styles.statLabel}>{t.tokens.supporters}</Text>
+                </LinearGradient>
+              </View>
+            </Animated.View>
+
+            {/* Progress Bar */}
+            {selectedCharity.goal_tokens && (
+              <Animated.View style={[styles.progressContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressTitle}>{t.tokens.campaignProgress}</Text>
+                  <Text style={styles.progressPercentageNew}>{Math.round(progress)}%</Text>
+                </View>
+                <View style={styles.progressBarContainer}>
+                  <View style={[styles.progressBarFill, { width: `${Math.min(progress, 100)}%` }]}>
+                    <LinearGradient
+                      colors={['#22c55e', '#16a34a', '#15803d']}
+                      style={styles.progressBarGradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    />
+                  </View>
+                </View>
               </Animated.View>
             )}
 
+            {/* Description Card */}
+            <Animated.View style={[styles.descriptionCardNew, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+              <View style={styles.descriptionHeader}>
+                <Info size={18} color="#92400e" strokeWidth={2.5} />
+                <Text style={styles.descriptionTitleNew}>{t.tokens.aboutThisCause}</Text>
+              </View>
+              <Text style={styles.descriptionTextNew}>{selectedCharity.description}</Text>
+            </Animated.View>
+
             {/* Donation Amount Section */}
-            <Animated.View style={[styles.amountSection, { opacity: fadeAnim }]}>
-              <Text style={styles.amountLabelLarge}>{t.tokens.donationAmount}</Text>
-              
-              <View style={styles.donationInputContainer}>
-                <TextInput
-                  style={[
-                    styles.amountInputCompact,
-                    amountError && styles.amountInputError
-                  ]}
-                  placeholder="Enter amount..."
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="number-pad"
-                  value={donationAmount}
-                  onChangeText={validateAmount}
-                />
+            <Animated.View style={[styles.donationSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+              <View style={styles.donationTitleRow}>
+                <Text style={styles.donationTitle}>{t.tokens.donationAmount}</Text>
                 
-                <View style={styles.multiplierContainer}>
-                  {[
-                    { label: '1×', value: 1 },
-                    { label: '1.5×', value: 1.5 },
-                    { label: '2×', value: 2 },
-                    { label: '5×', value: 5 },
-                    { label: '10×', value: 10 },
-                  ].map((multiplier) => {
-                    const calculatedAmount = Math.floor(selectedCharity.cost_tokens * multiplier.value);
-                    const isSelected = selectedMultiplier === multiplier.value;
-                    const isDisabled = calculatedAmount > userTokens;
-                    
-                    return (
-                      <Pressable
-                        key={multiplier.label}
-                        style={[
-                          styles.multiplierButton,
-                          isSelected && styles.multiplierButtonActive,
-                          isDisabled && styles.multiplierButtonDisabled,
-                        ]}
-                        onPress={() => {
-                          if (!isDisabled) {
-                            setSelectedMultiplier(multiplier.value);
-                            validateAmount(calculatedAmount.toString());
-                          }
-                        }}
-                        disabled={isDisabled}
-                      >
-                        <Text style={[
-                          styles.multiplierButtonText,
-                          isSelected && styles.multiplierButtonTextActive,
-                          isDisabled && styles.multiplierButtonTextDisabled,
-                        ]}>
-                          {multiplier.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                {/* Top Supporters Badge */}
+                {donors.length > 0 && (
+                  <Pressable 
+                    style={styles.supportersBadge}
+                    onPress={() => setSupportersModalVisible(true)}
+                  >
+                    <Trophy size={14} color="#92400e" strokeWidth={2.5} />
+                    <Text style={styles.supportersBadgeText}>Top {donors.length}</Text>
+                  </Pressable>
+                )}
+              </View>
+              
+              <View style={styles.amountInputWrapper}>
+                <View style={styles.amountInputContainer}>
+                  <Coins size={20} color="#92400e" strokeWidth={2} />
+                  <TextInput
+                    style={styles.amountInput}
+                    placeholder="0"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="number-pad"
+                    value={donationAmount}
+                    onChangeText={validateAmount}
+                  />
+                  <Text style={styles.amountCurrency}>PRAY</Text>
                 </View>
               </View>
-              
-              {/* ✅ MINIMUM TOKENS INFO - ZAWSZE WIDOCZNE */}
-              <View style={styles.minTokensInfo}>
-                <Info size={14} color="#78716c" />
-                <Text style={styles.minTokensInfoText}>
-                  {t.tokens.minimumRequired.replace('{amount}', selectedCharity.cost_tokens.toString())}
-                </Text>
+
+              {/* Quick Amount Buttons */}
+              <View style={styles.quickAmountsContainer}>
+                {[1, 1.5, 2, 5, 10].map((multiplier) => {
+                  const calculatedAmount = Math.floor(selectedCharity.cost_tokens * multiplier);
+                  const isSelected = selectedMultiplier === multiplier;
+                  const isDisabled = calculatedAmount > userTokens;
+                  
+                  return (
+                    <Pressable
+                      key={multiplier}
+                      style={[
+                        styles.quickAmountButton,
+                        isSelected && styles.quickAmountButtonActive,
+                        isDisabled && styles.quickAmountButtonDisabled,
+                      ]}
+                      onPress={() => {
+                        if (!isDisabled) {
+                          setSelectedMultiplier(multiplier);
+                          validateAmount(calculatedAmount.toString());
+                        }
+                      }}
+                      disabled={isDisabled}
+                    >
+                      <Text style={[
+                        styles.quickAmountLabel,
+                        isSelected && styles.quickAmountLabelActive,
+                      ]}>
+                        {multiplier}×
+                      </Text>
+                      <Text style={[
+                        styles.quickAmountValue,
+                        isSelected && styles.quickAmountValueActive,
+                        isDisabled && styles.quickAmountValueDisabled,
+                      ]}>
+                        {calculatedAmount}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
+
+              {/* Info/Error Messages */}
+              {!amountError && (
+                <View style={styles.infoMessage}>
+                  <Info size={14} color="#78716c" />
+                  <Text style={styles.infoMessageText}>
+                    {t.tokens.minimumRequired?.replace('{amount}', selectedCharity.cost_tokens.toString()) || 
+                     `Minimum ${selectedCharity.cost_tokens} tokens required`}
+                  </Text>
+                </View>
+              )}
               
-              {/* ✅ KOMUNIKAT BŁĘDU - TYLKO GDY JEST BŁĄD */}
               {amountError && (
-                <View style={styles.errorMessageInfo}>
+                <View style={styles.errorMessage}>
                   <Info size={14} color="#dc2626" />
-                  <Text style={styles.errorMessageInfoText}>{amountError}</Text>
+                  <Text style={styles.errorMessageText}>{amountError}</Text>
                 </View>
               )}
             </Animated.View>
 
             {/* Donate Button */}
-            <Animated.View style={{ opacity: fadeAnim }}>
+            <Animated.View style={[styles.donateButtonContainer, { opacity: fadeAnim }]}>
               <Pressable
                 style={[
-                  styles.donateButtonLarge,
+                  styles.donateButton,
                   (!isValidAmount || donating) && styles.donateButtonDisabled
                 ]}
                 onPress={handleDonate}
@@ -371,102 +433,75 @@ export default function TokensScreen() {
               >
                 <LinearGradient
                   colors={isValidAmount && !donating ? ['#16a34a', '#15803d', '#166534'] : ['#a3a3a3', '#737373']}
-                  style={styles.donateGradientButton}
+                  style={styles.donateButtonGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
                   {donating ? (
-                    <ActivityIndicator color="#ffffff" />
+                    <ActivityIndicator color="#ffffff" size="small" />
                   ) : (
                     <>
-                      <Heart size={24} color="#ffffff" fill="#ffffff" />
-                      <Text style={styles.donateButtonTextLarge}>
-                        {t.tokens.donateTokens} {amount > 0 ? `${amount} ` : ''}PRAY
+                      <Heart size={22} color="#ffffff" fill="#ffffff" />
+                      <Text style={styles.donateButtonText}>
+                        {amount > 0 ? `${t.tokens.donateTokens} ${amount} PRAY` : t.tokens.donateTokens}
                       </Text>
                     </>
                   )}
                 </LinearGradient>
               </Pressable>
             </Animated.View>
-          </ScrollView>
-        </LinearGradient>
+          </View>
+        </ScrollView>
 
-        {/* ✅ NOWY - Info Modal */}
+        {/* Top Supporters Modal */}
         <Modal
-          visible={infoModalVisible}
           animationType="slide"
           transparent={true}
-          onRequestClose={() => setInfoModalVisible(false)}
+          visible={supportersModalVisible}
+          onRequestClose={() => setSupportersModalVisible(false)}
         >
           <View style={styles.modalOverlay}>
+            <Pressable 
+              style={styles.modalBackdrop} 
+              onPress={() => setSupportersModalVisible(false)}
+            />
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{t.tokens.campaignDetails}</Text>
+                <View style={styles.modalTitleRow}>
+                  <Trophy size={24} color="#92400e" strokeWidth={2.5} />
+                  <Text style={styles.modalTitle}>
+                    {t.tokens.topSupporters}
+                  </Text>
+                </View>
                 <Pressable 
-                  onPress={() => setInfoModalVisible(false)} 
-                  style={styles.closeButton}
+                  style={styles.modalCloseButton}
+                  onPress={() => setSupportersModalVisible(false)}
                 >
-                  <X size={24} color="#1c1917" strokeWidth={2} />
+                  <X size={24} color="#78716c" strokeWidth={2} />
                 </Pressable>
               </View>
 
-              <ScrollView 
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.modalScrollContent}
-              >
-                {/* About Section */}
-                <View style={styles.modalSection}>
-                  <View style={styles.modalSectionHeader}>
-                    <Info size={18} color="#92400e" />
-                    <Text style={styles.modalSectionTitle}>{t.tokens.aboutThisCause}</Text>
-                  </View>
-                  <Text style={styles.modalSectionText}>
-                    {selectedCharity.description}
-                  </Text>
-                  <View style={styles.impactBadge}>
-                    <Text style={styles.impactBadgeText}>
-                      {selectedCharity.impact_description}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Top Supporters */}
-                <View style={styles.modalSection}>
-                  <View style={styles.modalSectionHeader}>
-                    <Users size={18} color="#92400e" />
-                    <Text style={styles.modalSectionTitle}>
-                      {t.tokens.topSupporters} ({donors.length})
-                    </Text>
-                  </View>
-                  
-                  {donorsLoading ? (
-                    <ActivityIndicator color="#92400e" style={{ marginTop: 16 }} />
-                  ) : donors.length > 0 ? (
-                    <View style={styles.donorsList}>
-                      {donors.map((donor, index) => (
-                        <View key={donor.user_id} style={styles.donorCard}>
-                          <View style={styles.donorRank}>
-                            <Text style={styles.donorRankText}>#{index + 1}</Text>
-                          </View>
-                          <View style={styles.donorInfo}>
-                            <Text style={styles.donorName}>{donor.username}</Text>
-                            <Text style={styles.donorStats}>
-                              {donor.total_donated} PRAY • {donor.donation_count} {donor.donation_count === 1 ? t.tokens.donation : t.tokens.donations}
-                            </Text>
-                          </View>
-                          <Heart 
-                            size={16} 
-                            color="#dc2626" 
-                            fill={index < 3 ? "#dc2626" : "none"}
-                          />
-                        </View>
-                      ))}
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                <View style={styles.supportersList}>
+                  {donors.map((donor, index) => (
+                    <View key={donor.user_id} style={styles.supporterCard}>
+                      <View style={[styles.supporterRank, index < 3 && styles.supporterRankTop]}>
+                        <Text style={[styles.supporterRankText, index < 3 && styles.supporterRankTextTop]}>
+                          #{index + 1}
+                        </Text>
+                      </View>
+                      <View style={styles.supporterInfo}>
+                        <Text style={styles.supporterName}>{donor.username}</Text>
+                        <Text style={styles.supporterAmount}>{donor.total_donated} PRAY</Text>
+                      </View>
+                      <Heart 
+                        size={16} 
+                        color="#dc2626" 
+                        fill={index < 3 ? "#dc2626" : "none"}
+                        strokeWidth={2}
+                      />
                     </View>
-                  ) : (
-                    <Text style={styles.noDonorsText}>
-                      {t.tokens.noDonorsYet}
-                    </Text>
-                  )}
+                  ))}
                 </View>
               </ScrollView>
             </View>
@@ -478,7 +513,6 @@ export default function TokensScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ✅ NOWE - Ciemny status bar dla głównego widoku */}
       <StatusBar barStyle="dark-content" />
       
       <LinearGradient
@@ -492,7 +526,6 @@ export default function TokensScreen() {
           </View>
           <Text style={styles.subtitle}>{t.tokens.subtitle}</Text>
         </Animated.View>
-
 
         <ScrollView style={styles.charitiesList} showsVerticalScrollIndicator={false}>
           {charities.map((charity) => (
@@ -610,40 +643,8 @@ const styles = StyleSheet.create({
     color: '#78716c',
     textAlign: 'center',
   },
-  balanceBanner: {
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  balanceBannerLabel: {
-    fontSize: 11,
-    color: '#ffffff',
-    opacity: 0.9,
-    marginBottom: 2,
-  },
-  balanceBannerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  balanceBannerAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
   charitiesList: {
     flex: 1,
-  },
-  listTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1c1917',
-    marginBottom: 16,
   },
   charityCard: {
     borderRadius: 16,
@@ -738,115 +739,156 @@ const styles = StyleSheet.create({
     color: '#92400e',
   },
   
-  // DONATION SCREEN STYLES
-  donationGradient: {
+  // DETAIL SCREEN STYLES
+  detailContainer: {
     flex: 1,
+    backgroundColor: '#fafaf9',
   },
-  donationImageContainer: {
-    height: 250, // ✅ Zmienione z 280 na 200
+  heroSection: {
+    height: 320,
     position: 'relative',
   },
-  donationBgImage: {
+  heroImage: {
     width: '100%',
     height: '100%',
   },
-  imageOverlay: {
+  heroGradient: {
     ...StyleSheet.absoluteFillObject,
   },
-  backButtonFloating: {
+  backButton: {
     position: 'absolute',
-    top: 60,
+    top: 50,
     left: 16,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    backdropFilter: 'blur(10px)',
+    zIndex: 10,
+  },
+  backButtonInner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
   },
-  donationHeaderOverlay: {
+  heroContent: {
     position: 'absolute',
     bottom: 24,
-    left: 16,
-    right: 16,
+    left: 20,
+    right: 20,
   },
-  donationTitleLarge: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
-  },
-  orgBadge: {
-    backgroundColor: 'rgba(255,255,255,0.25)',
+  orgBadgeNew: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 20,
     alignSelf: 'flex-start',
+    marginBottom: 12,
     backdropFilter: 'blur(10px)',
   },
-  donationOrgWhite: {
-    fontSize: 13,
+  orgBadgeText: {
+    fontSize: 12,
     fontWeight: '600',
     color: '#ffffff',
+    letterSpacing: 0.5,
   },
-  donationScrollContent: {
-    flex: 1,
-    marginTop: -20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: '#fafaf9',
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#ffffff',
+    lineHeight: 36,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
-  donationScrollPadding: {
-    padding: 20,
+  contentSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 40,
   },
-  impactCard: {
+  statsRow: {
     flexDirection: 'row',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    gap: 12,
+    marginBottom: 20,
   },
-  impactIconContainer: {
-    marginRight: 16,
-  },
-  impactTextContainer: {
+  statCard: {
     flex: 1,
-  },
-  impactTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  impactDescription: {
-    fontSize: 14,
-    color: '#ffffff',
-    opacity: 0.95,
-    lineHeight: 20,
-  },
-  descriptionCard: {
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
+  },
+  statGradient: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1c1917',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#78716c',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  progressContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1c1917',
+  },
+  progressPercentageNew: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#16a34a',
+  },
+  progressBarContainer: {
+    height: 10,
+    backgroundColor: '#e7e5e4',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+  },
+  progressBarGradient: {
+    flex: 1,
+  },
+  descriptionCardNew: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   descriptionHeader: {
     flexDirection: 'row',
@@ -854,192 +896,150 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
-  descriptionTitle: {
+  descriptionTitleNew: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1c1917',
   },
-  descriptionText: {
+  descriptionTextNew: {
     fontSize: 14,
     color: '#57534e',
     lineHeight: 22,
   },
-  progressCard: {
+  donationSection: {
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  progressCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  progressCardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1917',
-  },
-  progressStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  progressStat: {
-    alignItems: 'center',
-  },
-  progressStatValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1c1917',
-  },
-  progressStatLabel: {
-    fontSize: 12,
-    color: '#78716c',
-    marginTop: 4,
-  },
-  progressStatDivider: {
-    width: 1,
-    backgroundColor: '#e7e5e4',
-  },
-  progressBarLarge: {
-    height: 12,
-    backgroundColor: '#e7e5e4',
-    borderRadius: 6,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFillLarge: {
-    height: '100%',
-  },
-  progressPercentage: {
-    fontSize: 13,
-    color: '#16a34a',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  balanceCardDonation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 16,
-    padding: 16,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 4,
-  },
-  balanceTextContainer: {
-    marginLeft: 12,
-  },
-  balanceLabelDonation: {
-    fontSize: 12,
-    color: '#ffffff',
-    opacity: 0.9,
-  },
-  balanceAmountDonation: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  amountSection: {
-    marginBottom: 16,
-  },
-  amountLabelLarge: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1c1917',
-    marginBottom: 12,
-  },
-  donationInputContainer: {
-    flexDirection: 'column',
-    gap: 8,
-  },
-  amountInputCompact: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1c1917',
-    textAlign: 'center',
-    borderWidth: 2,
-    borderColor: '#e7e5e4',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
     elevation: 2,
   },
-  amountInputError: {
-    borderColor: '#dc2626',
-    borderWidth: 2,
-  },
-  multiplierContainer: {
+  donationTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
-  multiplierButton: {
-    flex: 1,
-    backgroundColor: '#fef3c7',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e7e5e4',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  multiplierButtonActive: {
-    backgroundColor: '#f59e0b',
-    borderColor: '#f59e0b',
-  },
-  multiplierButtonDisabled: {
-    opacity: 0.5,
-  },
-  multiplierButtonText: {
+  donationTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#1c1917',
+  },
+  supportersBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  supportersBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#92400e',
   },
-  multiplierButtonTextActive: {
-    color: '#ffffff',
+  amountInputWrapper: {
+    marginBottom: 16,
   },
-  multiplierButtonTextDisabled: {
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fafaf9',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderWidth: 2,
+    borderColor: '#e7e5e4',
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#1c1917',
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  amountCurrency: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#78716c',
   },
-  minTokensInfo: {
+  quickAmountsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  quickAmountButton: {
+    flex: 1,
+    backgroundColor: '#f5f5f4',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  quickAmountButtonActive: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+  },
+  quickAmountButtonDisabled: {
+    opacity: 0.4,
+  },
+  quickAmountLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#78716c',
+    marginBottom: 2,
+  },
+  quickAmountLabelActive: {
+    color: '#92400e',
+  },
+  quickAmountValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1c1917',
+  },
+  quickAmountValueActive: {
+    color: '#92400e',
+  },
+  quickAmountValueDisabled: {
+    color: '#a8a29e',
+  },
+  infoMessage: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
+    paddingVertical: 8,
   },
-  minTokensInfoText: {
-    fontSize: 14,
+  infoMessageText: {
+    flex: 1,
+    fontSize: 12,
     color: '#78716c',
+    lineHeight: 16,
   },
-  errorMessageInfo: {
+  errorMessage: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: 8,
+    paddingVertical: 8,
   },
-  errorMessageInfoText: {
-    fontSize: 14,
+  errorMessageText: {
+    flex: 1,
+    fontSize: 12,
     color: '#dc2626',
     fontWeight: '500',
+    lineHeight: 16,
   },
-  donateButtonLarge: {
+  donateButtonContainer: {
+    marginBottom: 20,
+  },
+  donateButton: {
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#16a34a',
@@ -1052,17 +1052,117 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     shadowOpacity: 0,
   },
-  donateGradientButton: {
+  donateButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    paddingVertical: 20,
+    paddingVertical: 18,
   },
-  donateButtonTextLarge: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  donateButtonText: {
+    fontSize: 17,
+    fontWeight: '700',
     color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  
+  // MODAL STYLES
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e7e5e4',
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1c1917',
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f5f5f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalScroll: {
+    paddingHorizontal: 20,
+  },
+  supportersList: {
+    paddingVertical: 20,
+    gap: 12,
+  },
+  supporterCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fafaf9',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e7e5e4',
+  },
+  supporterRank: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f5f5f4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  supporterRankTop: {
+    backgroundColor: '#fef3c7',
+  },
+  supporterRankText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#78716c',
+  },
+  supporterRankTextTop: {
+    color: '#92400e',
+  },
+  supporterInfo: {
+    flex: 1,
+  },
+  supporterName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1c1917',
+    marginBottom: 2,
+  },
+  supporterAmount: {
+    fontSize: 13,
+    color: '#78716c',
+    fontWeight: '500',
   },
   centerContent: {
     flex: 1,
@@ -1091,129 +1191,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   retryText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#92400e',
   },
-
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    paddingBottom: 40,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e7e5e4',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1c1917',
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f5f5f4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalScrollContent: {
-    padding: 20,
-  },
-  modalSection: {
-    marginBottom: 24,
-  },
-  modalSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1917',
-  },
-  modalSectionText: {
-    fontSize: 14,
-    color: '#57534e',
-    lineHeight: 22,
-    marginBottom: 12,
-  },
-  impactBadge: {
-    backgroundColor: '#dcfce7',
-    padding: 12,
-    borderRadius: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: '#16a34a',
-  },
-  impactBadgeText: {
-    fontSize: 13,
-    color: '#166534',
-    fontWeight: '500',
-  },
-  donorsList: {
-    gap: 12,
-    marginTop: 8,
-  },
-  donorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fafaf9',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e7e5e4',
-  },
-  donorRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fef3c7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  donorRankText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#92400e',
-  },
-  donorInfo: {
-    flex: 1,
-  },
-  donorName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1c1917',
-    marginBottom: 2,
-  },
-  donorStats: {
-    fontSize: 12,
-    color: '#78716c',
-  },
-  noDonorsText: {
-    fontSize: 14,
-    color: '#78716c',
-    textAlign: 'center',
-    marginTop: 16,
-    fontStyle: 'italic',
-  },
-
-  // ✅ NOWE STYLE
   loginPromptCard: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -1242,5 +1223,22 @@ const styles = StyleSheet.create({
     color: '#78716c',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  retryButtonError: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  retryButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

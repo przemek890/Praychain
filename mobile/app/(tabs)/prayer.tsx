@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Heart, Search, Play, AlertCircle, Mic, StopCircle, Check, BookOpen, Sparkles, ArrowLeft } from 'lucide-react-native';
+import { Heart, Search, Play, AlertCircle, Mic, StopCircle, Check, BookOpen, Sparkles, ArrowLeft, RefreshCw } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect, useRef } from 'react';
 import { usePrayerRecording } from '@/hooks/usePrayerRecording';
@@ -86,7 +86,7 @@ export default function PrayerScreen() {
     }
   }, [result, triggerRefresh]);
 
-  // ✅ POPRAWIONE - Ładne wyświetlanie błędu logowania
+  // ✅ POPRAWIONE - Ładne wyświetlanie błędu logowania z Retry
   if (!userData && !userDataLoading) {
     return (
       <View style={styles.container}>
@@ -100,8 +100,14 @@ export default function PrayerScreen() {
                 <Heart size={48} color="#92400e" strokeWidth={2} />
                 <Text style={styles.loginPromptTitle}>{t.prayer.pleaseLogin}</Text>
                 <Text style={styles.loginPromptSubtitle}>
-                  Sign in to start your prayer journey
+                  Please check your internet connection
                 </Text>
+                <Pressable style={styles.retryButtonError} onPress={() => window.location.reload()}>
+                  <LinearGradient colors={['#92400e', '#78350f']} style={styles.retryButtonGradient}>
+                    <RefreshCw size={16} color="#ffffff" />
+                    <Text style={styles.retryButtonText}>{t.prayer.retry}</Text>
+                  </LinearGradient>
+                </Pressable>
               </LinearGradient>
             </View>
           </View>
@@ -115,15 +121,16 @@ export default function PrayerScreen() {
       <View style={styles.container}>
         <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
           <ScrollView style={styles.prayerDetailScroll} showsVerticalScrollIndicator={false}>
-            <Animated.View style={[styles.detailHeader, { opacity: fadeAnim }]}>
-              <Pressable onPress={resetPrayer} style={styles.backButtonCircle}>
+            {/* ✅ NOWY HEADER - bez ikony serca, tytuł wyżej */}
+            <Animated.View style={[styles.detailHeaderSection, { opacity: fadeAnim }]}>
+              <Pressable onPress={resetPrayer} style={styles.backButton}>
                 <ArrowLeft size={24} color="#1c1917" strokeWidth={2.5} />
               </Pressable>
-              <View style={styles.detailTitleContainer}>
-                <Heart size={24} color="#92400e" fill="#92400e" />
+
+              <View style={styles.detailHeaderContent}>
                 <Text style={styles.detailTitle}>{selectedPrayer.title}</Text>
+                <Text style={styles.detailReference}>{selectedPrayer.reference}</Text>
               </View>
-              <Text style={styles.detailReference}>{selectedPrayer.reference}</Text>
             </Animated.View>
 
             {/* Prayer Text - zawsze widocne, pełny tekst */}
@@ -133,7 +140,10 @@ export default function PrayerScreen() {
                   <BookOpen size={18} color="#92400e" />
                   <Text style={styles.prayerTextHeaderTitle}>{t.prayer.prayerText}</Text>
                 </View>
-                <Text style={styles.prayerText}>{selectedPrayer.text}</Text>
+                {/* ✅ ZMIENIONE - numberOfLines={3} */}
+                <Text style={styles.prayerText} numberOfLines={3} ellipsizeMode="tail">
+                  {selectedPrayer.text}
+                </Text>
               </LinearGradient>
             </Animated.View>
 
@@ -559,27 +569,45 @@ const styles = StyleSheet.create({
   startButtonText: { fontSize: 13, fontWeight: '600', color: '#ffffff' },
 
   prayerDetailScroll: { flex: 1 },
-  detailHeader: { alignItems: 'center', marginBottom: 16, paddingHorizontal: 16 },
-  backButtonCircle: {
-    alignSelf: 'flex-start',
+  detailHeaderSection: {
+    paddingTop: 20,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 20,
+    left: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 10,
   },
-  backButtonGradient: { paddingHorizontal: 12, paddingVertical: 6 },
-  backButtonText: { fontSize: 14, color: '#92400e', fontWeight: '600' },
-  detailTitleContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  detailTitle: { fontSize: 24, fontWeight: 'bold', color: '#1c1917', textAlign: 'center' },
-  detailReference: { fontSize: 12, color: '#78716c', textAlign: 'center' },
+  detailHeaderContent: {
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  detailTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1c1917',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  detailReference: {
+    fontSize: 13,
+    color: '#78716c',
+    textAlign: 'center',
+  },
   stepCard: { marginBottom: 12, borderRadius: 14, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   stepGradient: { padding: 14 },
   prayerTextHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
@@ -858,5 +886,22 @@ const styles = StyleSheet.create({
     color: '#78716c',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  retryButtonError: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 16,
+  },
+  retryButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

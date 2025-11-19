@@ -1,55 +1,145 @@
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect, useRef } from 'react';
+import { API_CONFIG } from '@/config/api'; // ✅ DODAJ IMPORT
 
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
-const API_URL = `http://${API_HOST}:${API_PORT}`;
+export interface Quote {
+  text: string;
+  reference: string;
+  category?: string;
+}
+
+export interface DailyReading {
+  reference: string;
+  verses: Array<{
+    chapter: number;
+    verse: number;
+    text: string;
+  }>;
+  book_name: string;
+}
 
 export interface BibleVerse {
+  book_name: string;
+  chapter: number;
   verse: number;
   text: string;
+}
+
+export interface BibleStructure {
+  books: string[];
+  chapters_per_book: Record<string, number>;
 }
 
 export interface BibleChapter {
   book_name: string;
   chapter: number;
-  verses: BibleVerse[];
+  verses: Array<{
+    verse: number;
+    text: string;
+  }>;
 }
 
-export interface BibleStructure {
-  books: string[];
-  chapters_per_book: { [key: string]: number };
+// ✅ POPRAWIONE - useRandomQuote
+export function useRandomQuote() {
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchRandomQuote = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+      setQuote(null);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      // ✅ ZMIEŃ: użyj API_CONFIG.BASE_URL
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/random-quote`);
+      if (!response.ok) throw new Error('Failed to fetch random quote');
+      
+      const data = await response.json();
+      
+      setQuote({
+        text: data.text,
+        reference: `${data.book_name} ${data.chapter}:${data.verse}`,
+        category: data.category,
+      });
+    } catch (error) {
+      console.error('Error fetching random quote:', error);
+      setQuote(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRandomQuote();
+  }, []);
+
+  const refresh = () => {
+    setLoading(true);
+    fetchRandomQuote(true);
+  };
+
+  return { quote, loading, refreshing, refresh };
 }
 
-export interface BibleQuote {
-  text: string;
-  reference: string;
-  book_name: string;
-  chapter: number;
-  verse: number;
-  category?: string;
+// ✅ POPRAWIONE - useDailyReading
+export function useDailyReading() {
+  const [reading, setReading] = useState<DailyReading | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { t } = useLanguage();
+
+  const fetchReading = async () => {
+    setLoading(true);
+    setError(null);
+    setReading(null);
+    
+    try {
+      // ✅ ZMIEŃ: użyj API_CONFIG.BASE_URL
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/daily-reading`);
+      if (!response.ok) throw new Error('Failed to fetch daily reading');
+      
+      const data = await response.json();
+      setReading(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching daily reading:', err);
+      setError(`${t.bibleReader.checkConnection}`);
+      setReading(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReading();
+  }, []);
+
+  const refresh = () => {
+    fetchReading();
+  };
+
+  return { reading, loading, error, refresh };
 }
 
-export interface DailyReading {
-  book_name: string;
-  chapter: number;
-  verses: BibleVerse[];
-  date: string;
-  reference: string;
-}
-
+// ✅ POPRAWIONE - useBibleStructure
 export function useBibleStructure() {
   const [structure, setStructure] = useState<BibleStructure | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadStructure();
-  }, []);
-
   const loadStructure = async () => {
+    setLoading(true);
+    setError(null);
+    setStructure(null);
+    
     try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/bible/books`);
+      // ✅ ZMIEŃ: użyj API_CONFIG.BASE_URL
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/books`);
       if (response.ok) {
         const data = await response.json();
         setStructure({
@@ -59,14 +149,20 @@ export function useBibleStructure() {
         setError(null);
       } else {
         setError('Failed to load Bible structure');
+        setStructure(null);
       }
     } catch (err) {
       console.error('Error loading Bible structure:', err);
       setError('Failed to load Bible structure');
+      setStructure(null);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadStructure();
+  }, []);
 
   return {
     structure,
@@ -95,20 +191,25 @@ export function useBibleChapter(book: string, chapter: number) {
       isLoadingRef.current = true;
       setLoading(true);
       setError(null);
+      setContent(null);
 
+      // ✅ ZMIEŃ: użyj API_CONFIG.BASE_URL
       const response = await fetch(
-        `${API_URL}/api/bible/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}`
+        `${API_CONFIG.BASE_URL}/api/bible/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}`
       );
       
       if (response.ok) {
         const data = await response.json();
         setContent(data);
+        setError(null);
       } else {
         setError('Failed to load chapter');
+        setContent(null);
       }
     } catch (err) {
       console.error('Error loading chapter:', err);
       setError('Failed to load chapter');
+      setContent(null);
     } finally {
       setLoading(false);
       isLoadingRef.current = false;
@@ -120,86 +221,5 @@ export function useBibleChapter(book: string, chapter: number) {
     loading,
     error,
     refresh: loadChapter,
-  };
-}
-
-export function useDailyReading() {
-  const [reading, setReading] = useState<DailyReading | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadReading();
-  }, []);
-
-  const loadReading = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await fetch(`${API_URL}/api/bible/daily-reading`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setReading(data);
-      } else {
-        setError(`Failed to load daily reading: ${response.status}`);
-      }
-    } catch (err) {
-      console.error('Error loading daily reading:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load daily reading');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return {
-    reading,
-    loading,
-    error,
-    refresh: loadReading,
-  };
-}
-
-export function useRandomQuote() {
-  const [quote, setQuote] = useState<BibleQuote | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadQuote();
-  }, []);
-
-  const loadQuote = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/bible/random-quote`);
-      if (response.ok) {
-        const data = await response.json();
-        setQuote(data);
-        setError(null);
-      } else {
-        setError('Failed to load quote');
-      }
-    } catch (err) {
-      console.error('Error loading quote:', err);
-      setError('Failed to load quote');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const refresh = () => {
-    setRefreshing(true);
-    loadQuote();
-  };
-
-  return {
-    quote,
-    loading,
-    refreshing,
-    error,
-    refresh,
   };
 }

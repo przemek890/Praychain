@@ -358,11 +358,12 @@ export const en = {
     error: 'Failed to load Bible structure',
     verses: 'verses',
     verse: 'verse',
+    checkConnection: 'Please check your internet connection',
   },
 
   // Login Screen
   login: {
-    welcome: 'Welcome to',
+    welcome: 'Welcome to Praychain',
     tagline: 'Connect through prayer',
     enterEmail: 'Enter your email',
     enterCode: 'Enter verification code',

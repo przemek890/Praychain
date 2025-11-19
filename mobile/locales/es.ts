@@ -359,11 +359,12 @@ export const es = {
     error: 'Error al cargar la estructura de la Biblia',
     verses: 'versículos',
     verse: 'versículo',
+    checkConnection: 'Por favor, verifica tu conexión a internet',
   },
 
   // Login Screen
   login: {
-    welcome: 'Bienvenido a',
+    welcome: 'Bienvenido a Praychain',
     tagline: 'Conéctate a través de la oración',
     enterEmail: 'Ingresa tu correo electrónico',
     enterCode: 'Ingresa el código de verificación',
@@ -392,5 +393,21 @@ export const es = {
     next: 'Siguiente',
     finish: 'Finalizar',
     close: 'Cerrar',
+  },
+
+  charity: {
+    categories: {
+      humanitarian: 'Humanitaria',
+      environment: 'Medio ambiente',
+      education: 'Educación',
+      health: 'Salud',
+      animals: 'Animales',
+      children: 'Niños',
+    },
+    donate: 'Donar',
+    tokens: 'tokens',
+    raised: 'recaudado',
+    goal: 'objetivo',
+    supporters: 'apoyadores',
   },
 };

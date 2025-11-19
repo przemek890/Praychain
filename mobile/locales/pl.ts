@@ -138,6 +138,7 @@ export const pl = {
     error: 'Nie udało się załadować struktury Biblii',
     verses: 'wersety',
     verse: 'werset',
+    checkConnection: 'Proszę sprawdź swoje połączenie internetowe',
   },
 
   // Achievements Screen
@@ -273,7 +274,7 @@ export const pl = {
 
   // Login Screen
   login: {
-    welcome: 'Witaj w',
+    welcome: 'Witaj w Praychain',
     tagline: 'Połącz się poprzez modlitwę',
     enterEmail: 'Wprowadź swój email',
     enterCode: 'Wprowadź kod weryfikacyjny',
@@ -353,6 +354,23 @@ export const pl = {
       description: 'Wsparcie dla dzieci z rakiem i ich rodzin',
       endDate: '30 lis 2025',
     },
+  },
+
+  // Charity
+  charity: {
+    categories: {
+      humanitarian: 'Humanitarne',
+      environment: 'Środowisko',
+      education: 'Edukacja',
+      health: 'Zdrowie',
+      animals: 'Zwierzęta',
+      children: 'Dzieci',
+    },
+    donate: 'Przekaż darowiznę',
+    tokens: 'tokenów',
+    raised: 'zebrano',
+    goal: 'cel',
+    supporters: 'wspierających',
   },
 
   // Common
