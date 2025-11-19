@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
 const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
@@ -14,21 +14,23 @@ export function useTokens(userId: string) {
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const fetchBalance = async () => {
+  // ✅ Użyj useCallback aby funkcja była stabilna
+  const fetchBalance = useCallback(async () => {
     if (!userId) {
       console.warn('useTokens: No userId provided');
+      setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      console.log(`Fetching balance for user: ${userId}`); // ✅ Debug log
+      console.log(`Fetching balance for user: ${userId}`);
       
       const response = await fetch(`${API_URL}/api/users/${userId}`);
       
       if (response.ok) {
         const data = await response.json();
-        console.log(`Balance fetched: ${data.tokens_balance}`); // ✅ Debug log
+        console.log(`Balance fetched: ${data.tokens_balance}`);
         setBalance(data.tokens_balance || 0);
       } else {
         console.error(`Failed to fetch balance: ${response.status}`);
@@ -38,15 +40,15 @@ export function useTokens(userId: string) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]); // ✅ Zależy tylko od userId
 
   useEffect(() => {
     fetchBalance();
-  }, [userId]);
+  }, [fetchBalance]); // ✅ Teraz fetchBalance jest stabilne
 
   return {
     balance,
     loading,
-    refresh: fetchBalance, // ✅ Zwraca funkcję odświeżania
+    refresh: fetchBalance,
   };
 }

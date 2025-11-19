@@ -24,6 +24,20 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # ============================================
+# VOICE VERIFICATION SETTINGS (Proof-of-Prayer)
+# ============================================
+# ✅ POPRAWIONE - Prawidłowa konwersja string -> boolean
+VOICE_VERIFICATION_ENABLED = os.getenv("VOICE_VERIFICATION_ENABLED", "false").lower() in ("true", "1", "yes")
+VOICE_SERVICE_URL = os.getenv("VOICE_SERVICE_URL", "http://voice-service:8001")
+VOICE_SIMILARITY_THRESHOLD = float(os.getenv("VOICE_SIMILARITY_THRESHOLD", "0.85"))
+
+# Bonus points multiplier for high voice similarity
+VOICE_SIMILARITY_BONUS_MULTIPLIER = 10
+
+# AI/Synthetic voice detection threshold (0.0 - 1.0)
+AI_VOICE_DETECTION_THRESHOLD = 0.7
+
+# ============================================
 # CAPTCHA VERIFICATION SETTINGS
 # ============================================
 # Minimum accuracy threshold for CAPTCHA to pass (0.0 - 1.0)
@@ -54,33 +68,15 @@ FLUENCY_POINTS_MULTIPLIER = 15
 FOCUS_POINTS_MULTIPLIER = 10
 
 # ============================================
-# VOICE VERIFICATION SETTINGS (Proof-of-Prayer)
-# ============================================
-# Enable/disable voice biometric verification
-VOICE_VERIFICATION_ENABLED = os.getenv("VOICE_VERIFICATION_ENABLED", "false").lower() == "true"
-
-VOICE_SERVICE_URL = os.getenv("VOICE_SERVICE_URL", "http://voice-service:8001")
-
-# Minimum voice similarity threshold for verification (0.0 - 1.0)
-# Compares prayer audio with CAPTCHA audio biometrics
-VOICE_SIMILARITY_THRESHOLD = float(os.getenv("VOICE_SIMILARITY_THRESHOLD", "0.85"))
-
-# Bonus points multiplier for high voice similarity
-VOICE_SIMILARITY_BONUS_MULTIPLIER = 10
-
-# AI/Synthetic voice detection threshold (0.0 - 1.0)
-# Lower score = more likely AI-generated
-AI_VOICE_DETECTION_THRESHOLD = 0.7
-
-# ============================================
 # EXTERNAL API CONFIGURATION
 # ============================================
 # AssemblyAI - Voice biometric matching
 ASSEMBLYAI_API_KEY = os.getenv("ASSEMBLYAI_API_KEY", "")
 ASSEMBLYAI_UPLOAD_URL = "https://api.assemblyai.com/v2/upload"
 ASSEMBLYAI_TRANSCRIPT_URL = "https://api.assemblyai.com/v2/transcript"
+ASSEMBLYAI_MIN_SIMILARITY = 0.65
 
-# Deepgram - AI/Synthetic voice detection (best in class)
+# Deepgram - AI/Synthetic voice detection
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 DEEPGRAM_API_URL = "https://api.deepgram.com/v1/listen"
 
@@ -88,6 +84,11 @@ DEEPGRAM_API_URL = "https://api.deepgram.com/v1/listen"
 HF_API_KEY = os.getenv("HF_API_KEY", "")
 HF_API_BASE = "https://router.huggingface.co/hf-inference"
 HF_EMOTION_MODEL = "j-hartmann/emotion-english-distilroberta-base"
+
+# Resemble Detect
+RESEMBLE_API_TOKEN = os.getenv("RESEMBLE_API_TOKEN", "")
+RESEMBLE_DETECT_URL = os.getenv("RESEMBLE_DETECT_URL", "https://api.resemble.ai/v1/detect")
+REPLICATE_DELAY_SECONDS = int(os.getenv("VOICE_DETECT_DELAY_SECONDS", "8"))
 
 # Bible API configuration
 BIBLE_API_TIMEOUT = 5.0
@@ -105,17 +106,3 @@ ALLOWED_EXTENSIONS = {".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm",
 
 # Maximum file size: 100MB
 MAX_FILE_SIZE = 100 * 1024 * 1024
-
-BIBLE_API_TIMEOUT = 5.0
-BIBLE_API_ENABLED = True
-
-# Voice verification settings
-VOICE_VERIFICATION_ENABLED = True
-ASSEMBLYAI_MIN_SIMILARITY = 0.65
-
-# Delay między dwoma wywołaniami detektora (bezpieczny bufor)
-REPLICATE_DELAY_SECONDS = int(os.getenv("VOICE_DETECT_DELAY_SECONDS", "8"))
-
-# Resemble Detect
-RESEMBLE_API_TOKEN = os.getenv("RESEMBLE_API_TOKEN", "")
-RESEMBLE_DETECT_URL = os.getenv("RESEMBLE_DETECT_URL", "https://api.resemble.ai/v1/detect")

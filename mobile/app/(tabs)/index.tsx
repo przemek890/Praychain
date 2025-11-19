@@ -1,36 +1,10 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Settings, BookOpen, Quote, Calendar, RefreshCw, Flame, Globe, FileText, Shield, HelpCircle, Info, LogOut, ChevronRight, ArrowLeft, Coins } from 'lucide-react-native';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { User, Settings, BookOpen, Quote, Calendar, RefreshCw, Flame, Globe, FileText, Shield, HelpCircle, Info, LogOut, ChevronRight, ArrowLeft, Wallet } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '@/contexts/AuthContext';
+import { usePrivy } from '@privy-io/expo';
 import { useUserData } from '@/hooks/useUserData';
-
-
-interface UserData {
-  id: string;
-  username: string;
-  tokens_balance: number;
-  prayers_count: number;
-  streak_days: number;
-  total_earned: number;
-  total_donated: number;
-  level?: number;
-  experience?: number;
-  experience_to_next_level?: number;
-}
-
-interface BibleQuote {
-  text: string;
-  reference: string;
-  book_name?: string;
-  chapter?: number;
-  verse?: number;
-}
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const calculateLevel = (totalEarned: number) => {
   const baseXP = 100;
@@ -59,12 +33,11 @@ const calculateLevel = (totalEarned: number) => {
 };
 
 export default function HomeScreen() {
-  const { t } = useLanguage();
-  const { logout } = useAuth();
+  const { logout, user } = usePrivy();
   const [settingsVisible, setSettingsVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  const { userData, dailyQuote, loading, refreshing, refreshQuote, refresh } = useUserData();
+  const { userData, dailyQuote, loading, refreshing, refreshQuote, refresh, username } = useUserData();
 
   useFocusEffect(
     useCallback(() => {
@@ -84,7 +57,6 @@ export default function HomeScreen() {
   }, [loading]);
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('userId');
     await logout();
     setSettingsVisible(false);
     router.replace('../login');
@@ -99,7 +71,8 @@ export default function HomeScreen() {
     );
   }
 
-  const userName = userData?.username || 'Guest';
+  // ✅ Użyj username z hooka (pierwsze część emaila przed @)
+  const displayName = username || 'Guest';
   const tokens = userData?.tokens_balance || 0;
   const streak = userData?.streak_days || 0;
   const prayersCount = userData?.prayers_count || 0;
@@ -137,6 +110,48 @@ export default function HomeScreen() {
             </Animated.View>
 
             <View style={styles.settingsItemsContainer}>
+              {/* Wallet Info */}
+              {user?.wallet && (
+                <View>
+                  <View style={styles.walletCard}>
+                    <View style={styles.walletHeader}>
+                      <View style={styles.walletIconWrapper}>
+                        <Wallet size={20} color="#92400e" strokeWidth={2.5} />
+                      </View>
+                      <View style={styles.walletContent}>
+                        <Text style={styles.walletTitle}>Connected Wallet</Text>
+                        <Text style={styles.walletAddress}>
+                          {user.wallet.address.slice(0, 6)}...{user.wallet.address.slice(-4)}
+                        </Text>
+                        {user.wallet.chainId && (
+                          <Text style={styles.walletChain}>
+                            Chain ID: {user.wallet.chainId}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* Email Info */}
+              {user?.email && (
+                <View>
+                  <View style={styles.emailCard}>
+                    <View style={styles.emailHeader}>
+                      <View style={styles.emailIconWrapper}>
+                        <User size={20} color="#92400e" strokeWidth={2.5} />
+                      </View>
+                      <View style={styles.emailContent}>
+                        <Text style={styles.emailTitle}>Email</Text>
+                        <Text style={styles.emailAddress}>{user.email.address}</Text>
+                        <Text style={styles.usernameText}>Username: {displayName}</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+
               <View>
                 <SettingItem
                   icon={Globe}
@@ -208,7 +223,7 @@ export default function HomeScreen() {
             <View style={styles.userSection}>
               <View style={styles.userInfo}>
                 <Text style={styles.greeting}>Welcome back,</Text>
-                <Text style={styles.userName}>{userName}</Text>
+                <Text style={styles.userName}>{displayName}</Text>
               </View>
               <Pressable onPress={() => setSettingsVisible(true)}>
                 <LinearGradient
@@ -341,7 +356,7 @@ export default function HomeScreen() {
                 icon={Calendar}
                 title="Bible Reader"
                 description="Read any chapter"
-                gradient={['#78350f', '#451a03']} // ✅ ZMIENIONE z ['#92400e', '#78350f']
+                gradient={['#78350f', '#451a03']}
                 delay={400}
                 onPress={() => router.push('/bible-reader')}
                 style={styles.fullCard}
@@ -444,22 +459,15 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  // ❌ USUŃ te style - już nie potrzebne
-  // heroCardWrapper, tokensCard, tokensHeader, logoContainer, 
-  // crossWrapper, crossVertical, crossHorizontal, tokensContent,
-  // tokensLabel, tokensValueRow, tokensValue, tokensUnit,
-  // statsGrid, statBox, statIconWrapper, statValue, statLabel
-
-  // ✅ ZAKTUALIZUJ - dodaj marginesy jak w heroCardWrapper
   balanceCardCompact: {
-    paddingHorizontal: 16, // ✅ Dodane
-    marginBottom: 20, // ✅ Zmienione z 16 na 20
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
   balanceGradientCompact: {
     padding: 16,
     paddingBottom: 12,
     backgroundColor: '#ffffff',
-    borderRadius: 20, // ✅ Dodane
+    borderRadius: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -469,13 +477,13 @@ const styles = StyleSheet.create({
   balanceRowCompact: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14, // ✅ Zwiększone z 12 na 14
+    gap: 14,
     marginBottom: 12,
   },
   balanceIconCompact: {
-    width: 56, // ✅ Zwiększone z 48 na 56
-    height: 56, // ✅ Zwiększone z 48 na 56
-    borderRadius: 16, // ✅ Zwiększone z 12 na 16
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     backgroundColor: '#92400e',
     alignItems: 'center',
     justifyContent: 'center',
@@ -486,45 +494,42 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   logoImage: {
-    width: 40, // ✅ Nowe
-    height: 40, // ✅ Nowe
+    width: 40,
+    height: 40,
   },
   balanceTextContainer: {
     flex: 1,
   },
   balanceLabel: {
-    fontSize: 11, // ✅ Zwiększone z 10 na 11
+    fontSize: 11,
     fontWeight: '600',
     color: '#78716c',
     textTransform: 'uppercase',
-    letterSpacing: 1, // ✅ Zwiększone z 0.5 na 1
-    marginBottom: 4, // ✅ Zwiększone z 2 na 4
+    letterSpacing: 1,
+    marginBottom: 4,
   },
   balanceAmountRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 8, // ✅ Zwiększone z 6 na 8
+    gap: 8,
   },
   balanceAmount: {
-    fontSize: 36, // ✅ Zwiększone z 32 na 36
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#16a34a',
     letterSpacing: -1,
   },
   balanceCurrency: {
-    fontSize: 18, // ✅ Zwiększone z 16 na 18
+    fontSize: 18,
     fontWeight: '700',
     color: '#16a34a',
     opacity: 0.7,
   },
-
   divider: {
     height: 1,
     backgroundColor: '#e7e5e4',
     marginBottom: 12,
   },
-
-  // Level Progress
   levelContainer: {
     marginBottom: 12,
   },
@@ -565,7 +570,6 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
   },
-
   statsRowCompact: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -573,10 +577,10 @@ const styles = StyleSheet.create({
   },
   statItemCompact: {
     flex: 1,
-    flexDirection: 'row', // ✅ Dodane - wszystko w jednej linii
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8, // ✅ Zwiększone z 4 na 8
+    gap: 8,
   },
   statIconSmall: {
     width: 28,
@@ -601,7 +605,6 @@ const styles = StyleSheet.create({
     height: 40,
     backgroundColor: '#e7e5e4',
   },
-
   content: {
     paddingHorizontal: 16,
     paddingBottom: 100,
@@ -709,42 +712,11 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     fontWeight: '500',
   },
-  // Settings Screen Styles
-  settingsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  settingsTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1c1917',
-    letterSpacing: -0.5,
-  },
-  settingsContent: {
+  settingsScrollView: {
     flex: 1,
-    paddingHorizontal: 16,
   },
   settingsScrollContent: {
     paddingBottom: 40,
-  },
-  settingsScrollView: {
-    flex: 1,
   },
   settingsHeaderSection: {
     paddingTop: 20,
@@ -779,11 +751,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 8,
   },
-  iconContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
   settingsTitleLarge: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -799,7 +766,6 @@ const styles = StyleSheet.create({
   settingsItemsContainer: {
     paddingHorizontal: 16,
   },
-
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -857,7 +823,101 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#dc2626',
   },
-
-  // ❌ USUŃ stare style:
-  // settingsHeader, backButton, settingsTitle, settingsContent, settingsScrollContent (stary)
+  walletCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: '#fef3c7',
+  },
+  walletHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  walletIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  walletContent: {
+    flex: 1,
+  },
+  walletTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#78716c',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  walletAddress: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1c1917',
+    fontFamily: 'monospace',
+    marginBottom: 2,
+  },
+  walletChain: {
+    fontSize: 12,
+    color: '#a8a29e',
+    fontWeight: '500',
+  },
+  emailCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: '#e0e7ff',
+  },
+  emailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  emailIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#e0e7ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  emailContent: {
+    flex: 1,
+  },
+  emailTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#78716c',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  emailAddress: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1c1917',
+    marginBottom: 2,
+  },
+  usernameText: {
+    fontSize: 12,
+    color: '#78716c',
+    fontWeight: '500',
+  },
 });
