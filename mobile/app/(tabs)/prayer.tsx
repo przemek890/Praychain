@@ -11,7 +11,7 @@ import { useUserData } from '@/hooks/useUserData'; // ✅ NOWE
 export default function PrayerScreen() {
   const { t } = useLanguage();
   const { triggerRefresh } = useUserDataRefresh();
-  const { userData, loading: userDataLoading } = useUserData(); // ✅ NOWE
+  const { userData, loading: userDataLoading } = useUserData();
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -86,13 +86,24 @@ export default function PrayerScreen() {
     }
   }, [result, triggerRefresh]);
 
-  // ✅ NOWE - Sprawdź czy userData jest dostępny
+  // ✅ POPRAWIONE - Ładne wyświetlanie błędu logowania
   if (!userData && !userDataLoading) {
     return (
       <View style={styles.container}>
         <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
-          <View style={[styles.container, styles.loadingContainer]}>
-            <Text style={styles.errorText}>{t.prayer.pleaseLogin}</Text>
+          <View style={styles.centerContent}>
+            <View style={styles.loginPromptCard}>
+              <LinearGradient
+                colors={['#ffffff', '#fafaf9']}
+                style={styles.loginPromptGradient}
+              >
+                <Heart size={48} color="#92400e" strokeWidth={2} />
+                <Text style={styles.loginPromptTitle}>{t.prayer.pleaseLogin}</Text>
+                <Text style={styles.loginPromptSubtitle}>
+                  Sign in to start your prayer journey
+                </Text>
+              </LinearGradient>
+            </View>
           </View>
         </LinearGradient>
       </View>
@@ -810,5 +821,42 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1c1917',
+  },
+
+  // ✅ NOWE STYLE
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  loginPromptCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+    maxWidth: 400,
+  },
+  loginPromptGradient: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  loginPromptTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1c1917',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loginPromptSubtitle: {
+    fontSize: 14,
+    color: '#78716c',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

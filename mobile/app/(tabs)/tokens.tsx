@@ -13,8 +13,8 @@ const { width } = Dimensions.get('window');
 
 export default function TokensScreen() {
   const { t } = useLanguage();
-  const { userData, loading: userDataLoading } = useUserData(); // ✅ NOWE
-  const userId = userData?.id || ''; // ✅ NOWE - pobierz userId z userData
+  const { userData, loading: userDataLoading } = useUserData();
+  const userId = userData?.id || '';
   
   const { balance: userTokens, loading: tokensLoading, refresh: refreshTokens } = useTokens(userId);
   const { charities, loading: charitiesLoading, error, donateToCharity, refresh: refreshCharities } = useCharity();
@@ -126,10 +126,28 @@ export default function TokensScreen() {
   const loading = tokensLoading || charitiesLoading || userDataLoading;
 
   // ✅ NOWE - Sprawdź czy userId jest dostępny
-  if (!userId && !loading) {
+  if (!userId && !userDataLoading) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.errorText}>{t.tokens.pleaseLogin}</Text>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#78350f20', '#44403c30', '#78350f25']}
+          style={styles.gradient}
+        >
+          <View style={styles.centerContent}>
+            <View style={styles.loginPromptCard}>
+              <LinearGradient
+                colors={['#ffffff', '#fafaf9']}
+                style={styles.loginPromptGradient}
+              >
+                <Coins size={48} color="#92400e" strokeWidth={2} />
+                <Text style={styles.loginPromptTitle}>{t.tokens.pleaseLogin}</Text>
+                <Text style={styles.loginPromptSubtitle}>
+                  Sign in to view and manage your spiritual tokens
+                </Text>
+              </LinearGradient>
+            </View>
+          </View>
+        </LinearGradient>
       </View>
     );
   }
@@ -1047,8 +1065,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   centerContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   loadingText: {
     marginTop: 16,
@@ -1191,5 +1211,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontStyle: 'italic',
+  },
+
+  // ✅ NOWE STYLE
+  loginPromptCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+    maxWidth: 400,
+  },
+  loginPromptGradient: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  loginPromptTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1c1917',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loginPromptSubtitle: {
+    fontSize: 14,
+    color: '#78716c',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
