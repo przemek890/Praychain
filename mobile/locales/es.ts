@@ -259,7 +259,7 @@ export const es = {
     email: 'Correo electrónico',
     username: 'Nombre de usuario',
     appLanguage: 'Idioma de la aplicación',
-    termsOfService: 'Términos de servicio',
+    termsOfService: 'Sobre nosotros',
     privacyPolicy: 'Política de privacidad',
     helpSupport: 'Ayuda y soporte',
     logOut: 'Cerrar sesión',
@@ -409,5 +409,50 @@ export const es = {
     raised: 'recaudado',
     goal: 'objetivo',
     supporters: 'apoyadores',
+  },
+
+  // Terms & Conditions
+  terms: {
+    title: 'Sobre nosotros',
+    subtitle: 'Conoce la misión de Praychain',
+    mission: {
+      title: 'Nuestra Misión',
+      description: 'Praychain es una aplicación diseñada para construir profundidad espiritual a través del enfoque consciente en la oración. Solo la oración consciente gana tokens. Nuestro objetivo es ayudar a descubrir y reconstruir la profundidad de reconocer valores verdaderos y encontrar significado en la vida dinámica.',
+    },
+    tokens: {
+      title: 'Tokens PRAY',
+      description: 'Los tokens PRAY son una moneda espiritual del bien que ganas por la práctica consciente de la oración.',
+      earning: 'Gana tokens por oración consciente y enfocada',
+      usage: 'Los tokens solo se pueden intercambiar por ayuda caritativa de socios verificados',
+      value: 'El valor del token está vinculado al dólar estadounidense',
+    },
+    blockchain: {
+      title: 'Tecnología Blockchain',
+      description: 'Utilizamos tecnología blockchain para transparencia y seguridad de los fondos transferidos.',
+      transparency: 'Transparencia total de todas las transacciones',
+      security: 'Transferencias seguras de fondos sin intermediarios',
+      accessibility: 'Llegar a países donde los sistemas financieros carecen de confianza',
+      celo: 'Integración con la red CELO - popular en países africanos',
+    },
+    governance: {
+      title: 'Gobernanza Comunitaria',
+      description: 'Los usuarios más comprometidos (que poseen más tokens) deciden a dónde va la ayuda.',
+      voting: 'En caso de intentos de fraude, la comunidad puede votar por mayoría absoluta para bloquear pagos adicionales a una entidad benéfica determinada.',
+    },
+    verification: {
+      title: 'Protocolo Proof-of-Prayer',
+      description: 'La verificación de la corrección y atención de la oración utiliza nuestro protocolo Proof-of-Prayer propietario:',
+      voiceAI: 'Modelos de IA de voz que analizan patrones de habla',
+      llm: 'Agentes LLM que evalúan contenido y enfoque',
+      captcha: 'VoiceCaptcha que garantiza la autenticidad del usuario',
+    },
+    tokenomics: {
+      title: 'Economía de Tokens',
+      description: 'El token PRAY tiene propiedades económicas únicas:',
+      stability: 'Pool de liquidez parcialmente bloqueado para estabilización de valor',
+      liquidity: 'Parte de tokens admitidos para negociación en intercambios para construcción de valor',
+      transfer: 'Capacidad de transferir tokens comprados a la billetera creada durante el registro',
+    },
+    impact: 'Juntos construimos un ecosistema transparente de crecimiento espiritual y ayuda caritativa real, eliminando costos de transacción y asegurando que los fondos lleguen a quienes los necesitan.',
   },
 };

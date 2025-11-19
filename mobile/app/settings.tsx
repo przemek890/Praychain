@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, Animated, Modal } from 'react-native';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLanguage, Language } from '../contexts/LanguageContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import TermsAndConditions from './TermsAndConditions';
 import { 
   ArrowLeft, 
   Settings as SettingsIcon, 
@@ -45,180 +46,208 @@ export default function Settings({
 }: SettingsProps) {
   const { t, language, setLanguage } = useLanguage();
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const termsFadeAnim = useRef(new Animated.Value(0)).current;
+
+  // ✅ Animacja dla Terms
+  useEffect(() => {
+    if (showTerms) {
+      termsFadeAnim.setValue(0);
+      Animated.timing(termsFadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showTerms]);
 
   if (!visible) return null;
 
   const currentLanguage = LANGUAGES.find(lang => lang.code === language);
 
   const handleLanguageChange = async (lang: Language) => {
-    console.log('Language change requested:', lang);
     await setLanguage(lang);
-    console.log('Language changed, closing modal');
     setShowLanguageModal(false);
   };
 
+  const handleOpenTerms = () => {
+    console.log('Opening Terms & Conditions');
+    setShowTerms(true);
+  };
+
+  const handleCloseTerms = () => {
+    console.log('Closing Terms & Conditions');
+    setShowTerms(false);
+  };
+
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={['#78350f20', '#44403c30', '#78350f25']}
-        style={styles.gradient}
-      >
-        <ScrollView 
-          style={styles.scrollView} 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          <Animated.View style={[styles.headerSection, { opacity: fadeAnim }]}>
-            <Pressable onPress={onClose} style={styles.backButton}>
-              <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
-            </Pressable>
+    <>
+      {/* ✅ MAIN SETTINGS VIEW */}
+      {!showTerms && (
+        <View style={styles.container}>
+          <LinearGradient
+            colors={['#78350f20', '#44403c30', '#78350f25']}
+            style={styles.gradient}
+          >
+            <ScrollView 
+              style={styles.scrollView} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+              <Animated.View style={[styles.headerSection, { opacity: fadeAnim }]}>
+                <Pressable onPress={onClose} style={styles.backButton}>
+                  <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
+                </Pressable>
 
-            <View style={styles.headerContent}>
-              <View style={styles.titleRow}>
-                <SettingsIcon size={32} color="#92400e" strokeWidth={2} />
-                <Text style={styles.title}>{t.settings.title}</Text>
-              </View>
-              <Text style={styles.subtitle}>{t.settings.subtitle}</Text>
-            </View>
-          </Animated.View>
+                <View style={styles.headerContent}>
+                  <View style={styles.titleRow}>
+                    <SettingsIcon size={32} color="#92400e" strokeWidth={2} />
+                    <Text style={styles.title}>{t.settings.title}</Text>
+                  </View>
+                  <Text style={styles.subtitle}>{t.settings.subtitle}</Text>
+                </View>
+              </Animated.View>
 
-          <View style={styles.itemsContainer}>
-            {/* Wallet Info */}
-            {walletAddress && (
-              <View>
-                <View style={styles.walletCard}>
-                  <View style={styles.walletHeader}>
-                    <View style={styles.walletIconWrapper}>
-                      <Wallet size={20} color="#92400e" strokeWidth={2.5} />
+              <View style={styles.itemsContainer}>
+                {/* Wallet Info */}
+                {walletAddress && (
+                  <View>
+                    <View style={styles.walletCard}>
+                      <View style={styles.walletHeader}>
+                        <View style={styles.walletIconWrapper}>
+                          <Wallet size={20} color="#92400e" strokeWidth={2.5} />
+                        </View>
+                        <View style={styles.walletContent}>
+                          <Text style={styles.walletTitle}>{t.settings.connectedWallet}</Text>
+                          <Text style={styles.walletAddress}>
+                            {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                          </Text>
+                          {walletChain && (
+                            <Text style={styles.walletChain}>
+                              {t.settings.chain}: {walletChain}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
                     </View>
-                    <View style={styles.walletContent}>
-                      <Text style={styles.walletTitle}>{t.settings.connectedWallet}</Text>
-                      <Text style={styles.walletAddress}>
-                        {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-                      </Text>
-                      {walletChain && (
-                        <Text style={styles.walletChain}>
-                          Chain: {walletChain}
+                  </View>
+                )}
+
+                {/* Email Info */}
+                {email && (
+                  <View>
+                    <View style={styles.emailCard}>
+                      <View style={styles.emailHeader}>
+                        <View style={styles.emailIconWrapper}>
+                          <User size={20} color="#92400e" strokeWidth={2.5} />
+                        </View>
+                        <View style={styles.emailContent}>
+                          <Text style={styles.emailTitle}>{t.settings.email}</Text>
+                          <Text style={styles.emailAddress}>{email}</Text>
+                          <Text style={styles.usernameText}>{t.settings.username}: {username}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                <View>
+                  <SettingItem
+                    icon={Globe}
+                    title={t.settings.appLanguage}
+                    subtitle={`${currentLanguage?.name}`}
+                    onPress={() => setShowLanguageModal(true)}
+                  />
+                </View>
+                
+                <View>
+                  <SettingItem
+                    icon={FileText}
+                    title={t.settings.termsOfService}
+                    onPress={handleOpenTerms}
+                  />
+                </View>
+                
+                <View>
+                  <SettingItem
+                    icon={HelpCircle}
+                    title={t.settings.helpSupport}
+                    onPress={() => {}}
+                  />
+                </View>
+                
+                <View>
+                  <Pressable onPress={onLogout} style={styles.logoutButton}>
+                    <View style={styles.logoutIconWrapper}>
+                      <LogOut size={20} color="#dc2626" strokeWidth={2.5} />
+                    </View>
+                    <Text style={styles.logoutText}>{t.settings.logOut}</Text>
+                  </Pressable>
+                </View>
+
+                <Text style={styles.versionText}>{t.settings.version} 1.0.0</Text>
+              </View>
+            </ScrollView>
+
+            {/* Language Selection Modal */}
+            <Modal
+              visible={showLanguageModal}
+              transparent={true}
+              animationType="fade"
+              onRequestClose={() => setShowLanguageModal(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>{t.settings.selectLanguage}</Text>
+                    <Pressable 
+                      onPress={() => setShowLanguageModal(false)}
+                      style={styles.closeButton}
+                    >
+                      <X size={24} color="#78716c" strokeWidth={2.5} />
+                    </Pressable>
+                  </View>
+
+                  {LANGUAGES.map((lang) => (
+                    <Pressable
+                      key={lang.code}
+                      onPress={() => handleLanguageChange(lang.code)}
+                      style={[
+                        styles.languageOption,
+                        language === lang.code && styles.languageOptionActive
+                      ]}
+                    >
+                      <View style={styles.languageInfo}>
+                        <Text style={[
+                          styles.languageName,
+                          language === lang.code && styles.languageNameActive
+                        ]}>
+                          {lang.name}
                         </Text>
+                      </View>
+                      {language === lang.code && (
+                        <View style={styles.checkIcon}>
+                          <Check size={20} color="#16a34a" strokeWidth={3} />
+                        </View>
                       )}
-                    </View>
-                  </View>
+                    </Pressable>
+                  ))}
                 </View>
               </View>
-            )}
+            </Modal>
+          </LinearGradient>
+        </View>
+      )}
 
-            {/* Email Info */}
-            {email && (
-              <View>
-                <View style={styles.emailCard}>
-                  <View style={styles.emailHeader}>
-                    <View style={styles.emailIconWrapper}>
-                      <User size={20} color="#92400e" strokeWidth={2.5} />
-                    </View>
-                    <View style={styles.emailContent}>
-                      <Text style={styles.emailTitle}>{t.settings.email}</Text>
-                      <Text style={styles.emailAddress}>{email}</Text>
-                      <Text style={styles.usernameText}>{t.settings.username}: {username}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            <View>
-              <SettingItem
-                icon={Globe}
-                title={t.settings.appLanguage}
-                subtitle={`${currentLanguage?.name}`}
-                onPress={() => {
-                  console.log('Language setting clicked, current state:', showLanguageModal);
-                  setShowLanguageModal(true);
-                  console.log('Language modal should be visible now');
-                }}
-              />
-            </View>
-            
-            <View>
-              <SettingItem
-                icon={FileText}
-                title={t.settings.termsOfService}
-                onPress={() => {}}
-              />
-            </View>
-            
-            <View>
-              <SettingItem
-                icon={HelpCircle}
-                title={t.settings.helpSupport}
-                onPress={() => {}}
-              />
-            </View>
-            
-            <View>
-              <Pressable onPress={onLogout} style={styles.logoutButton}>
-                <View style={styles.logoutIconWrapper}>
-                  <LogOut size={20} color="#dc2626" strokeWidth={2.5} />
-                </View>
-                <Text style={styles.logoutText}>{t.settings.logOut}</Text>
-              </Pressable>
-            </View>
-
-            {/* Version Text */}
-            <Text style={styles.versionText}>{t.settings.version} 1.0.0</Text>
-          </View>
-        </ScrollView>
-
-        {/* Language Selection Modal */}
-        <Modal
-          visible={showLanguageModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => {
-            console.log('Modal close requested');
-            setShowLanguageModal(false);
-          }}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>{t.settings.selectLanguage}</Text>
-                <Pressable 
-                  onPress={() => setShowLanguageModal(false)}
-                  style={styles.closeButton}
-                >
-                  <X size={24} color="#78716c" strokeWidth={2.5} />
-                </Pressable>
-              </View>
-
-              {LANGUAGES.map((lang) => (
-                <Pressable
-                  key={lang.code}
-                  onPress={() => handleLanguageChange(lang.code)}
-                  style={[
-                    styles.languageOption,
-                    language === lang.code && styles.languageOptionActive
-                  ]}
-                >
-                  <View style={styles.languageInfo}>
-                    <Text style={[
-                      styles.languageName,
-                      language === lang.code && styles.languageNameActive
-                    ]}>
-                      {lang.name}
-                    </Text>
-                  </View>
-                  {language === lang.code && (
-                    <View style={styles.checkIcon}>
-                      <Check size={20} color="#16a34a" strokeWidth={3} />
-                    </View>
-                  )}
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </Modal>
-      </LinearGradient>
-    </View>
+      {/* ✅ TERMS & CONDITIONS VIEW */}
+      {showTerms && (
+        <TermsAndConditions
+          visible={showTerms}
+          onClose={handleCloseTerms}
+          fadeAnim={termsFadeAnim}
+        />
+      )}
+    </>
   );
 }
 
