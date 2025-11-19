@@ -52,6 +52,7 @@ interface UserData {
 }
 
 export const usePrayerRecording = () => {
+  const [userId, setUserId] = useState<string>('');
   const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,56 +67,14 @@ export const usePrayerRecording = () => {
   const [captchaTranscriptionId, setCaptchaTranscriptionId] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [userId, setUserId] = useState<string>('');
   const [userData, setUserData] = useState<UserData | null>(null);
 
-  const initializeUserId = async () => {
+  const initializeUserId = async (userIdParam: string) => {
     try {
-      let storedUserId = getCurrentUserId(); // ✅ Zmienione
-      
-      try {
-        const response = await fetch(`${API_URL}/api/users/${storedUserId}`);
-        
-        if (response.ok) {
-          const user = await response.json();
-          setUserData(user);
-          setUserId(storedUserId);
-          await AsyncStorage.setItem('userId', storedUserId);
-        } else if (response.status === 404) {
-          const createResponse = await fetch(`${API_URL}/api/users`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              username: storedUserId, // ✅ Zmienione
-              email: `${storedUserId}@example.com` // ✅ Zmienione
-            })
-          });
-          
-          if (createResponse.ok) {
-            const newUser = await createResponse.json();
-            setUserData(newUser);
-            setUserId(newUser.id);
-            await AsyncStorage.setItem('userId', newUser.id);
-          }
-        }
-      } catch (error) {
-        console.error(`Error with user "${storedUserId}":`, error);
-        
-        const fallbackUserId = await AsyncStorage.getItem('userId');
-        if (fallbackUserId) {
-          await fetchUserData(fallbackUserId);
-          setUserId(fallbackUserId);
-        } else {
-          const newId = getCurrentUserId(); // ✅ Zmienione
-          setUserId(newId);
-          await AsyncStorage.setItem('userId', newId);
-        }
-      }
+      console.log('Initializing user ID:', userIdParam);
+      setUserId(userIdParam);
     } catch (error) {
       console.error('Error initializing user ID:', error);
-      const fallbackId = getCurrentUserId(); // ✅ Zmienione
-      setUserId(fallbackId);
-      await AsyncStorage.setItem('userId', fallbackId);
     }
   };
 
@@ -399,6 +358,7 @@ export const usePrayerRecording = () => {
   };
 
   return {
+    userId,
     prayers,
     loading,
     error,
@@ -410,10 +370,7 @@ export const usePrayerRecording = () => {
     captchaTranscriptionId,
     isProcessing,
     result,
-    userId,
-    userData,
     initializeUserId,
-    fetchUserData,
     fetchPrayers,
     selectPrayer,
     startPrayerRecording,

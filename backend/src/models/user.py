@@ -4,10 +4,10 @@ from datetime import datetime
 
 class UserBase(BaseModel):
     username: str
-    email: str  # ✅ Zmienione z EmailStr na str
+    email: str
 
 class UserCreate(UserBase):
-    pass
+    wallet_address: Optional[str] = None  # ✅ NOWE - opcjonalny adres portfela
 
 class UserResponse(UserBase):
     id: str
@@ -22,6 +22,7 @@ class UserResponse(UserBase):
     level: int = 1
     experience: int = 0
     experience_to_next_level: int = 100
+    wallet_address: Optional[str] = None  # ✅ NOWE
 
     class Config:
         from_attributes = True
