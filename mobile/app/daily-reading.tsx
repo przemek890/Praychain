@@ -4,11 +4,13 @@ import { BookOpen, ArrowLeft, Calendar } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { useDailyReading } from '@/hooks/useBible';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 export default function DailyReadingScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { t } = useLanguage();
 
   // ✅ Użyj hooka
   const { reading, loading, error, refresh } = useDailyReading();
@@ -33,9 +35,9 @@ export default function DailyReadingScreen() {
   if (error) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>{t.dailyReading.error}</Text>
         <Pressable style={styles.retryButton} onPress={refresh}>
-          <Text style={styles.retryText}>Retry</Text>
+          <Text style={styles.retryText}>{t.dailyReading.retry}</Text>
         </Pressable>
       </View>
     );
@@ -44,11 +46,7 @@ export default function DailyReadingScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Header */}
+        <ScrollView>
           <Animated.View style={[styles.headerSection, { opacity: fadeAnim }]}>
             <Pressable 
               onPress={() => router.back()} 
@@ -60,7 +58,7 @@ export default function DailyReadingScreen() {
             <View style={styles.headerContent}>
               <View style={styles.titleRow}>
                 <BookOpen size={28} color="#92400e" strokeWidth={2} />
-                <Text style={styles.title}>Daily Reading</Text>
+                <Text style={styles.title}>{t.dailyReading.title}</Text>
               </View>
               <View style={styles.dateContainer}>
                 <Calendar size={14} color="#78716c" />
@@ -76,19 +74,14 @@ export default function DailyReadingScreen() {
             </View>
           </Animated.View>
 
-          {/* Content */}
           <View style={styles.content}>
             {reading && (
               <>
-                {/* Reference Card */}
                 <Animated.View style={{ opacity: fadeAnim }}>
-                  <LinearGradient 
-                    colors={['#d97706', '#b45309']} 
-                    style={styles.referenceCard}
-                  >
+                  <LinearGradient colors={['#d97706', '#b45309']} style={styles.referenceCard}>
                     <Text style={styles.referenceText}>{reading.reference}</Text>
                     <Text style={styles.verseCountText}>
-                      {reading.verses.length} verse{reading.verses.length !== 1 ? 's' : ''}
+                      {reading.verses.length} {reading.verses.length === 1 ? t.dailyReading.verse : t.dailyReading.verses}
                     </Text>
                   </LinearGradient>
                 </Animated.View>

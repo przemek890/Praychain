@@ -4,8 +4,10 @@ import { BookOpen, ArrowLeft, ChevronDown, X } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { useBibleStructure, useBibleChapter } from '@/hooks/useBible';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function BibleReaderScreen() {
+  const { t } = useLanguage();
   const [selectedBook, setSelectedBook] = useState('John');
   const [selectedChapter, setSelectedChapter] = useState(1);
   const [bookModalVisible, setBookModalVisible] = useState(false);
@@ -63,11 +65,7 @@ export default function BibleReaderScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
-        <ScrollView 
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Header */}
+        <ScrollView>
           <Animated.View style={[styles.headerSection, { opacity: fadeAnim }]}>
             <Pressable 
               onPress={() => router.back()} 
@@ -79,9 +77,9 @@ export default function BibleReaderScreen() {
             <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
               <View style={styles.titleRow}>
                 <BookOpen size={28} color="#92400e" strokeWidth={2} />
-                <Text style={styles.title}>Bible Reader</Text>
+                <Text style={styles.title}>{t.bibleReader.title}</Text>
               </View>
-              <Text style={styles.subtitle}>Read the Holy Scripture</Text>
+              <Text style={styles.subtitle}>{t.bibleReader.subtitle}</Text>
             </Animated.View>
           </Animated.View>
 
@@ -93,7 +91,7 @@ export default function BibleReaderScreen() {
                   colors={['#d97706', '#b45309']} 
                   style={styles.selectorCard}
                 >
-                  <Text style={styles.selectorLabel}>BOOK</Text>
+                  <Text style={styles.selectorLabel}>{t.bibleReader.book}</Text>
                   <View style={styles.selectorValueRow}>
                     <Text style={styles.selectorValue} numberOfLines={1}>
                       {selectedBook}
@@ -110,7 +108,7 @@ export default function BibleReaderScreen() {
                   colors={['#d97706', '#b45309']} 
                   style={styles.selectorCard}
                 >
-                  <Text style={styles.selectorLabel}>CHAPTER</Text>
+                  <Text style={styles.selectorLabel}>{t.bibleReader.chapter}</Text>
                   <View style={styles.selectorValueRow}>
                     <Text style={styles.selectorValue}>{selectedChapter}</Text>
                     <ChevronDown size={20} color="#ffffff" strokeWidth={2.5} />
@@ -125,7 +123,7 @@ export default function BibleReaderScreen() {
             {loading ? (
               <View style={styles.loadingCard}>
                 <ActivityIndicator size="large" color="#92400e" />
-                <Text style={styles.loadingText}>Loading chapter...</Text>
+                <Text style={styles.loadingText}>{t.bibleReader.loadingChapter}</Text>
               </View>
             ) : content ? (
               <Animated.View style={{ opacity: fadeAnim }}>
@@ -135,7 +133,7 @@ export default function BibleReaderScreen() {
                       {content.book_name} {content.chapter}
                     </Text>
                     <Text style={styles.verseCount}>
-                      {content.verses.length} verse{content.verses.length !== 1 ? 's' : ''}
+                      {content.verses.length} {content.verses.length === 1 ? t.bibleReader.verse : t.bibleReader.verses}
                     </Text>
                   </View>
 
@@ -166,7 +164,7 @@ export default function BibleReaderScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Book</Text>
+              <Text style={styles.modalTitle}>{t.bibleReader.selectBook}</Text>
               <Pressable onPress={() => setBookModalVisible(false)} style={styles.closeButton}>
                 <X size={24} color="#1c1917" strokeWidth={2} />
               </Pressable>
@@ -210,7 +208,7 @@ export default function BibleReaderScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Chapter</Text>
+              <Text style={styles.modalTitle}>{t.bibleReader.selectChapter}</Text>
               <Pressable onPress={() => setChapterModalVisible(false)} style={styles.closeButton}>
                 <X size={24} color="#1c1917" strokeWidth={2} />
               </Pressable>

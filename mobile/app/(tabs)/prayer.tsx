@@ -92,7 +92,7 @@ export default function PrayerScreen() {
       <View style={styles.container}>
         <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
           <View style={[styles.container, styles.loadingContainer]}>
-            <Text style={styles.errorText}>Please log in to pray</Text>
+            <Text style={styles.errorText}>{t.prayer.pleaseLogin}</Text>
           </View>
         </LinearGradient>
       </View>
@@ -102,10 +102,7 @@ export default function PrayerScreen() {
   if (selectedPrayer) {
     return (
       <View style={styles.container}>
-        <LinearGradient
-          colors={['#78350f20', '#44403c30', '#78350f25']}
-          style={styles.gradient}
-        >
+        <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
           <ScrollView style={styles.prayerDetailScroll} showsVerticalScrollIndicator={false}>
             <Animated.View style={[styles.detailHeader, { opacity: fadeAnim }]}>
               <Pressable onPress={resetPrayer} style={styles.backButtonCircle}>
@@ -123,7 +120,7 @@ export default function PrayerScreen() {
               <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.stepGradient}>
                 <View style={styles.prayerTextHeader}>
                   <BookOpen size={18} color="#92400e" />
-                  <Text style={styles.prayerTextHeaderTitle}>Prayer Text</Text>
+                  <Text style={styles.prayerTextHeaderTitle}>{t.prayer.prayerText}</Text>
                 </View>
                 <Text style={styles.prayerText}>{selectedPrayer.text}</Text>
               </LinearGradient>
@@ -138,23 +135,20 @@ export default function PrayerScreen() {
                       <Text style={styles.stepNumberText}>1</Text>
                     </View>
                     <View style={styles.stepTitleContainer}>
-                      <Text style={styles.stepTitle}>Record Your Prayer</Text>
-                      <Text style={styles.stepDescription}>Read the prayer text aloud</Text>
+                      <Text style={styles.stepTitle}>{t.prayer.recordYourPrayer}</Text>
+                      <Text style={styles.stepDescription}>{t.prayer.readAloud}</Text>
                     </View>
                   </View>
 
                   {isPrayerRecording && (
                     <View style={styles.recordingIndicator}>
                       <View style={styles.recordingDot} />
-                      <Text style={styles.recordingText}>Recording...</Text>
+                      <Text style={styles.recordingText}>{t.prayer.recording}</Text>
                     </View>
                   )}
 
                   <Pressable
-                    style={[
-                      styles.recordButton,
-                      isPrayerRecording && styles.recordButtonActive,
-                    ]}
+                    style={[styles.recordButton, isPrayerRecording && styles.recordButtonActive]}
                     onPress={isPrayerRecording ? stopPrayerRecording : startPrayerRecording}
                     disabled={isProcessing}
                   >
@@ -165,12 +159,12 @@ export default function PrayerScreen() {
                       {isPrayerRecording ? (
                         <>
                           <StopCircle size={18} color="#ffffff" />
-                          <Text style={styles.recordButtonText}>Stop</Text>
+                          <Text style={styles.recordButtonText}>{t.prayer.stop}</Text>
                         </>
                       ) : (
                         <>
                           <Mic size={18} color="#ffffff" />
-                          <Text style={styles.recordButtonText}>Start Recording</Text>
+                          <Text style={styles.recordButtonText}>{t.prayer.startRecording}</Text>
                         </>
                       )}
                     </LinearGradient>
@@ -188,15 +182,15 @@ export default function PrayerScreen() {
                       <Text style={styles.stepNumberText}>2</Text>
                     </View>
                     <View style={styles.stepTitleContainer}>
-                      <Text style={styles.stepTitle}>Verify with Verse</Text>
-                      <Text style={styles.stepDescription}>Read to verify</Text>
+                      <Text style={styles.stepTitle}>{t.prayer.verifyWithVerse}</Text>
+                      <Text style={styles.stepDescription}>{t.prayer.readToVerify}</Text>
                     </View>
                   </View>
 
                   <View style={styles.captchaQuoteContainer}>
                     <View style={styles.captchaQuoteHeader}>
                       <Sparkles size={16} color="#92400e" />
-                      <Text style={styles.captchaQuoteLabel}>Bible Verse</Text>
+                      <Text style={styles.captchaQuoteLabel}>{t.prayer.bibleVerse}</Text>
                     </View>
                     <Text style={styles.captchaQuoteText}>{captchaQuote.text}</Text>
                     <Text style={styles.captchaQuoteRef}>
@@ -207,7 +201,7 @@ export default function PrayerScreen() {
                   {isCaptchaRecording && (
                     <View style={styles.recordingIndicator}>
                       <View style={styles.recordingDot} />
-                      <Text style={styles.recordingText}>Recording...</Text>
+                      <Text style={styles.recordingText}>{t.prayer.recording}</Text>
                     </View>
                   )}
 
@@ -223,12 +217,12 @@ export default function PrayerScreen() {
                       {isCaptchaRecording ? (
                         <>
                           <StopCircle size={18} color="#ffffff" />
-                          <Text style={styles.recordButtonText}>Stop</Text>
+                          <Text style={styles.recordButtonText}>{t.prayer.stop}</Text>
                         </>
                       ) : (
                         <>
                           <Mic size={18} color="#ffffff" />
-                          <Text style={styles.recordButtonText}>Record Verse</Text>
+                          <Text style={styles.recordButtonText}>{t.prayer.startRecording}</Text>
                         </>
                       )}
                     </LinearGradient>
@@ -240,10 +234,7 @@ export default function PrayerScreen() {
             {/* Result Card */}
             {result && (
               <View style={styles.stepCard}>
-                <LinearGradient
-                  colors={['#ffffff', '#fafaf9']}
-                  style={[styles.stepGradient, styles.resultGradient]}
-                >
+                <LinearGradient colors={['#ffffff', '#fafaf9']} style={[styles.stepGradient, styles.resultGradient]}>
                   {/* Icon and Title */}
                   <View style={styles.resultHeader}>
                     <View style={styles.resultIconSmall}>
@@ -259,19 +250,17 @@ export default function PrayerScreen() {
                       </LinearGradient>
                     </View>
                     <Text style={styles.resultTitle}>
-                      {result.captcha_passed ? 'Prayer Completed!' : 'Try Again'}
+                      {result.captcha_passed ? t.prayer.prayerCompleted : t.prayer.tryAgain}
                     </Text>
                   </View>
 
                   <Text style={styles.resultDescription}>
-                    {result.captcha_passed 
-                      ? 'Great job! You completed your prayer.' 
-                      : 'Please try again and focus on reading clearly.'}
+                    {result.captcha_passed ? t.prayer.greatJob : t.prayer.tryAgainMessage}
                   </Text>
 
                   {/* Tokens */}
                   <View style={styles.tokensInline}>
-                    <Text style={styles.tokensInlineLabel}>EARNED:</Text>
+                    <Text style={styles.tokensInlineLabel}>{t.prayer.earned}</Text>
                     <Text style={styles.tokensInlineValue}>
                       +{result.analysis.tokens_earned || 0} PRAY
                     </Text>
@@ -279,7 +268,7 @@ export default function PrayerScreen() {
 
                   {/* Voice Verification - 2 żółte kafelki */}
                   <View style={styles.verificationSection}>
-                    <Text style={styles.verificationTitle}>Performance Details</Text>
+                    <Text style={styles.verificationTitle}>{t.prayer.performanceDetails}</Text>
 
 
                     <View style={styles.verificationGrid}>
@@ -290,9 +279,11 @@ export default function PrayerScreen() {
                           style={styles.verificationBadge}
                         >
                           <Check size={16} color="#92400e" strokeWidth={3} />
-                          <Text style={[styles.verificationValue, { color: '#92400e' }]}>Verified</Text>
+                          <Text style={[styles.verificationValue, { color: '#92400e' }]}>
+                            {t.prayer.voiceMatch}
+                          </Text>
                         </LinearGradient>
-                        <Text style={styles.verificationLabelTop}>Voice Match</Text>
+                        <Text style={styles.verificationLabelTop}>{t.prayer.voiceMatch}</Text>
                         <Text style={styles.verificationScore}>
                           {(result.voice_similarity * 100).toFixed(0)}%
                         </Text>
@@ -305,9 +296,11 @@ export default function PrayerScreen() {
                           style={styles.verificationBadge}
                         >
                           <Check size={16} color="#92400e" strokeWidth={3} />
-                          <Text style={[styles.verificationValue, { color: '#92400e' }]}>Human</Text>
+                          <Text style={[styles.verificationValue, { color: '#92400e' }]}>
+                            {t.prayer.humanVoice}
+                          </Text>
                         </LinearGradient>
-                        <Text style={styles.verificationLabelTop}>Human Voice</Text>
+                        <Text style={styles.verificationLabelTop}>{t.prayer.humanVoice}</Text>
                         <Text style={styles.verificationScore}>
                           {(result.human_confidence * 100).toFixed(0)}%
                         </Text>
@@ -327,7 +320,7 @@ export default function PrayerScreen() {
                       >
                         <Heart size={16} color="#92400e" fill="#92400e" />
                       </LinearGradient>
-                      <Text style={styles.metricLabel}>Prayer</Text>
+                      <Text style={styles.metricLabel}>{t.prayer.prayer}</Text>
                       <Text style={styles.metricValue}>
                         {(result.analysis.text_accuracy * 100).toFixed(0)}%
                       </Text>
@@ -341,7 +334,7 @@ export default function PrayerScreen() {
                       >
                         <Sparkles size={16} color="#92400e" />
                       </LinearGradient>
-                      <Text style={styles.metricLabel}>Captcha</Text>
+                      <Text style={styles.metricLabel}>{t.prayer.captcha}</Text>
                       <Text style={styles.metricValue}>
                         {(result.analysis.captcha_accuracy * 100).toFixed(0)}%
                       </Text>
@@ -355,7 +348,7 @@ export default function PrayerScreen() {
                       >
                         <BookOpen size={16} color="#92400e" />
                       </LinearGradient>
-                      <Text style={styles.metricLabel}>Focus</Text>
+                      <Text style={styles.metricLabel}>{t.prayer.focus}</Text>
                       <Text style={styles.metricValue}>
                         {(result.analysis.focus_score * 100).toFixed(0)}%
                       </Text>
@@ -369,7 +362,7 @@ export default function PrayerScreen() {
                       >
                         <Mic size={16} color="#92400e" />
                       </LinearGradient>
-                      <Text style={styles.metricLabel}>Fluency</Text>
+                      <Text style={styles.metricLabel}>{t.prayer.fluency}</Text>
                       <Text style={styles.metricValue}>
                         {(result.analysis.speech_fluency * 100).toFixed(0)}%
                       </Text>
@@ -379,7 +372,7 @@ export default function PrayerScreen() {
                   <Pressable style={styles.newPrayerButton} onPress={resetPrayer}>
                     <LinearGradient colors={['#92400e', '#78350f']} style={styles.newPrayerButtonGradient}>
                       <Play size={14} color="#ffffff" fill="#ffffff" />
-                      <Text style={styles.newPrayerButtonText}>Pray Another</Text>
+                      <Text style={styles.newPrayerButtonText}>{t.prayer.prayAnother}</Text>
                     </LinearGradient>
                   </Pressable>
                 </LinearGradient>
@@ -390,7 +383,7 @@ export default function PrayerScreen() {
               <View style={styles.stepCard}>
                 <View style={styles.processingContainer}>
                   <ActivityIndicator size="large" color="#92400e" />
-                  <Text style={styles.processingText}>Analyzing...</Text>
+                  <Text style={styles.processingText}>{t.prayer.analyzing}</Text>
                 </View>
               </View>
             )}
@@ -429,7 +422,7 @@ export default function PrayerScreen() {
         <ScrollView style={styles.prayerList} showsVerticalScrollIndicator={false}>
           <View style={styles.sectionHeader}>
             <BookOpen size={18} color="#92400e" />
-            <Text style={styles.sectionTitle}>Available Prayers</Text>
+            <Text style={styles.sectionTitle}>{t.prayer.availablePrayers}</Text>
             {loading && <ActivityIndicator size="small" color="#92400e" />}
           </View>
 
@@ -439,7 +432,7 @@ export default function PrayerScreen() {
                 <AlertCircle size={18} color="#dc2626" />
                 <Text style={styles.errorText}>{error}</Text>
                 <Pressable onPress={fetchPrayers} style={styles.retryButton}>
-                  <Text style={styles.retryText}>Retry</Text>
+                  <Text style={styles.retryText}>{t.prayer.retry}</Text>
                 </Pressable>
               </LinearGradient>
             </View>
@@ -448,14 +441,14 @@ export default function PrayerScreen() {
           {loading && !error && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#92400e" />
-              <Text style={styles.loadingText}>Loading...</Text>
+              <Text style={styles.loadingText}>{t.prayer.loading}</Text>
             </View>
           )}
 
           {!loading && !error && filteredPrayers.length === 0 && (
             <View style={styles.emptyContainer}>
               <Heart size={36} color="#d1d5db" />
-              <Text style={styles.emptyText}>No prayers found</Text>
+              <Text style={styles.emptyText}>{t.prayer.noPrayersFound}</Text>
             </View>
           )}
 
@@ -487,7 +480,7 @@ export default function PrayerScreen() {
                         <Pressable style={styles.startButton}>
                           <LinearGradient colors={['#d97706', '#b45309']} style={styles.startButtonGradient}>
                             <Play size={14} color="#ffffff" fill="#ffffff" />
-                            <Text style={styles.startButtonText}>Start</Text>
+                            <Text style={styles.startButtonText}>{t.prayer.aiStart}</Text>
                           </LinearGradient>
                         </Pressable>
                       </View>

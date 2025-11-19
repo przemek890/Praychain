@@ -3,88 +3,32 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Trophy, Lock, Star, Award } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useEffect, useRef } from 'react';
-
-interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  progress: number;
-  unlocked: boolean;
-  color: string;
-  percentUnlocked: number;
-  emoji: string;
-  maxProgress: number;
-}
+import { useAchievements, Achievement } from '@/hooks/useAchievements';
+import { ActivityIndicator } from 'react-native';
 
 export default function AchievementsScreen() {
   const { t } = useLanguage();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { achievements, loading } = useAchievements();
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+    if (!loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading]);
 
-  const achievements: Achievement[] = [
-    {
-      id: '1',
-      title: t.achievements?.firstPrayer?.title || 'First Prayer',
-      description: t.achievements?.firstPrayer?.description || 'Say your first prayer',
-      progress: 1,
-      maxProgress: 1,
-      unlocked: true,
-      color: '#fbbf24',
-      percentUnlocked: 95,
-      emoji: '🙏',
-    },
-    {
-      id: '2',
-      title: t.achievements?.streak7?.title || '7 Day Streak',
-      description: t.achievements?.streak7?.description || 'Pray for 7 days in a row',
-      progress: 4,
-      maxProgress: 7,
-      unlocked: false,
-      color: '#f59e0b',
-      percentUnlocked: 45,
-      emoji: '🔥',
-    },
-    {
-      id: '3',
-      title: t.achievements?.prayers50?.title || '50 Prayers',
-      description: t.achievements?.prayers50?.description || 'Say 50 prayers',
-      progress: 47,
-      maxProgress: 50,
-      unlocked: false,
-      color: '#d97706',
-      percentUnlocked: 12,
-      emoji: '📿',
-    },
-    {
-      id: '4',
-      title: t.achievements?.rosary10?.title || 'Rosary Master',
-      description: t.achievements?.rosary10?.description || 'Pray 10 rosaries',
-      progress: 3,
-      maxProgress: 10,
-      unlocked: false,
-      color: '#92400e',
-      percentUnlocked: 8,
-      emoji: '🌹',
-    },
-    {
-      id: '5',
-      title: t.achievements?.earlyBird?.title || 'Early Bird',
-      description: t.achievements?.earlyBird?.description || 'Pray before 7:00 AM',
-      progress: 0,
-      maxProgress: 1,
-      unlocked: false,
-      color: '#78716c',
-      percentUnlocked: 25,
-      emoji: '🌅',
-    },
-  ];
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#92400e" />
+        <Text style={styles.loadingText}>{t.achievements.loading}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -96,9 +40,9 @@ export default function AchievementsScreen() {
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View style={styles.titleRow}>
             <Trophy size={32} color="#92400e" strokeWidth={2} />
-            <Text style={styles.title}>{t.nav?.achievements || 'Achievements'}</Text>
+            <Text style={styles.title}>{t.nav.achievements}</Text>
           </View>
-          <Text style={styles.subtitle}>{t.achievements?.subtitle || 'Your spiritual achievements'}</Text>
+          <Text style={styles.subtitle}>{t.achievements.subtitle}</Text>
         </Animated.View>
 
         {/* Achievements List */}
@@ -106,7 +50,7 @@ export default function AchievementsScreen() {
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.sectionHeader}>
               <Award size={20} color="#92400e" />
-              <Text style={styles.sectionTitle}>Your Achievements</Text>
+              <Text style={styles.sectionTitle}>{t.achievements.yourAchievements}</Text>
             </View>
 
             {achievements.map((achievement) => (
@@ -122,6 +66,7 @@ export default function AchievementsScreen() {
 }
 
 function AchievementCard({ achievement }: { achievement: Achievement }) {
+  const { t } = useLanguage(); // ✅ DODAJ
   const progressPercent = (achievement.progress / achievement.maxProgress) * 100;
 
   return (
@@ -178,7 +123,9 @@ function AchievementCard({ achievement }: { achievement: Achievement }) {
           {/* Stats Badge */}
           <View style={styles.statBadge}>
             <Star size={12} color="#92400e" fill="#92400e" />
-            <Text style={styles.statText}>{achievement.percentUnlocked}% players unlocked</Text>
+            <Text style={styles.statText}>
+              {achievement.percentUnlocked}% {t.achievements.playersUnlocked}
+            </Text>
           </View>
         </View>
       </View>
@@ -195,6 +142,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
     paddingHorizontal: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fafaf9',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#78716c',
   },
   header: {
     alignItems: 'center',

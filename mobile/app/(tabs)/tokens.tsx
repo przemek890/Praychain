@@ -129,7 +129,7 @@ export default function TokensScreen() {
   if (!userId && !loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.errorText}>Please log in to view tokens</Text>
+        <Text style={styles.errorText}>{t.tokens.pleaseLogin}</Text>
       </View>
     );
   }
@@ -220,7 +220,7 @@ export default function TokensScreen() {
                   <View style={styles.progressCardHeader}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                       <Target size={20} color="#92400e" />
-                      <Text style={styles.progressCardTitle}>Campaign Progress</Text>
+                      <Text style={styles.progressCardTitle}>{t.tokens.campaignProgress}</Text>
                     </View>
                     
                     {/* ✅ NOWY - Info Button */}
@@ -235,17 +235,17 @@ export default function TokensScreen() {
                   <View style={styles.progressStatsRow}>
                     <View style={styles.progressStat}>
                       <Text style={styles.progressStatValue}>{selectedCharity.total_tokens_raised}</Text>
-                      <Text style={styles.progressStatLabel}>Raised</Text>
+                      <Text style={styles.progressStatLabel}>{t.tokens.raised}</Text>
                     </View>
                     <View style={styles.progressStatDivider} />
                     <View style={styles.progressStat}>
                       <Text style={styles.progressStatValue}>{selectedCharity.goal_tokens}</Text>
-                      <Text style={styles.progressStatLabel}>Goal</Text>
+                      <Text style={styles.progressStatLabel}>{t.tokens.goal}</Text>
                     </View>
                     <View style={styles.progressStatDivider} />
                     <View style={styles.progressStat}>
                       <Text style={styles.progressStatValue}>{selectedCharity.total_supported}</Text>
-                      <Text style={styles.progressStatLabel}>Supporters</Text>
+                      <Text style={styles.progressStatLabel}>{t.tokens.supporters}</Text>
                     </View>
                   </View>
 
@@ -261,7 +261,7 @@ export default function TokensScreen() {
                       />
                     </View>
                   </View>
-                  <Text style={styles.progressPercentage}>{Math.round(progress)}% funded</Text>
+                  <Text style={styles.progressPercentage}>{Math.round(progress)}% {t.tokens.funded}</Text>
                 </LinearGradient>
               </Animated.View>
             )}
@@ -328,7 +328,7 @@ export default function TokensScreen() {
               <View style={styles.minTokensInfo}>
                 <Info size={14} color="#78716c" />
                 <Text style={styles.minTokensInfoText}>
-                  Minimum {selectedCharity.cost_tokens} tokens required
+                  {t.tokens.minimumRequired.replace('{amount}', selectedCharity.cost_tokens.toString())}
                 </Text>
               </View>
               
@@ -363,7 +363,7 @@ export default function TokensScreen() {
                     <>
                       <Heart size={24} color="#ffffff" fill="#ffffff" />
                       <Text style={styles.donateButtonTextLarge}>
-                        Donate {amount > 0 ? `${amount} ` : ''}PRAY
+                        {t.tokens.donateTokens} {amount > 0 ? `${amount} ` : ''}PRAY
                       </Text>
                     </>
                   )}
@@ -383,7 +383,7 @@ export default function TokensScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Campaign Details</Text>
+                <Text style={styles.modalTitle}>{t.tokens.campaignDetails}</Text>
                 <Pressable 
                   onPress={() => setInfoModalVisible(false)} 
                   style={styles.closeButton}
@@ -400,7 +400,7 @@ export default function TokensScreen() {
                 <View style={styles.modalSection}>
                   <View style={styles.modalSectionHeader}>
                     <Info size={18} color="#92400e" />
-                    <Text style={styles.modalSectionTitle}>About This Cause</Text>
+                    <Text style={styles.modalSectionTitle}>{t.tokens.aboutThisCause}</Text>
                   </View>
                   <Text style={styles.modalSectionText}>
                     {selectedCharity.description}
@@ -417,7 +417,7 @@ export default function TokensScreen() {
                   <View style={styles.modalSectionHeader}>
                     <Users size={18} color="#92400e" />
                     <Text style={styles.modalSectionTitle}>
-                      Top Supporters ({donors.length})
+                      {t.tokens.topSupporters} ({donors.length})
                     </Text>
                   </View>
                   
@@ -433,7 +433,7 @@ export default function TokensScreen() {
                           <View style={styles.donorInfo}>
                             <Text style={styles.donorName}>{donor.username}</Text>
                             <Text style={styles.donorStats}>
-                              {donor.total_donated} PRAY • {donor.donation_count} donation{donor.donation_count !== 1 ? 's' : ''}
+                              {donor.total_donated} PRAY • {donor.donation_count} {donor.donation_count === 1 ? t.tokens.donation : t.tokens.donations}
                             </Text>
                           </View>
                           <Heart 
@@ -446,7 +446,7 @@ export default function TokensScreen() {
                     </View>
                   ) : (
                     <Text style={styles.noDonorsText}>
-                      Be the first to support this cause! 💝
+                      {t.tokens.noDonorsYet}
                     </Text>
                   )}
                 </View>
