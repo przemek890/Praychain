@@ -10,25 +10,30 @@ export const en = {
 
   // Home Screen
   home: {
-    greeting: 'Welcome',
+    greeting: 'Welcome back',
     subtitle: 'How can we support your prayer today?',
     dailyProgress: 'Daily Progress',
     completed: 'completed',
-    tokens: 'Tokens',
-    streak: 'Streak',
-    scripture: {
-      title: 'Word of the Day',
-      description: "Daily meditation with God's Word",
-    },
-    quote: {
-      title: 'Quote of the Day',
-      description: 'Inspiring thought for today',
-    },
+    yourBalance: 'Your balance',
+    level: 'Level',
+    xp: 'XP',
+    prayers: 'Prayers',
+    dayStreak: 'Day streak',
+    dailyInspiration: 'Daily Inspiration',
+    exploreScripture: 'Explore Scripture',
+    dailyReading: 'Daily Reading',
+    todaysPassage: "Today's passage",
+    randomVerse: 'Random Verse',
+    getInspired: 'Get inspired',
+    bibleReader: 'Bible Reader',
+    readAnyChapter: 'Read any chapter',
+    loadingJourney: 'Loading your spiritual journey...',
+    welcomeBack: 'Welcome back,',
   },
 
   // Prayer Selection Screen
   prayer: {
-    title: 'Choose a prayer,',
+    title: 'Choose a prayer',
     subtitle: 'you want to say today',
     aiStart: 'Start praying',
     aiDescription: 'Automatic recognition',
@@ -41,33 +46,65 @@ export const en = {
     tapToContinue: 'Tap to continue',
     token: 'token',
     tokens: 'tokens',
+    search: 'Search prayer...',
+    aiMode: 'AI Mode - Recognize prayer',
     categories: {
       basic: 'Basic',
       contemplation: 'Contemplation',
       daily: 'Daily',
       short: 'Short',
     },
-    prayers: {
-      ourFather: {
-        title: 'Our Father',
-        category: 'Basic',
-      },
-      hailMary: {
-        title: 'Hail Mary',
-        category: 'Basic',
-      },
-      glory: {
-        title: 'Glory Be',
-        category: 'Basic',
-      },
-      rosary: {
-        title: 'Rosary',
-        category: 'Daily',
-      },
-      angelus: {
-        title: 'Angelus',
-        category: 'Daily',
-      },
+    loading: 'Loading...',
+    availablePrayers: 'Available Prayers',
+    noPrayersFound: 'No prayers found',
+    errorLoading: 'Error loading prayers',
+    retry: 'Retry',
+    pleaseLogin: 'Please log in to pray',
+    prayerText: 'Prayer Text',
+    recordYourPrayer: 'Record Your Prayer',
+    readAloud: 'Read the prayer text aloud',
+    recording: 'Recording...',
+    startRecording: 'Start Recording',
+    stopRecording: 'Stop Recording',
+    verifyWithVerse: 'Verify with Verse',
+    readToVerify: 'Read to verify',
+    bibleVerse: 'Bible Verse',
+    prayerCompleted: 'Prayer Completed!',
+    tryAgain: 'Try Again',
+    greatJob: 'Great job! You completed your prayer.',
+    tryAgainMessage: 'Please try again and focus on reading clearly.',
+    earned: 'EARNED:',
+    performanceDetails: 'Performance Details',
+    voiceMatch: 'Voice Match',
+    humanVoice: 'Human Voice',
+    prayer: 'Prayer',
+    captcha: 'Captcha',
+    focus: 'Focus',
+    fluency: 'Fluency',
+    prayAnother: 'Pray Another',
+    analyzing: 'Analyzing...',
+  },
+
+  prayers: {
+    ourFather: {
+      title: 'Our Father',
+      category: 'Basic',
+    },
+    hailMary: {
+      title: 'Hail Mary',
+      category: 'Basic',
+    },
+    glory: {
+      title: 'Glory Be',
+      category: 'Basic',
+    },
+    rosary: {
+      title: 'Rosary',
+      category: 'Daily',
+    },
+    angelus: {
+      title: 'Angelus',
+      category: 'Daily',
     },
   },
 
@@ -95,20 +132,44 @@ export const en = {
     save: 'Save',
     saved: 'Saved',
     share: 'Share',
+    loadingInspiration: 'Loading inspiration...',
+    randomQuote: 'Random Quote',
+    getInspiredByScripture: 'Get inspired by scripture',
   },
 
   // Achievements Screen
   achievements: {
-    title: 'Your Achievements',
-    subtitle: 'Track your spiritual journey',
+    subtitle: 'Your spiritual achievements',
+    yourAchievements: 'Your Achievements',
     totalPrayers: 'Total prayers',
     streakDays: 'Streak days',
     unlockedBadges: 'Unlocked badges',
     spiritualLevel: 'Spiritual level',
     progress: 'Progress',
     unlocked: 'Unlocked',
+    playersUnlocked: 'players unlocked',
     usersUnlocked: 'of users unlocked',
     motivation: 'Continue your spiritual journey to unlock more achievements!',
+    firstPrayer: {
+      title: 'First Prayer',
+      description: 'Say your first prayer',
+    },
+    streak7: {
+      title: '7 Day Streak',
+      description: 'Pray for 7 days in a row',
+    },
+    prayers50: {
+      title: '50 Prayers',
+      description: 'Say 50 prayers',
+    },
+    rosary10: {
+      title: 'Rosary Master',
+      description: 'Pray 10 rosaries',
+    },
+    earlyBird: {
+      title: 'Early Bird',
+      description: 'Pray before 7:00 AM',
+    },
     items: {
       prayers: {
         description: 'Pray a specific number of times',
@@ -145,15 +206,18 @@ export const en = {
         description: 'Pray before 6 AM',
       },
     },
+    loading: 'Loading achievements...',
   },
 
   // Community Screen
   community: {
-    title: 'Community',
     subtitle: 'Share your spiritual journey with friends',
     weeklyRanking: 'Weekly Ranking',
     rankingSubtitle: 'Most active people this week',
+    topUsers: 'Top Community Members',
+    prayerRequests: 'Recent Prayer Requests',
     level: 'Level',
+    pts: 'pts',
     sendPrayer: 'Send prayer',
     addRequest: 'Add prayer request',
     addRequestTitle: 'Add request',
@@ -170,6 +234,11 @@ export const en = {
     request3: 'Prayer request for world peace and end of wars. Especially for Ukraine and all countries affected by conflict.',
     request4: 'Please pray for my daughter who has an important final exam tomorrow. May God give her peace and clarity of mind.',
     request5: 'Pray for strength in making a difficult life decision. I face a choice that will change my life and need God\'s guidance.',
+    loading: 'Loading community...',
+    topCommunityMembers: 'Top Community Members',
+    recentPrayerRequests: 'Recent Prayer Requests',
+    sent: 'Sent',
+    dayStreak: 'day streak',
   },
 
   // Profile Screen
@@ -182,25 +251,24 @@ export const en = {
     logout: 'Logout',
   },
 
-  // Tokens Screen
-  charityProjects: {
-    kenyaChurch: {
-      title: 'Build a Church in Kenya',
-      description: 'Help build a chapel for the community in rural Kenya',
-      endDate: 'Dec 15, 2025',
-    },
-    animalShelter: {
-      title: 'Animal Shelter Support',
-      description: 'Food and veterinary care for homeless animals',
-      endDate: 'Dec 10, 2025',
-    },
-    cancerHelp: {
-      title: 'Cancer Fight Support',
-      description: 'Support for children with cancer and their families',
-      endDate: 'Nov 30, 2025',
-    },
+  // Settings Screen
+  settings: {
+    title: 'Settings',
+    subtitle: 'Manage your preferences',
+    connectedWallet: 'Connected Wallet',
+    email: 'Email',
+    username: 'Username',
+    appLanguage: 'App Language',
+    termsOfService: 'Terms of Service',
+    privacyPolicy: 'Privacy Policy',
+    helpSupport: 'Help & Support',
+    logOut: 'Log Out',
+    version: 'Version',
+    selectLanguage: 'Select Language',
+    chain: 'Chain',
   },
 
+  // Tokens Screen
   tokens: {
     title: 'Your Tokens',
     subtitle: 'Spiritual currency of good',
@@ -223,16 +291,105 @@ export const en = {
     donationAmount: 'Donation amount',
     minDonation: 'Min.',
     supportProject: 'Support',
+    supportTitle: 'Support charity projects',
     loading: 'Loading...',
-    error: 'Error loading charities',
+    error: 'Loading error',
     retry: 'Retry',
     donationSuccess: 'Thank you for your donation!',
     donationError: 'Donation failed',
+    pleaseLogin: 'Please log in to view tokens',
+    campaignDetails: 'Campaign Details',
+    aboutThisCause: 'About This Cause',
+    topSupporters: 'Top Supporters',
+    funded: 'funded',
+    enterAmount: 'Enter amount...',
+    minimumRequired: 'Minimum {amount} tokens required',
+    insufficientBalance: 'Insufficient balance. You have {balance} PRAY tokens',
+    pleaseEnterValid: 'Please enter a valid amount',
+    donateTokens: 'Donate tokens',
+    donations: 'donations',
+    noDonorsYet: 'No donors yet',
+    campaignProgress: 'Campaign Progress',
+    raised: 'Raised',
+    supporters: 'Supporters',
+    donation: 'donation',
+  },
+
+  // Charity Projects
+  charityProjects: {
+    kenyaChurch: {
+      title: 'Build a Church in Kenya',
+      description: 'Help build a chapel for a rural community in Kenya',
+      endDate: 'Dec 15, 2025',
+    },
+    animalShelter: {
+      title: 'Animal Shelter Support',
+      description: 'Food and veterinary care for homeless animals',
+      endDate: 'Dec 10, 2025',
+    },
+    cancerHelp: {
+      title: 'Cancer Fight Support',
+      description: 'Support for children with cancer and their families',
+      endDate: 'Nov 30, 2025',
+    },
+  },
+
+  // Daily Reading Screen
+  dailyReading: {
+    title: 'Daily Reading',
+    subtitle: "Today's reading",
+    loading: 'Loading reading...',
+    error: 'Error loading reading',
+    retry: 'Retry',
+    verses: 'verses',
+    verse: 'verse',
+  },
+
+  // Bible Reader Screen
+  bibleReader: {
+    title: 'Bible Reader',
+    subtitle: 'Read the Holy Scripture',
+    selectBook: 'Select Book',
+    selectChapter: 'Select Chapter',
+    book: 'BOOK',
+    chapter: 'CHAPTER',
+    loading: 'Loading Bible...',
+    loadingChapter: 'Loading chapter...',
+    error: 'Failed to load Bible structure',
+    verses: 'verses',
+    verse: 'verse',
+  },
+
+  // Login Screen
+  login: {
+    welcome: 'Welcome to',
+    tagline: 'Connect through prayer',
+    enterEmail: 'Enter your email',
+    enterCode: 'Enter verification code',
+    sendCode: 'Send Code',
+    verifyAndSignIn: 'Verify & Sign In',
+    changeEmail: 'Change email',
+    termsAgreement: 'By continuing, you agree to our',
+    termsOfService: 'Terms of Service',
+    and: 'and',
+    privacyPolicy: 'Privacy Policy',
+    configurationError: 'Configuration Error',
+    checkEnvFile: 'Please check your .env file or app.json configuration',
   },
 
   // Common
   common: {
-    tokens: 'tokens',
+    loading: 'Loading...',
+    error: 'Error',
+    retry: 'Retry',
     token: 'token',
+    tokens: 'tokens',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    save: 'Save',
+    back: 'Back',
+    next: 'Next',
+    finish: 'Finish',
+    close: 'Close',
   },
 };

@@ -1,10 +1,12 @@
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Settings, BookOpen, Quote, Calendar, RefreshCw, Flame, Globe, FileText, Shield, HelpCircle, Info, LogOut, ChevronRight, ArrowLeft, Wallet } from 'lucide-react-native';
+import { User, Settings as SettingsIcon, BookOpen, Quote, Calendar, RefreshCw, Flame } from 'lucide-react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { usePrivy } from '@privy-io/expo';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useUserData } from '@/hooks/useUserData';
+import { useSettings } from '@/hooks/useSettings';
+import Settings from '../settings';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const calculateLevel = (totalEarned: number) => {
   const baseXP = 100;
@@ -33,11 +35,18 @@ const calculateLevel = (totalEarned: number) => {
 };
 
 export default function HomeScreen() {
-  const { logout, user } = usePrivy();
-  const [settingsVisible, setSettingsVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-
+  const { t } = useLanguage(); // ✅ DODAJ
+  
+  // Hooks
   const { userData, dailyQuote, loading, refreshing, refreshQuote, refresh, username } = useUserData();
+  const { 
+    settingsVisible, 
+    settingsData, 
+    openSettings, 
+    closeSettings, 
+    handleLogout 
+  } = useSettings();
 
   useFocusEffect(
     useCallback(() => {
@@ -56,22 +65,32 @@ export default function HomeScreen() {
     }
   }, [loading]);
 
-  const handleLogout = async () => {
-    await logout();
-    setSettingsVisible(false);
-    router.replace('../login');
-  };
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#92400e" />
-        <Text style={styles.loadingText}>Loading your spiritual journey...</Text>
+        <Text style={styles.loadingText}>{t.home.loading}</Text>
       </View>
     );
   }
 
-  // ✅ Użyj username z hooka (pierwsze część emaila przed @)
+  // Settings view
+  if (settingsVisible) {
+    return (
+      <Settings
+        visible={settingsVisible}
+        onClose={closeSettings}
+        onLogout={handleLogout}
+        email={settingsData.email}
+        username={settingsData.username}
+        walletAddress={settingsData.walletAddress}
+        walletChain={settingsData.walletChain}
+        fadeAnim={fadeAnim}
+      />
+    );
+  }
+
+  // Main home view
   const displayName = username || 'Guest';
   const tokens = userData?.tokens_balance || 0;
   const streak = userData?.streak_days || 0;
@@ -79,138 +98,6 @@ export default function HomeScreen() {
   const totalEarned = userData?.total_earned || 0;
   
   const levelData = calculateLevel(totalEarned);
-
-  if (settingsVisible) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#78350f20', '#44403c30', '#78350f25']}
-          style={styles.gradient}
-        >
-          <ScrollView 
-            style={styles.settingsScrollView} 
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.settingsScrollContent}
-          >
-            <Animated.View style={[styles.settingsHeaderSection, { opacity: fadeAnim }]}>
-              <Pressable 
-                onPress={() => setSettingsVisible(false)} 
-                style={styles.backButtonFloating}
-              >
-                <ArrowLeft size={24} color="#92400e" strokeWidth={2.5} />
-              </Pressable>
-
-              <View style={styles.settingsHeaderContent}>
-                <View style={styles.titleRow}>
-                  <Settings size={32} color="#92400e" strokeWidth={2} />
-                  <Text style={styles.settingsTitleLarge}>Settings</Text>
-                </View>
-                <Text style={styles.settingsSubtitle}>Manage your preferences</Text>
-              </View>
-            </Animated.View>
-
-            <View style={styles.settingsItemsContainer}>
-              {/* Wallet Info */}
-              {user?.wallet && (
-                <View>
-                  <View style={styles.walletCard}>
-                    <View style={styles.walletHeader}>
-                      <View style={styles.walletIconWrapper}>
-                        <Wallet size={20} color="#92400e" strokeWidth={2.5} />
-                      </View>
-                      <View style={styles.walletContent}>
-                        <Text style={styles.walletTitle}>Connected Wallet</Text>
-                        <Text style={styles.walletAddress}>
-                          {user.wallet.address.slice(0, 6)}...{user.wallet.address.slice(-4)}
-                        </Text>
-                        {user.wallet.chainId && (
-                          <Text style={styles.walletChain}>
-                            Chain ID: {user.wallet.chainId}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              {/* Email Info */}
-              {user?.email && (
-                <View>
-                  <View style={styles.emailCard}>
-                    <View style={styles.emailHeader}>
-                      <View style={styles.emailIconWrapper}>
-                        <User size={20} color="#92400e" strokeWidth={2.5} />
-                      </View>
-                      <View style={styles.emailContent}>
-                        <Text style={styles.emailTitle}>Email</Text>
-                        <Text style={styles.emailAddress}>{user.email.address}</Text>
-                        <Text style={styles.usernameText}>Username: {displayName}</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              <View>
-                <SettingItem
-                  icon={Globe}
-                  title="App Language"
-                  subtitle="English"
-                  onPress={() => {}}
-                />
-              </View>
-              
-              <View>
-                <SettingItem
-                  icon={FileText}
-                  title="Terms of Service"
-                  onPress={() => {}}
-                />
-              </View>
-              
-              <View>
-                <SettingItem
-                  icon={Shield}
-                  title="Privacy Policy"
-                  onPress={() => {}}
-                />
-              </View>
-              
-              <View>
-                <SettingItem
-                  icon={HelpCircle}
-                  title="Help & Support"
-                  onPress={() => {}}
-                />
-              </View>
-              
-              <View>
-                <SettingItem
-                  icon={Info}
-                  title="About App"
-                  subtitle="Version 1.0.0"
-                  onPress={() => {}}
-                />
-              </View>
-              
-              <View>
-                <Pressable 
-                  onPress={handleLogout}
-                  style={styles.logoutButton}
-                >
-                  <View style={styles.logoutIconWrapper}>
-                    <LogOut size={20} color="#dc2626" strokeWidth={2.5} />
-                  </View>
-                  <Text style={styles.logoutText}>Log Out</Text>
-                </Pressable>
-              </View>
-            </View>
-          </ScrollView>
-        </LinearGradient>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -222,15 +109,15 @@ export default function HomeScreen() {
           <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
             <View style={styles.userSection}>
               <View style={styles.userInfo}>
-                <Text style={styles.greeting}>Welcome back,</Text>
+                <Text style={styles.greeting}>{t.home.welcomeBack}</Text>
                 <Text style={styles.userName}>{displayName}</Text>
               </View>
-              <Pressable onPress={() => setSettingsVisible(true)}>
+              <Pressable onPress={openSettings}>
                 <LinearGradient
                   colors={['#ffffff', '#fafaf9']}
                   style={styles.userAvatar}
                 >
-                  <Settings size={28} color="#92400e" strokeWidth={2.5} />
+                  <SettingsIcon size={28} color="#92400e" strokeWidth={2.5} />
                 </LinearGradient>
               </Pressable>
             </View>
@@ -250,10 +137,10 @@ export default function HomeScreen() {
                   />
                 </View>
                 <View style={styles.balanceTextContainer}>
-                  <Text style={styles.balanceLabel}>YOUR BALANCE</Text>
+                  <Text style={styles.balanceLabel}>{t.home.yourBalance}</Text>
                   <View style={styles.balanceAmountRow}>
                     <Text style={styles.balanceAmount}>{tokens}</Text>
-                    <Text style={styles.balanceCurrency}>PRAY</Text>
+                    <Text style={styles.balanceCurrency}>{t.home.pray}</Text>
                   </View>
                 </View>
               </View>
@@ -261,10 +148,10 @@ export default function HomeScreen() {
               <View style={styles.levelContainer}>
                 <View style={styles.levelHeader}>
                   <View style={styles.levelBadge}>
-                    <Text style={styles.levelText}>Level {levelData.level}</Text>
+                    <Text style={styles.levelText}>{t.home.level} {levelData.level}</Text>
                   </View>
                   <Text style={styles.levelXPText}>
-                    {levelData.experience}/{levelData.experience_to_next_level} XP
+                    {levelData.experience}/{levelData.experience_to_next_level} {t.home.xp}
                   </Text>
                 </View>
                 <View style={styles.progressBarContainer}>
@@ -287,7 +174,7 @@ export default function HomeScreen() {
                     <BookOpen size={14} color="#92400e" />
                   </View>
                   <Text style={styles.statValueCompact}>{prayersCount}</Text>
-                  <Text style={styles.statLabelCompact}>Prayers</Text>
+                  <Text style={styles.statLabelCompact}>{t.home.prayers}</Text>
                 </View>
 
                 <View style={styles.statDivider} />
@@ -297,7 +184,7 @@ export default function HomeScreen() {
                     <Flame size={14} color="#dc2626" />
                   </View>
                   <Text style={[styles.statValueCompact, { color: '#dc2626' }]}>{streak}</Text>
-                  <Text style={styles.statLabelCompact}>Day Streak</Text>
+                  <Text style={styles.statLabelCompact}>{t.home.dayStreak}</Text>
                 </View>
               </View>
             </LinearGradient>
@@ -313,7 +200,7 @@ export default function HomeScreen() {
                   <View style={styles.quoteHeader}>
                     <View style={styles.quoteTitle}>
                       <Quote size={18} color="#fcd34d" strokeWidth={2.5} />
-                      <Text style={styles.quoteTitleText}>Daily Inspiration</Text>
+                      <Text style={styles.quoteTitleText}>{t.home.dailyInspiration}</Text>
                     </View>
                     <Pressable onPress={refreshQuote} disabled={refreshing} style={styles.refreshButton}>
                       <RefreshCw 
@@ -330,34 +217,31 @@ export default function HomeScreen() {
               </Animated.View>
             )}
 
-            <Text style={styles.sectionTitle}>Explore Scripture</Text>
+            <Text style={styles.sectionTitle}>{t.home.exploreScripture}</Text>
             <View style={styles.actionsGrid}>
               <ActionCard
                 icon={BookOpen}
-                title="Daily Reading"
-                description="Today's passage"
+                title={t.home.dailyReading}
+                description={t.home.todaysPassage}
                 gradient={['#d97706', '#92400e']}
-                delay={300}
                 onPress={() => router.push('/daily-reading')}
                 style={styles.halfCard}
               />
               
               <ActionCard
                 icon={Quote}
-                title="Random Verse"
-                description="Get inspired"
+                title={t.home.randomVerse}
+                description={t.home.getInspired}
                 gradient={['#78716c', '#57534e']}
-                delay={350}
                 onPress={() => router.push('/random-quote')}
                 style={styles.halfCard}
               />
 
               <ActionCard
                 icon={Calendar}
-                title="Bible Reader"
-                description="Read any chapter"
+                title={t.home.bibleReader}
+                description={t.home.readAnyChapter}
                 gradient={['#78350f', '#451a03']}
-                delay={400}
                 onPress={() => router.push('/bible-reader')}
                 style={styles.fullCard}
               />
@@ -371,12 +255,9 @@ export default function HomeScreen() {
   );
 }
 
-function ActionCard({ icon: Icon, title, description, gradient, delay, onPress, style }: any) {
+function ActionCard({ icon: Icon, title, description, gradient, onPress, style }: any) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.actionCard, style]}
-    >
+    <Pressable onPress={onPress} style={[styles.actionCard, style]}>
       <LinearGradient colors={gradient} style={styles.actionGradient}>
         <View style={styles.actionIconWrapper}>
           <Icon size={22} color="#ffffff" strokeWidth={2.5} />
@@ -384,21 +265,6 @@ function ActionCard({ icon: Icon, title, description, gradient, delay, onPress, 
         <Text style={styles.actionTitle}>{title}</Text>
         <Text style={styles.actionDescription}>{description}</Text>
       </LinearGradient>
-    </Pressable>
-  );
-}
-
-function SettingItem({ icon: Icon, title, subtitle, onPress }: any) {
-  return (
-    <Pressable onPress={onPress} style={styles.settingItem}>
-      <View style={styles.settingIconWrapper}>
-        <Icon size={20} color="#92400e" strokeWidth={2.5} />
-      </View>
-      <View style={styles.settingContent}>
-        <Text style={styles.settingTitle}>{title}</Text>
-        {subtitle && <Text style={styles.settingSubtitle}>{subtitle}</Text>}
-      </View>
-      <ChevronRight size={20} color="#a8a29e" strokeWidth={2.5} />
     </Pressable>
   );
 }
@@ -710,214 +576,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#ffffff',
     opacity: 0.9,
-    fontWeight: '500',
-  },
-  settingsScrollView: {
-    flex: 1,
-  },
-  settingsScrollContent: {
-    paddingBottom: 40,
-  },
-  settingsHeaderSection: {
-    paddingTop: 20,
-    paddingHorizontal: 16,
-    marginBottom: 24,
-    position: 'relative',
-  },
-  backButtonFloating: {
-    position: 'absolute',
-    top: 20,
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 10,
-  },
-  settingsHeaderContent: {
-    alignItems: 'center',
-    paddingTop: 8,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  settingsTitleLarge: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1c1917',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  settingsSubtitle: {
-    fontSize: 14,
-    color: '#78716c',
-    textAlign: 'center',
-  },
-  settingsItemsContainer: {
-    paddingHorizontal: 16,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  settingIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#fef3c7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  settingContent: {
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1c1917',
-    marginBottom: 2,
-  },
-  settingSubtitle: {
-    fontSize: 13,
-    color: '#78716c',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fee2e2',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 12,
-  },
-  logoutIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#fecaca',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#dc2626',
-  },
-  walletCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1.5,
-    borderColor: '#fef3c7',
-  },
-  walletHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  walletIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#fef3c7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  walletContent: {
-    flex: 1,
-  },
-  walletTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#78716c',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  walletAddress: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1c1917',
-    fontFamily: 'monospace',
-    marginBottom: 2,
-  },
-  walletChain: {
-    fontSize: 12,
-    color: '#a8a29e',
-    fontWeight: '500',
-  },
-  emailCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1.5,
-    borderColor: '#e0e7ff',
-  },
-  emailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  emailIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#e0e7ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  emailContent: {
-    flex: 1,
-  },
-  emailTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#78716c',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  emailAddress: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1c1917',
-    marginBottom: 2,
-  },
-  usernameText: {
-    fontSize: 12,
-    color: '#78716c',
     fontWeight: '500',
   },
 });

@@ -4,9 +4,11 @@ import { Quote, ArrowLeft, RefreshCw } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { useRandomQuote } from '@/hooks/useBible';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function RandomQuoteScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { t } = useLanguage();
 
   // ✅ Użyj hooka
   const { quote, loading, refreshing, refresh } = useRandomQuote();
@@ -25,7 +27,7 @@ export default function RandomQuoteScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#92400e" />
-        <Text style={styles.loadingText}>Loading inspiration...</Text>
+        <Text style={styles.loadingText}>{t.quote.loadingInspiration}</Text>
       </View>
     );
   }
@@ -49,9 +51,9 @@ export default function RandomQuoteScreen() {
             <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
               <View style={styles.titleRow}>
                 <Quote size={28} color="#92400e" strokeWidth={2} />
-                <Text style={styles.title}>Random Quote</Text>
+                <Text style={styles.title}>{t.quote.randomQuote}</Text>
               </View>
-              <Text style={styles.subtitle}>Get inspired by scripture</Text>
+              <Text style={styles.subtitle}>{t.quote.getInspiredByScripture}</Text>
             </Animated.View>
           </Animated.View>
 

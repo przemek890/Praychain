@@ -4,8 +4,10 @@ import { router } from 'expo-router';
 import { LogIn, Mail } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { usePrivy, useLoginWithEmail } from '@privy-io/expo';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function LoginScreen() {
+  const { t } = useLanguage();
   const privy = usePrivy() as any;
   const ready = privy.ready ?? true;
   const authenticated = privy.authenticated ?? !!privy.user;
@@ -16,24 +18,29 @@ export default function LoginScreen() {
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false); // ✅ DODAJ
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // ✅ Pojedyncze przekierowanie po zalogowaniu
   useEffect(() => {
-    if (authenticated && user) {
+    if (ready && authenticated && user && !hasRedirected) {
+      console.log('✅ User authenticated, redirecting...');
+      setHasRedirected(true);
       router.replace('/(tabs)');
     }
-  }, [authenticated, user]);
+  }, [ready, authenticated, user, hasRedirected]);
 
+  // ✅ Animacja tylko gdy ready i nie ma użytkownika
   useEffect(() => {
-    if (ready) {
+    if (ready && !authenticated) {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 400,
         useNativeDriver: true,
       }).start();
     }
-  }, [ready]);
+  }, [ready, authenticated]);
 
   const handleSendCode = async () => {
     if (!email.trim()) return;
@@ -59,14 +66,25 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await loginWithCode({ email: email.trim(), code: code.trim() });
+      // ✅ Po udanym logowaniu Privy zaktualizuje authenticated
+      // i useEffect przekieruje do /(tabs)
     } catch (error) {
       console.error('Login error:', error);
-    } finally {
       setLoading(false);
     }
   };
 
+  // ✅ Loader gdy czekamy na Privy
   if (!ready) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#92400e" />
+      </View>
+    );
+  }
+
+  // ✅ Jeśli zalogowany, pokaż loader podczas przekierowania
+  if (authenticated && user) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#92400e" />
@@ -102,8 +120,8 @@ export default function LoginScreen() {
                     <View style={styles.crossHorizontal} />
                   </View>
                 </LinearGradient>
-                <Text style={styles.appName}>PrayChain</Text>
-                <Text style={styles.tagline}>Connect through prayer</Text>
+                <Text style={styles.appName}>{t.login.welcome}</Text>
+                <Text style={styles.tagline}>{t.login.tagline}</Text>
               </Animated.View>
 
               {/* Login Form */}
@@ -117,7 +135,7 @@ export default function LoginScreen() {
                   )}
                   <TextInput
                     style={styles.input}
-                    placeholder={codeSent ? "Enter verification code" : "Enter your email"}
+                    placeholder={codeSent ? t.login.enterCode : t.login.enterEmail}
                     placeholderTextColor="#a8a29e"
                     value={codeSent ? code : email}
                     onChangeText={codeSent ? setCode : setEmail}
@@ -156,7 +174,7 @@ export default function LoginScreen() {
                           <Mail size={22} color="#ffffff" strokeWidth={2.5} />
                         )}
                         <Text style={styles.buttonText}>
-                          {codeSent ? 'Verify & Sign In' : 'Send Code'}
+                          {codeSent ? t.login.verifyAndSignIn : t.login.sendCode}
                         </Text>
                       </>
                     )}
@@ -174,14 +192,14 @@ export default function LoginScreen() {
                     style={styles.changeEmailButton}
                     disabled={loading}
                   >
-                    <Text style={styles.changeEmailText}>Change email</Text>
+                    <Text style={styles.changeEmailText}>{t.login.changeEmail}</Text>
                   </Pressable>
                 )}
 
                 <Text style={styles.termsText}>
-                  By continuing, you agree to our{'\n'}
-                  <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-                  <Text style={styles.termsLink}>Privacy Policy</Text>
+                  {t.login.termsAgreement}{'\n'}
+                  <Text style={styles.termsLink}>{t.login.termsOfService}</Text> {t.login.and}{' '}
+                  <Text style={styles.termsLink}>{t.login.privacyPolicy}</Text>
                 </Text>
               </Animated.View>
             </ScrollView>

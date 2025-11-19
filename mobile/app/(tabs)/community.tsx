@@ -1,24 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, Animated, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Users, Heart, MessageCircle, Flame, Trophy, Award, Medal, Plus, ChevronDown, ChevronUp, X } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect, useRef } from 'react';
-
-interface PrayerRequest {
-  id: string;
-  user: string;
-  request: string;
-  prayers: number;
-  time: string;
-}
-
-interface TopUser {
-  id: string;
-  name: string;
-  points: number;
-  streak: number;
-  rank: number;
-}
+import { useCommunity, PrayerRequest, TopUser } from '@/hooks/useCommunity';
 
 export default function CommunityScreen() {
   const { t } = useLanguage();
@@ -26,93 +11,45 @@ export default function CommunityScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newRequest, setNewRequest] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  
+  const { prayerRequests, topUsers, loading, addPrayerRequest, sendPrayer } = useCommunity();
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
-  const [prayerRequests, setPrayerRequests] = useState<PrayerRequest[]>([
-    {
-      id: '1',
-      user: 'Maria K.',
-      request: t.community.request1,
-      prayers: 24,
-      time: `2 ${t.community.hoursAgo}`,
-    },
-    {
-      id: '2',
-      user: 'Jan P.',
-      request: t.community.request2,
-      prayers: 18,
-      time: `4 ${t.community.hoursAgo}`,
-    },
-    {
-      id: '3',
-      user: 'Anna W.',
-      request: t.community.request3,
-      prayers: 12,
-      time: `6 ${t.community.hoursAgo}`,
-    },
-    {
-      id: '4',
-      user: 'Tomasz B.',
-      request: t.community.request4,
-      prayers: 8,
-      time: `8 ${t.community.hoursAgo}`,
-    },
-    {
-      id: '5',
-      user: 'Ewa M.',
-      request: t.community.request5,
-      prayers: 5,
-      time: `12 ${t.community.hoursAgo}`,
-    },
-  ]);
-
-  const topUsers: TopUser[] = [
-    { id: '1', name: 'Piotr M.', points: 1250, streak: 45, rank: 1 },
-    { id: '2', name: 'Kasia L.', points: 1180, streak: 38, rank: 2 },
-    { id: '3', name: 'Marek S.', points: 1050, streak: 32, rank: 3 },
-  ];
+    if (!loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading]);
 
   const displayedRequests = showAllRequests ? prayerRequests : prayerRequests.slice(0, 3);
 
   const handleAddRequest = () => {
     if (newRequest.trim()) {
-      const request: PrayerRequest = {
-        id: Date.now().toString(),
-        user: t.community.youName,
-        request: newRequest.trim(),
-        prayers: 0,
-        time: t.community.justNow,
-      };
-      setPrayerRequests([request, ...prayerRequests]);
+      addPrayerRequest(newRequest, t.community.youName || 'You');
       setNewRequest('');
       setShowAddModal(false);
     }
   };
 
   const handleSendPrayer = (requestId: string) => {
-    setPrayerRequests(prev =>
-      prev.map(req =>
-        req.id === requestId
-          ? { ...req, prayers: req.prayers + 1 }
-          : req
-      )
-    );
+    sendPrayer(requestId);
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#92400e" />
+        <Text style={styles.loadingText}>{t.community.loading}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#78350f20', '#44403c30', '#78350f25']}
-        style={styles.gradient}
-      >
-        {/* Header */}
+      <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View style={styles.titleRow}>
             <Users size={32} color="#92400e" strokeWidth={2} />
@@ -122,11 +59,10 @@ export default function CommunityScreen() {
         </Animated.View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Top Users */}
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.sectionHeader}>
               <Trophy size={20} color="#92400e" />
-              <Text style={styles.sectionTitle}>Top Community Members</Text>
+              <Text style={styles.sectionTitle}>{t.community.topCommunityMembers}</Text>
             </View>
 
             {topUsers.map((user) => (
@@ -136,11 +72,10 @@ export default function CommunityScreen() {
             ))}
           </Animated.View>
 
-          {/* Prayer Requests */}
           <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
             <View style={styles.sectionHeader}>
               <Heart size={20} color="#92400e" />
-              <Text style={styles.sectionTitle}>Recent Prayer Requests</Text>
+              <Text style={styles.sectionTitle}>{t.community.recentPrayerRequests}</Text>
               <Pressable
                 style={styles.addButton}
                 onPress={() => setShowAddModal(true)}
@@ -183,7 +118,6 @@ export default function CommunityScreen() {
           </Animated.View>
         </ScrollView>
 
-        {/* Add Prayer Request Modal */}
         <Modal
           visible={showAddModal}
           transparent
@@ -232,6 +166,7 @@ export default function CommunityScreen() {
 }
 
 function TopUserCard({ user }: { user: TopUser }) {
+  const { t } = useLanguage();
   const getRankColors = (rank: number) => {
     if (rank === 1) return { gradient: ['#fbbf24', '#f59e0b'] as const, badge: '#f59e0b' };
     if (rank === 2) return { gradient: ['#d1d5db', '#9ca3af'] as const, badge: '#9ca3af' };
@@ -243,10 +178,7 @@ function TopUserCard({ user }: { user: TopUser }) {
   const RankIcon = user.rank === 1 ? Trophy : user.rank === 2 ? Medal : Award;
 
   return (
-    <LinearGradient
-      colors={['#ffffff', '#fafaf9']}
-      style={styles.topUserCard}
-    >
+    <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.topUserCard}>
       <LinearGradient
         colors={colors.gradient}
         style={styles.rankBadge}
@@ -268,7 +200,7 @@ function TopUserCard({ user }: { user: TopUser }) {
               <Trophy size={14} color="#92400e" />
             </View>
             <Text style={styles.userStatValue}>{user.points}</Text>
-            <Text style={styles.userStatLabel}>pts</Text>
+            <Text style={styles.userStatLabel}>{t.community.pts}</Text>
           </View>
           
           <View style={styles.statDivider} />
@@ -276,7 +208,7 @@ function TopUserCard({ user }: { user: TopUser }) {
           <View style={styles.userStat}>
             <Flame size={14} color="#dc2626" />
             <Text style={styles.userStatValue}>{user.streak}</Text>
-            <Text style={styles.userStatLabel}>day streak</Text>
+            <Text style={styles.userStatLabel}>{t.community.dayStreak}</Text>
           </View>
         </View>
       </View>
@@ -296,10 +228,7 @@ function PrayerRequestCard({ request, onSendPrayer }: { request: PrayerRequest; 
   };
 
   return (
-    <LinearGradient
-      colors={['#ffffff', '#fafaf9']}
-      style={styles.requestCard}
-    >
+    <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.requestCard}>
       <View style={styles.requestHeader}>
         <View style={styles.userAvatar}>
           <Text style={styles.userAvatarText}>{request.user.charAt(0)}</Text>
@@ -313,18 +242,14 @@ function PrayerRequestCard({ request, onSendPrayer }: { request: PrayerRequest; 
       <Text style={styles.requestText}>{request.request}</Text>
       
       <View style={styles.requestFooter}>
-        <Pressable 
-          style={styles.prayButton}
-          onPress={handlePrayerPress}
-          disabled={hasPrayed}
-        >
+        <Pressable style={styles.prayButton} onPress={handlePrayerPress} disabled={hasPrayed}>
           <LinearGradient
             colors={hasPrayed ? ['#d1fae5', '#a7f3d0'] : ['#fee2e2', '#fecaca']}
             style={styles.prayButtonGradient}
           >
             <Heart size={16} color={hasPrayed ? '#16a34a' : '#dc2626'} fill={hasPrayed ? '#16a34a' : 'none'} />
             <Text style={[styles.prayButtonText, hasPrayed && styles.prayButtonTextSent]}>
-              {hasPrayed ? '✓ Sent' : t.community.sendPrayer}
+              {hasPrayed ? `✓ ${t.community.sent}` : t.community.sendPrayer}
             </Text>
           </LinearGradient>
         </Pressable>
@@ -347,6 +272,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
     paddingHorizontal: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fafaf9',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#78716c',
   },
   header: {
     alignItems: 'center',
