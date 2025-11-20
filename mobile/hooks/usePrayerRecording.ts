@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Audio } from 'expo-av';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { getCurrentUserId } from '@/config/currentUser';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
 const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
@@ -52,6 +53,7 @@ interface UserData {
 }
 
 export const usePrayerRecording = () => {
+  const { language } = useLanguage();
   const [userId, setUserId] = useState<string>('');
   const [prayers, setPrayers] = useState<Prayer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,8 +100,8 @@ export const usePrayerRecording = () => {
       setLoading(true);
       setError(null);
       
-      console.log('Fetching prayers from:', `${API_URL}/api/bible/prayers`);
-      const response = await fetch(`${API_URL}/api/bible/prayers`);
+      console.log(`Fetching prayers in ${language}:`, `${API_URL}/api/bible/prayers?lang=${language}`);
+      const response = await fetch(`${API_URL}/api/bible/prayers?lang=${language}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch prayers: ${response.status}`);
@@ -118,7 +120,7 @@ export const usePrayerRecording = () => {
         data.prayers.map(async (p: any) => {
           try {
             console.log(`Fetching prayer details: ${p.id}`);
-            const prayerResponse = await fetch(`${API_URL}/api/bible/prayer/${p.id}?lang=en`);
+            const prayerResponse = await fetch(`${API_URL}/api/bible/prayer/${p.id}?lang=${language}`);
             
             if (prayerResponse.ok) {
               const prayerData = await prayerResponse.json();
@@ -142,7 +144,7 @@ export const usePrayerRecording = () => {
       );
       
       const validPrayers = prayersWithText.filter(p => p !== null) as Prayer[];
-      console.log('Valid prayers:', validPrayers);
+      console.log(`✅ Loaded ${validPrayers.length} prayers in ${language}`);
       
       if (validPrayers.length === 0) {
         setError('Failed to load prayer details');
@@ -159,7 +161,7 @@ export const usePrayerRecording = () => {
 
   const fetchCaptchaQuote = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/bible/random-quote`);
+      const response = await fetch(`${API_URL}/api/bible/random-quote?lang=${language}`);
       if (!response.ok) throw new Error('Failed to fetch verification quote');
       
       const data = await response.json();
@@ -243,7 +245,7 @@ export const usePrayerRecording = () => {
         name: 'prayer.wav',
       } as any);
 
-      const response = await fetch(`${API_URL}/api/transcribe?audio_type=prayer`, {
+      const response = await fetch(`${API_URL}/api/transcribe?audio_type=prayer&lang=${language}`, {
         method: 'POST',
         body: formData,
       });
@@ -326,7 +328,7 @@ export const usePrayerRecording = () => {
         name: 'captcha.wav',
       } as any);
 
-      const response = await fetch(`${API_URL}/api/transcribe?audio_type=captcha`, {
+      const response = await fetch(`${API_URL}/api/transcribe?audio_type=captcha&lang=${language}`, {
         method: 'POST',
         body: formData,
       });
@@ -378,6 +380,19 @@ export const usePrayerRecording = () => {
     setCaptchaTranscriptionId('');
     setCaptchaQuote(null);
   };
+
+  // ✅ NOWY EFFECT - odśwież modlitwy przy zmianie języka
+  useEffect(() => {
+    if (userId) {
+      console.log(`🌍 Language changed to ${language}, reloading prayers`);
+      fetchPrayers();
+      
+      // ✅ Jeśli użytkownik ma wybraną modlitwę, resetuj ją
+      if (selectedPrayer) {
+        resetPrayer();
+      }
+    }
+  }, [language, userId]);
 
   return {
     userId,

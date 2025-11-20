@@ -415,7 +415,6 @@ export const pl = {
       liquidity: 'Część tokenów dopuszczona do handlu na giełdzie dla budowania wartości',
       transfer: 'Możliwość transferu zakupionych tokenów na portfel utworzony podczas rejestracji',
     },
-    impact: 'Razem budujemy transparentny ekosystem duchowego wzrostu i realnej pomocy charytatywnej, eliminując koszty transakcyjne i zapewniając dotarcie środków do tych, którzy ich potrzebują.',
   },
 
   // Common

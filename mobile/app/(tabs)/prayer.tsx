@@ -140,8 +140,8 @@ export default function PrayerScreen() {
                   <BookOpen size={18} color="#92400e" />
                   <Text style={styles.prayerTextHeaderTitle}>{t.prayer.prayerText}</Text>
                 </View>
-                {/* ✅ ZMIENIONE - numberOfLines={3} */}
-                <Text style={styles.prayerText} numberOfLines={3} ellipsizeMode="tail">
+                {/* ✅ USUNIĘTE numberOfLines - pełny tekst */}
+                <Text style={styles.prayerText}>
                   {selectedPrayer.text}
                 </Text>
               </LinearGradient>

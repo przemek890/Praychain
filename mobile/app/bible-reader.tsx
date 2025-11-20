@@ -7,7 +7,7 @@ import { useBibleStructure, useBibleChapter } from '@/hooks/useBible';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function BibleReaderScreen() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage(); // ✅ DODANE language
   const [selectedBook, setSelectedBook] = useState('John');
   const [selectedChapter, setSelectedChapter] = useState(1);
   const [bookModalVisible, setBookModalVisible] = useState(false);
@@ -37,6 +37,15 @@ export default function BibleReaderScreen() {
   const handleChapterSelect = (chapter: number) => {
     setSelectedChapter(chapter);
     setChapterModalVisible(false);
+  };
+
+  // ✅ NOWA FUNKCJA - pobiera nazwę księgi w wybranym języku
+  const getBookDisplayName = (bookId: string): string => {
+    if (!bibleStructure?.books_with_names) {
+      return bookId;
+    }
+    const book = bibleStructure.books_with_names.find((b: any) => b.id === bookId);
+    return book?.name || bookId;
   };
 
   if (structureLoading) {
@@ -98,7 +107,7 @@ export default function BibleReaderScreen() {
             >
               <ArrowLeft size={24} color="#1c1917" />
             </Pressable>
-            {/* ✅ USUŃ tę dziwną linię */}
+            
             <Animated.View style={[styles.headerContent, { opacity: fadeAnim }]}>
               <View style={styles.titleRow}>
                 <BookOpen size={28} color="#92400e" strokeWidth={2} />
@@ -108,7 +117,7 @@ export default function BibleReaderScreen() {
             </Animated.View>
           </Animated.View>
 
-          {/* ✅ NOWE Selectors - clickable cards */}
+          {/* Selectors */}
           <View style={styles.selectorsContainer}>
             <Animated.View style={[styles.selectorWrapper, { opacity: fadeAnim }]}>
               <Pressable onPress={() => setBookModalVisible(true)}>
@@ -118,8 +127,9 @@ export default function BibleReaderScreen() {
                 >
                   <Text style={styles.selectorLabel}>{t.bibleReader.book}</Text>
                   <View style={styles.selectorValueRow}>
+                    {/* ✅ ZMIENIONE - używa getBookDisplayName */}
                     <Text style={styles.selectorValue} numberOfLines={1}>
-                      {selectedBook}
+                      {getBookDisplayName(selectedBook)}
                     </Text>
                     <ChevronDown size={20} color="#ffffff" strokeWidth={2.5} />
                   </View>
@@ -179,7 +189,7 @@ export default function BibleReaderScreen() {
         </ScrollView>
       </LinearGradient>
 
-      {/* ✅ NOWY Book Selection Modal */}
+      {/* ✅ ZMIENIONY Book Selection Modal */}
       <Modal
         visible={bookModalVisible}
         animationType="slide"
@@ -196,34 +206,39 @@ export default function BibleReaderScreen() {
             </View>
             
             <FlatList
-              data={bibleStructure.books}
-              keyExtractor={(item) => item}
+              data={bibleStructure.books_with_names || bibleStructure.books}
+              keyExtractor={(item) => typeof item === 'string' ? item : item.id}
               showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[
-                    styles.modalItem,
-                    selectedBook === item && styles.modalItemSelected
-                  ]}
-                  onPress={() => handleBookSelect(item)}
-                >
-                  <Text style={[
-                    styles.modalItemText,
-                    selectedBook === item && styles.modalItemTextSelected
-                  ]}>
-                    {item}
-                  </Text>
-                  {selectedBook === item && (
-                    <View style={styles.selectedIndicator} />
-                  )}
-                </Pressable>
-              )}
+              renderItem={({ item }) => {
+                const bookId = typeof item === 'string' ? item : item.id;
+                const bookName = typeof item === 'string' ? item : item.name;
+                
+                return (
+                  <Pressable
+                    style={[
+                      styles.modalItem,
+                      selectedBook === bookId && styles.modalItemSelected
+                    ]}
+                    onPress={() => handleBookSelect(bookId)}
+                  >
+                    <Text style={[
+                      styles.modalItemText,
+                      selectedBook === bookId && styles.modalItemTextSelected
+                    ]}>
+                      {bookName}
+                    </Text>
+                    {selectedBook === bookId && (
+                      <View style={styles.selectedIndicator} />
+                    )}
+                  </Pressable>
+                );
+              }}
             />
           </View>
         </View>
       </Modal>
 
-      {/* ✅ NOWY Chapter Selection Modal */}
+      {/* Chapter Selection Modal */}
       <Modal
         visible={chapterModalVisible}
         animationType="slide"

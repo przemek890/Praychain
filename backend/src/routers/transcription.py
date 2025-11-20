@@ -1,10 +1,10 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from typing import Optional
 from datetime import datetime
 import uuid
 import os
 import logging
-from faster_whisper import WhisperModel  # ZMIANA!
+from faster_whisper import WhisperModel
 
 from src.config import (
     UPLOAD_DIR,
@@ -17,7 +17,6 @@ from src.models.transcription import TranscriptionResponse, AudioUploadResponse
 router = APIRouter(prefix="/api", tags=["transcription"])
 logger = logging.getLogger(__name__)
 
-# ZMIANA: faster-whisper (bez torch!)
 logger.info("Loading Whisper model...")
 whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
 logger.info("Whisper model loaded on CPU")
@@ -25,7 +24,8 @@ logger.info("Whisper model loaded on CPU")
 @router.post("/transcribe", response_model=AudioUploadResponse)
 async def transcribe_audio(
     file: UploadFile = File(...),
-    audio_type: str = "prayer"
+    audio_type: str = "prayer",
+    lang: str = Query("auto", regex="^(auto|en|pl|es)$")  # ✅ DODANE
 ):
     db = get_database()
     
@@ -47,22 +47,35 @@ async def transcribe_audio(
                 raise HTTPException(status_code=400, detail="File too large (max 100MB)")
             f.write(content)
         
-        logger.info(f"Transcribing {audio_type}: {file_path}")
+        logger.info(f"Transcribing {audio_type}: {file_path} (lang: {lang})")
         
-        # ZMIANA: faster-whisper API
-        segments, info = whisper_model.transcribe(
-            file_path, 
-            language="en",
-            beam_size=5
-        )
+        # ✅ POPRAWIONE - wykrywanie lub wymuszanie języka
+        if lang == "auto":
+            segments, info = whisper_model.transcribe(
+                file_path, 
+                beam_size=5,
+                vad_filter=True,
+                vad_parameters=dict(min_silence_duration_ms=500)
+            )
+            detected_language = info.language
+            logger.info(f"Detected language: {detected_language}")
+        else:
+            segments, info = whisper_model.transcribe(
+                file_path, 
+                language=lang,
+                beam_size=5,
+                vad_filter=True,
+                vad_parameters=dict(min_silence_duration_ms=500)
+            )
+            detected_language = lang
+            logger.info(f"Using forced language: {lang}")
         
-        # Combine segments into full text
         text = " ".join([segment.text for segment in segments])
         
         transcription_data = {
             "_id": transcription_id,
             "text": text.strip(),
-            "language": info.language,
+            "language": detected_language,
             "duration": info.duration,
             "file_path": file_path,
             "audio_type": audio_type,
@@ -70,7 +83,7 @@ async def transcribe_audio(
         }
         
         await db.transcriptions.insert_one(transcription_data)
-        logger.info(f"Transcription saved with ID: {transcription_id} ({audio_type})")
+        logger.info(f"Transcription saved with ID: {transcription_id} ({audio_type}, lang: {detected_language})")
         
         return AudioUploadResponse(
             transcription=TranscriptionResponse(
@@ -105,6 +118,7 @@ async def get_transcription(transcription_id: str):
         text=transcription["text"],
         language=transcription.get("language"),
         duration=transcription.get("duration"),
+        file_path=transcription.get("file_path"),
         created_at=transcription["created_at"]
     )
 
@@ -121,6 +135,7 @@ async def list_transcriptions(skip: int = 0, limit: int = 10):
                 text=t["text"],
                 language=t.get("language"),
                 duration=t.get("duration"),
+                file_path=t.get("file_path"),
                 created_at=t["created_at"]
             )
             for t in transcriptions

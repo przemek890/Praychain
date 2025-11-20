@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   appName: {
-    fontSize: 40,
+    fontSize: 35,
     fontWeight: 'bold',
     color: '#1c1917',
     letterSpacing: -1,
