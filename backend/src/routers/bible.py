@@ -1,255 +1,146 @@
 from fastapi import APIRouter, HTTPException, Query
 import logging
-import requests
 import random
 from datetime import datetime
-from ..data.prayers import CLASSIC_PRAYERS
+
+from src.data.prayers import CLASSIC_PRAYERS
 from src.data.quotes import SHORT_BIBLE_QUOTES
-from ..data.bible_structure import BIBLE_BOOKS_ORDER, CHAPTERS_PER_BOOK
-from src.config import BIBLE_API_TIMEOUT, BIBLE_API_ENABLED
+from src.utils.bible_api import bible_api
 
 router = APIRouter(prefix="/api/bible", tags=["bible"])
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://bible-api.com"
-
 @router.get("/random-quote")
-async def get_random_bible_quote():
-    if not BIBLE_API_ENABLED:
-        raise HTTPException(status_code=503, detail="Bible quote service is disabled")
-    
+async def get_random_bible_quote(lang: str = Query("en", regex="^(en|pl|es)$")):
+    """
+    Zwraca losowy cytat biblijny w wybranym języku
+    """
     try:
-        url = "https://bible-api.com/?random=verse"
-        response = requests.get(url, timeout=BIBLE_API_TIMEOUT)
-        response.raise_for_status()
-        data = response.json()["verses"][0]
-        
-        return {
-            "text": data["text"],
-            "reference": f"{data['book_name']} {data['chapter']}:{data['verse']}",
-            "book_name": data["book_name"],
-            "chapter": data["chapter"],
-            "verse": data["verse"],
-            "type": "bible_verse"
-        }
-    except requests.exceptions.Timeout:
-        raise HTTPException(
-            status_code=504,
-            detail=f"Quote was not downloaded in the requested {BIBLE_API_TIMEOUT} seconds"
-        )
+        verse = await bible_api.get_random_verse(lang)
+        return verse
     except Exception as e:
-        logger.error(f"Error fetching Bible quote: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error fetching Bible quote")
+        logger.error(f"Error fetching random quote: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch random quote")
 
 @router.get("/short-quote")
 async def get_short_quote(lang: str = Query("en", regex="^(en|pl|es)$")):
     """
-    Zwraca krótki cytat biblijny w przesłanym języku
+    Zwraca krótki cytat biblijny (ZAWSZE z lokalnych danych)
     """
     quote = random.choice(SHORT_BIBLE_QUOTES)
     text_key = f"text_{lang}"
     
-    if text_key not in quote:
-        raise HTTPException(status_code=400, detail=f"Language '{lang}' not supported")
-    
     return {
-        "text": quote[text_key],
+        "text": quote.get(text_key, quote["text_en"]),
         "reference": quote["reference"],
         "category": quote.get("category", "inspiration"),
         "type": "short_quote"
     }
 
-@router.get("/prayer/{prayer_type}")
-async def get_prayer(prayer_type: str, lang: str = Query("en", regex="^(en|pl|es)$")):
-    """
-    Zwraca tekst modlitwy w języku angielskim (wymuszone)
-    """
-    lang = "en"  # Wymuszenie języka angielskiego
-    if prayer_type not in CLASSIC_PRAYERS:
-        raise HTTPException(status_code=404, detail="Prayer not found")
-    
-    prayer = CLASSIC_PRAYERS[prayer_type]
-    if lang not in prayer["text"]:
-        raise HTTPException(status_code=400, detail=f"Language '{lang}' not supported")
-    
-    return {
-        "title": prayer["title"],
-        "text": prayer["text"][lang],
-        "reference": prayer["reference"]
-    }
-
-@router.get("/prayers")
-async def list_prayers():
-    return {
-        "total": len(CLASSIC_PRAYERS),
-        "prayers": [
-            {
-                "id": key,
-                "title": prayer["title"],
-                "reference": prayer["reference"]
-            }
-            for key, prayer in CLASSIC_PRAYERS.items()
-        ]
-    }
-
 @router.get("/daily-reading")
-async def get_daily_reading():
+async def get_daily_reading(lang: str = Query("en", regex="^(en|pl|es)$")):
     """
-    Generuje czytanie na dzisiaj na podstawie daty - zawsze to samo dla danego dnia
+    Generuje dzienne czytanie z uwzględnieniem języka
     """
     try:
-        from datetime import datetime
-        import random
-        
-        # Use date as seed for consistent daily reading
         today = datetime.now().date()
         seed = int(today.strftime('%Y%m%d'))
         random.seed(seed)
         
-        # Select random book and chapter based on today's seed
-        book = random.choice(BIBLE_BOOKS_ORDER)
-        max_chapter = CHAPTERS_PER_BOOK.get(book, 1)
-        chapter = random.randint(1, max_chapter)
+        books = bible_api.get_books(lang)
+        book = random.choice(books)
         
-        # Fetch chapter content
-        url = f"{BASE_URL}/{book} {chapter}"
-        response = requests.get(url, timeout=BIBLE_API_TIMEOUT)
+        max_chapter = book.get("chapters", 30)
+        chapter_num = random.randint(1, min(max_chapter, 30))
         
-        if response.status_code != 200:
-            logger.error(f"Bible API returned status {response.status_code}")
-            raise HTTPException(status_code=500, detail="Failed to fetch daily reading")
-            
-        data = response.json()
-        
-        # Format verses
-        verses = []
-        for verse in data.get("verses", []):
-            verses.append({
-                "verse": verse.get("verse"),
-                "text": verse.get("text", "").strip()
-            })
-        
-        logger.info(f"Daily reading for {today}: {book} {chapter} ({len(verses)} verses)")
+        chapter_data = await bible_api.get_chapter(book["id"], chapter_num, lang)
         
         return {
-            "book_name": book,
-            "chapter": chapter,
-            "verses": verses,
-            "date": today.isoformat(),
-            "reference": f"{book} {chapter}"
+            **chapter_data,
+            "date": today.isoformat()
         }
         
-    except requests.exceptions.Timeout:
-        logger.error("Bible API timeout")
-        raise HTTPException(
-            status_code=504,
-            detail=f"Bible API timeout after {BIBLE_API_TIMEOUT} seconds"
-        )
     except Exception as e:
-        logger.error(f"Error getting daily reading: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/read")
-async def read_bible(
-    book: str = Query(..., description="Book name (e.g., 'Genesis')"),
-    chapter: int = Query(..., ge=1, description="Chapter number"),
-    verses: str = Query(None, description="Verse range (e.g., '1-5' or '16')")
-):
-    try:
-        if verses:
-            reference = f"{book} {chapter}:{verses}"
-        else:
-            reference = f"{book} {chapter}"
-        
-        url = f"https://bible-api.com/{reference}"
-        response = requests.get(url, timeout=BIBLE_API_TIMEOUT)
-        response.raise_for_status()
-        data = response.json()
-        
-        return {
-            "reference": reference,
-            "text": data["text"],
-            "verses": data.get("verses", []),
-            "book": book,
-            "chapter": chapter
-        }
-    except Exception as e:
-        logger.error(f"Error reading Bible: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error reading Bible passage")
-
-@router.get("/verse/{reference}")
-async def get_bible_verse(reference: str):
-    try:
-        url = f"https://bible-api.com/{reference}"
-        response = requests.get(url, timeout=BIBLE_API_TIMEOUT)
-        response.raise_for_status()
-        data = response.json()
-        
-        return {
-            "text": data["text"],
-            "reference": data["reference"],
-            "verses": data.get("verses", [])
-        }
-    except Exception as e:
-        logger.error(f"Error fetching Bible verse: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error fetching Bible verse")
+        logger.error(f"Error fetching daily reading: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch daily reading: {str(e)}")
 
 @router.get("/books")
-async def list_bible_books():
+async def list_bible_books(lang: str = Query("en", regex="^(en|pl|es)$")):
     """
-    Zwraca listę wszystkich książek Biblii z liczbą rozdziałów
+    Zwraca listę ksiąg Biblii w wybranym języku
     """
-    return {
-        "total": len(BIBLE_BOOKS_ORDER),
-        "books": BIBLE_BOOKS_ORDER,
-        "old_testament": BIBLE_BOOKS_ORDER[:39],
-        "new_testament": BIBLE_BOOKS_ORDER[39:],
-        "chapters_per_book": CHAPTERS_PER_BOOK
-    }
+    try:
+        books = bible_api.get_books(lang)
+        return {"books": books}
+    except Exception as e:
+        logger.error(f"Error fetching books: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch books")
 
 @router.get("/chapter")
 async def get_bible_chapter(
-    book: str = Query(..., description="Book name (e.g., 'Genesis')"),
-    chapter: int = Query(..., ge=1, description="Chapter number")
+    book: str = Query(..., description="Book ID (e.g., 'John', 'Genesis')"),
+    chapter: int = Query(..., ge=1, description="Chapter number"),
+    lang: str = Query("en", regex="^(en|pl|es)$")
 ):
     """
-    Pobiera cały rozdział z Biblii
+    Pobiera cały rozdział Biblii w wybranym języku
     """
     try:
-        if book not in BIBLE_BOOKS_ORDER:
-            raise HTTPException(status_code=400, detail=f"Invalid book name: {book}")
-        
-        max_chapter = CHAPTERS_PER_BOOK.get(book, 1)
-        if chapter > max_chapter:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Chapter {chapter} doesn't exist in {book} (max: {max_chapter})"
-            )
-        
-        url = f"{BASE_URL}/{book} {chapter}"
-        response = requests.get(url, timeout=BIBLE_API_TIMEOUT)
-        response.raise_for_status()
-        data = response.json()
-        
-        verses = []
-        for verse in data.get("verses", []):
-            verses.append({
-                "verse": verse.get("verse"),
-                "text": verse.get("text", "").strip()
-            })
-        
-        return {
-            "book_name": book,
-            "chapter": chapter,
-            "verses": verses,
-            "reference": f"{book} {chapter}"
-        }
-        
-    except requests.exceptions.Timeout:
-        raise HTTPException(
-            status_code=504,
-            detail=f"Bible API timeout after {BIBLE_API_TIMEOUT} seconds"
-        )
+        chapter_data = await bible_api.get_chapter(book, chapter, lang)
+        return chapter_data
     except Exception as e:
         logger.error(f"Error fetching chapter: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to fetch chapter: {str(e)}")
+
+# ========================================
+# PRAYER ENDPOINTS
+# ========================================
+
+@router.get("/prayers")
+async def get_available_prayers(lang: str = Query("en", regex="^(en|pl|es)$")):
+    """
+    Zwraca listę dostępnych modlitw
+    """
+    prayers = []
+    for prayer_id, prayer_data in CLASSIC_PRAYERS.items():
+        # ✅ POPRAWIONE - sprawdź czy title jest dict czy string
+        if isinstance(prayer_data["title"], dict):
+            title = prayer_data["title"].get(lang, prayer_data["title"]["en"])
+        else:
+            title = prayer_data["title"]  # fallback - użyj stringa bezpośrednio
+        
+        prayers.append({
+            "id": prayer_id,
+            "title": title,
+            "reference": prayer_data["reference"]
+        })
+    
+    return {"prayers": prayers}
+
+@router.get("/prayer/{prayer_id}")
+async def get_prayer_by_id(prayer_id: str, lang: str = Query("en", regex="^(en|pl|es)$")):
+    """
+    Zwraca szczegóły modlitwy w wybranym języku
+    """
+    if prayer_id not in CLASSIC_PRAYERS:
+        raise HTTPException(status_code=404, detail="Prayer not found")
+    
+    prayer_data = CLASSIC_PRAYERS[prayer_id]
+    
+    # ✅ POPRAWIONE - sprawdź typ przed użyciem .get()
+    if isinstance(prayer_data["title"], dict):
+        title = prayer_data["title"].get(lang, prayer_data["title"]["en"])
+    else:
+        title = prayer_data["title"]
+    
+    if isinstance(prayer_data["text"], dict):
+        text = prayer_data["text"].get(lang, prayer_data["text"]["en"])
+    else:
+        text = prayer_data["text"]
+    
+    return {
+        "id": prayer_id,
+        "title": title,
+        "text": text,
+        "reference": prayer_data["reference"]
+    }

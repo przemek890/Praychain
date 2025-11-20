@@ -119,11 +119,6 @@ export default function TermsAndConditions({
                 <Text style={styles.bulletPoint}>• {t.terms.tokenomics.transfer}</Text>
               </View>
             </View>
-
-            {/* Impact Section */}
-            <View style={styles.highlightSection}>
-              <Text style={styles.highlightText}>{t.terms.impact}</Text>
-            </View>
           </View>
         </ScrollView>
       </LinearGradient>

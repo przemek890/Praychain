@@ -1,6 +1,6 @@
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect, useRef } from 'react';
-import { API_CONFIG } from '@/config/api'; // ✅ DODAJ IMPORT
+import { API_CONFIG } from '@/config/api';
 
 export interface Quote {
   text: string;
@@ -27,7 +27,8 @@ export interface BibleVerse {
 
 export interface BibleStructure {
   books: string[];
-  chapters_per_book: Record<string, number>;
+  books_with_names?: Array<{ id: string; name: string; chapters: number }>; // ✅ DODANE
+  chapters_per_book: { [key: string]: number };
 }
 
 export interface BibleChapter {
@@ -41,6 +42,7 @@ export interface BibleChapter {
 
 // ✅ POPRAWIONE - useRandomQuote
 export function useRandomQuote() {
+  const { language } = useLanguage(); // ✅ DODANE
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,15 +56,15 @@ export function useRandomQuote() {
     }
 
     try {
-      // ✅ ZMIEŃ: użyj API_CONFIG.BASE_URL
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/random-quote`);
+      // ✅ DODANO język
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/random-quote?lang=${language}`);
       if (!response.ok) throw new Error('Failed to fetch random quote');
       
       const data = await response.json();
       
       setQuote({
         text: data.text,
-        reference: `${data.book_name} ${data.chapter}:${data.verse}`,
+        reference: data.reference,
         category: data.category,
       });
     } catch (error) {
@@ -76,10 +78,9 @@ export function useRandomQuote() {
 
   useEffect(() => {
     fetchRandomQuote();
-  }, []);
+  }, [language]); // ✅ DODANO language
 
   const refresh = () => {
-    setLoading(true);
     fetchRandomQuote(true);
   };
 
@@ -88,10 +89,10 @@ export function useRandomQuote() {
 
 // ✅ POPRAWIONE - useDailyReading
 export function useDailyReading() {
+  const { language, t } = useLanguage(); // ✅ DODANE
   const [reading, setReading] = useState<DailyReading | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { t } = useLanguage();
 
   const fetchReading = async () => {
     setLoading(true);
@@ -99,8 +100,8 @@ export function useDailyReading() {
     setReading(null);
     
     try {
-      // ✅ ZMIEŃ: użyj API_CONFIG.BASE_URL
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/daily-reading`);
+      // ✅ DODANO język
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/daily-reading?lang=${language}`);
       if (!response.ok) throw new Error('Failed to fetch daily reading');
       
       const data = await response.json();
@@ -108,7 +109,7 @@ export function useDailyReading() {
       setError(null);
     } catch (err) {
       console.error('Error fetching daily reading:', err);
-      setError(`${t.bibleReader.checkConnection}`);
+      setError(t.bibleReader.checkConnection);
       setReading(null);
     } finally {
       setLoading(false);
@@ -117,7 +118,7 @@ export function useDailyReading() {
 
   useEffect(() => {
     fetchReading();
-  }, []);
+  }, [language]); // ✅ DODANO language
 
   const refresh = () => {
     fetchReading();
@@ -128,6 +129,7 @@ export function useDailyReading() {
 
 // ✅ POPRAWIONE - useBibleStructure
 export function useBibleStructure() {
+  const { language } = useLanguage();
   const [structure, setStructure] = useState<BibleStructure | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,13 +140,23 @@ export function useBibleStructure() {
     setStructure(null);
     
     try {
-      // ✅ ZMIEŃ: użyj API_CONFIG.BASE_URL
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/books`);
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/bible/books?lang=${language}`);
       if (response.ok) {
         const data = await response.json();
-        setStructure({
-          books: data.books,
-          chapters_per_book: data.chapters_per_book
+        
+        // ✅ POPRAWIONE - zapisz pełne informacje o księgach
+        const booksWithChapters = data.books.map((book: any) => ({
+          id: book.id,
+          name: book.name,
+          chapters: book.chapters || 1
+        }));
+        
+        setStructure({ 
+          books: booksWithChapters.map((b: any) => b.id),
+          books_with_names: booksWithChapters, // ✅ DODANE
+          chapters_per_book: Object.fromEntries(
+            booksWithChapters.map((b: any) => [b.id, b.chapters])
+          )
         });
         setError(null);
       } else {
@@ -162,7 +174,7 @@ export function useBibleStructure() {
 
   useEffect(() => {
     loadStructure();
-  }, []);
+  }, [language]);
 
   return {
     structure,
@@ -173,6 +185,7 @@ export function useBibleStructure() {
 }
 
 export function useBibleChapter(book: string, chapter: number) {
+  const { language } = useLanguage(); // ✅ DODANE
   const [content, setContent] = useState<BibleChapter | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +195,7 @@ export function useBibleChapter(book: string, chapter: number) {
     if (book && chapter) {
       loadChapter();
     }
-  }, [book, chapter]);
+  }, [book, chapter, language]); // ✅ DODANO language
 
   const loadChapter = async () => {
     if (isLoadingRef.current) return;
@@ -193,9 +206,9 @@ export function useBibleChapter(book: string, chapter: number) {
       setError(null);
       setContent(null);
 
-      // ✅ ZMIEŃ: użyj API_CONFIG.BASE_URL
+      // ✅ DODANO język
       const response = await fetch(
-        `${API_CONFIG.BASE_URL}/api/bible/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}`
+        `${API_CONFIG.BASE_URL}/api/bible/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}&lang=${language}`
       );
       
       if (response.ok) {

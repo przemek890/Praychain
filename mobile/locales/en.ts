@@ -420,7 +420,6 @@ export const en = {
       liquidity: 'Part of tokens admitted to exchange trading for value building',
       transfer: 'Ability to transfer purchased tokens to wallet created during registration',
     },
-    impact: 'Together we build a transparent ecosystem of spiritual growth and real charity help, eliminating transaction costs and ensuring funds reach those who need them.',
   },
 
   // Common

@@ -453,6 +453,5 @@ export const es = {
       liquidity: 'Parte de tokens admitidos para negociación en intercambios para construcción de valor',
       transfer: 'Capacidad de transferir tokens comprados a la billetera creada durante el registro',
     },
-    impact: 'Juntos construimos un ecosistema transparente de crecimiento espiritual y ayuda caritativa real, eliminando costos de transacción y asegurando que los fondos lleguen a quienes los necesitan.',
   },
 };
