@@ -44,9 +44,8 @@ async def get_random_bible_quote():
 @router.get("/short-quote")
 async def get_short_quote(lang: str = Query("en", regex="^(en|pl|es)$")):
     """
-    Zwraca krótki cytat biblijny w języku angielskim (wymuszone)
+    Zwraca krótki cytat biblijny w przesłanym języku
     """
-    lang = "en"  # Wymuszenie języka angielskiego
     quote = random.choice(SHORT_BIBLE_QUOTES)
     text_key = f"text_{lang}"
     

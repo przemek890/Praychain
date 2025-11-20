@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useEmbeddedWallet } from '@privy-io/expo';
 import { API_CONFIG, ENDPOINTS } from '@/config/api';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface UserData {
   id: string;
@@ -81,6 +82,7 @@ const getWalletFromPrivyUser = (user: any): string | null => {
 export function useUserData() {
   const { user, isReady } = usePrivy();
   const wallet = useEmbeddedWallet();
+  const { language } = useLanguage(); // ✅ DODANE
   const [userData, setUserData] = useState<UserData | null>(null);
   const [dailyQuote, setDailyQuote] = useState<BibleQuote | null>(null);
   const [loading, setLoading] = useState(true);
@@ -216,11 +218,14 @@ export function useUserData() {
       // ✅ Zwolnij flagę
       isFetchingRef.current = false;
     }
-  }, [user]); // ✅ USUŃ wallet z dependencies!
+  }, [user]);
 
+  // ✅ POPRAWIONE - dodano język
   const fetchDailyQuote = useCallback(async () => {
     try {
-      const endpoint = `${API_CONFIG.BASE_URL}/api/bible/random-quote`;
+      const endpoint = `${API_CONFIG.BASE_URL}/api/bible/short-quote?lang=${language}`;
+      console.log(`🔄 Fetching daily quote in ${language}`);
+      
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
@@ -228,12 +233,13 @@ export function useUserData() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log(`✅ Daily quote loaded (${language}):`, data.reference);
         setDailyQuote(data);
       }
     } catch (error) {
       console.error('Error fetching daily quote:', error);
     }
-  }, []);
+  }, [language]); // ✅ DODANE language do dependencies
 
   const refreshQuote = useCallback(async () => {
     setRefreshing(true);
@@ -274,7 +280,15 @@ export function useUserData() {
       setUserData(null);
       setDailyQuote(null);
     }
-  }, [isReady, user]); // ✅ Tylko isReady i user!
+  }, [isReady, user]);
+
+  // ✅ NOWY EFFECT - odśwież cytat przy zmianie języka
+  useEffect(() => {
+    if (user && hasInitializedRef.current) {
+      console.log(`🌍 Language changed to ${language}, refreshing quote`);
+      fetchDailyQuote();
+    }
+  }, [language]);
 
   const email = getEmailFromPrivyUser(user);
   const username = userData?.username || (email ? email.split('@')[0] : 'Guest');
