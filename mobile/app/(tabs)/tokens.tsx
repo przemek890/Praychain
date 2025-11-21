@@ -8,6 +8,7 @@ import { useTokens } from '@/hooks/useTokens';
 import { useFocusEffect } from 'expo-router';
 import { useUserDataRefresh } from '@/contexts/UserDataContext';
 import { useUserData } from '@/hooks/useUserData';
+import { useWeb3 } from '@/hooks/useWeb3';
 
 const getCategoryColor = (category: string) => {
   const colors: Record<string, { bg: string; border: string; text: string }> = {
@@ -29,6 +30,14 @@ export default function TokensScreen() {
   
   const { balance: userTokens, loading: tokensLoading, refresh: refreshTokens } = useTokens(userId);
   const { charities, loading: charitiesLoading, error, donateToCharity, refresh: refreshCharities } = useCharity();
+  const { 
+  sendPrayTokens, 
+  sending: blockchainSending, 
+  walletAddress, 
+  isWalletReady 
+} = useWeb3({ 
+  userWalletAddress: userData?.wallet_address 
+});
   const [selectedCharity, setSelectedCharity] = useState<CharityAction | null>(null);
   const [donationAmount, setDonationAmount] = useState('');
   const [selectedMultiplier, setSelectedMultiplier] = useState<number | null>(null);
@@ -124,44 +133,92 @@ export default function TokensScreen() {
   };
 
   const handleDonate = async () => {
-    if (!selectedCharity || !donationAmount || amountError || !userId) return;
+  if (!selectedCharity || !donationAmount || amountError || !userId) return;
 
-    const amount = parseInt(donationAmount);
+  const amount = parseInt(donationAmount);
+  
+  if (isNaN(amount) || amount <= 0) {
+    setAmountError('Please enter a valid amount');
+    return;
+  }
+
+  if (amount < selectedCharity.cost_tokens) {
+    setAmountError(`Minimum ${selectedCharity.cost_tokens} tokens required`);
+    return;
+  }
+
+  if (amount > userTokens) {
+    setAmountError(`Insufficient balance. You have ${userTokens} PRAY tokens`);
+    return;
+  }
+
+  // ✅ ZAKTUALIZOWANE SPRAWDZENIE
+  if (!walletAddress) {
+    setAmountError('Wallet address not found. Please contact support.');
+    return;
+  }
+
+  if (!isWalletReady) {
+    setAmountError('Wallet is initializing. Please wait a moment and try again.');
+    return;
+  }
+
+  try {
+    setDonating(true);
+    setAmountError(null);
     
-    if (isNaN(amount) || amount <= 0) {
-      setAmountError('Please enter a valid amount');
-      return;
-    }
+    console.log('🎯 Starting donation process...');
+    console.log('Amount:', amount, 'PRAY');
+    console.log('Charity:', selectedCharity.title);
+    console.log('User ID:', userId);
+    console.log('Wallet:', walletAddress);
 
-    if (amount < selectedCharity.cost_tokens) {
-      setAmountError(`Minimum ${selectedCharity.cost_tokens} tokens required`);
-      return;
-    }
+    console.log('📤 Step 1: Sending blockchain transaction...');
+    const txHash = await sendPrayTokens(amount);
+    console.log('✅ Blockchain transaction successful:', txHash);
 
-    if (amount > userTokens) {
-      setAmountError(`Insufficient balance. You have ${userTokens} PRAY tokens`);
-      return;
-    }
+    console.log('💾 Step 2: Updating backend...');
+    await donateToCharity(userId, selectedCharity._id, amount);
+    console.log('✅ Backend updated successfully');
 
-    try {
-      setDonating(true);
-      await donateToCharity(userId, selectedCharity._id, amount);
-      
-      await Promise.all([refreshTokens(), refreshCharities()]);
-      
-      console.log('Donation completed - triggering refresh');
-      triggerRefresh();
-      
-      setSelectedCharity(null);
-      setDonationAmount('');
-      setAmountError(null);
-    } catch (err: any) {
-      console.error('Donation failed:', err);
-      setAmountError(err.message || 'Donation failed');
-    } finally {
-      setDonating(false);
+    console.log('🔄 Step 3: Refreshing data...');
+    await Promise.all([
+      refreshTokens(),
+      refreshCharities()
+    ]);
+    
+    console.log('✅ Donation completed - triggering UI refresh');
+    triggerRefresh();
+    
+    setSelectedCharity(null);
+    setDonationAmount('');
+    setAmountError(null);
+    setSelectedMultiplier(null);
+
+    console.log('✨ Donation process completed successfully!');
+    
+  } catch (err: any) {
+    console.error('❌ Donation failed:', err);
+    
+    let errorMessage = 'Donation failed';
+    
+    if (err.message?.includes('Insufficient')) {
+      errorMessage = err.message;
+    } else if (err.message?.includes('rejected')) {
+      errorMessage = 'Transaction was rejected';
+    } else if (err.message?.includes('network')) {
+      errorMessage = 'Network error. Please check your connection';
+    } else if (err.message?.includes('not ready')) {
+      errorMessage = 'Wallet still initializing. Please try again.';
+    } else if (err.message) {
+      errorMessage = err.message;
     }
-  };
+    
+    setAmountError(errorMessage);
+  } finally {
+    setDonating(false);
+  }
+};
 
   const loading = tokensLoading || charitiesLoading || userDataLoading;
 
@@ -230,88 +287,84 @@ export default function TokensScreen() {
     );
   }
 
-  // ...existing code...
+  if (selectedCharity) {
+    const amount = parseInt(donationAmount) || 0;
+    const isValidAmount = amount >= selectedCharity.cost_tokens && amount <= userTokens && !amountError;
+    const progress = selectedCharity.goal_tokens 
+      ? (selectedCharity.total_tokens_raised / selectedCharity.goal_tokens) * 100 
+      : 0;
+    
+    const categoryColors = getCategoryColor(selectedCharity.category);
 
-if (selectedCharity) {
-  const amount = parseInt(donationAmount) || 0;
-  const isValidAmount = amount >= selectedCharity.cost_tokens && amount <= userTokens && !amountError;
-  const progress = selectedCharity.goal_tokens 
-    ? (selectedCharity.total_tokens_raised / selectedCharity.goal_tokens) * 100 
-    : 0;
-  
-  const categoryColors = getCategoryColor(selectedCharity.category);
-
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      
-      <ScrollView 
-        style={styles.detailContainer}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        {/* Hero Section with Image */}
-        <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
-          {selectedCharity.image_url && (
-            <Image
-              source={{ uri: selectedCharity.image_url }}
-              style={styles.heroImage}
-            />
-          )}
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
-            style={styles.heroGradient}
-          />
-          
-          {/* Back Button */}
-          <Pressable
-            style={styles.backButton}
-            onPress={() => {
-              setSelectedCharity(null);
-              setDonationAmount('');
-              setAmountError(null);
-            }}
-          >
-            <View style={styles.backButtonInner}>
-              <ArrowLeft size={20} color="#1c1917" strokeWidth={2.5} />
-            </View>
-          </Pressable>
-
-          {/* ✅ Title Overlay with Badges */}
-          <View style={styles.heroContent}>
-            {/* ✅ BADGE'Y - Category + Organization */}
-            <View style={styles.heroBadgesRow}>
-              {/* Category Badge */}
-              <View style={[styles.heroCategoryBadge, { 
-                backgroundColor: `${categoryColors.bg}dd`,
-                borderColor: categoryColors.border 
-              }]}>
-                <Tag size={12} color={categoryColors.text} strokeWidth={2.5} />
-                <Text style={[styles.heroCategoryText, { color: categoryColors.text }]}>
-                  {selectedCharity.category}
-                </Text>
-              </View>
-
-              {/* Organization Badge */}
-              <View style={styles.heroOrgBadge}>
-                <Building2 size={12} color="#ffffff" strokeWidth={2.5} />
-                <Text style={styles.heroOrgText}>{selectedCharity.organization}</Text>
-              </View>
-            </View>
-
-            {/* ✅ Patron Badge - jeśli istnieje */}
-            {selectedCharity.patron && (
-              <View style={styles.heroPatronBadge}>
-                <Crown size={16} color="#fbbf24" strokeWidth={2.5} fill="#fbbf24" />
-                <Text style={styles.heroPatronText}>{selectedCharity.patron}</Text>
-              </View>
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        
+        <ScrollView 
+          style={styles.detailContainer}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          {/* Hero Section with Image */}
+          <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
+            {selectedCharity.image_url && (
+              <Image
+                source={{ uri: selectedCharity.image_url }}
+                style={styles.heroImage}
+              />
             )}
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.8)']}
+              style={styles.heroGradient}
+            />
+            
+            {/* Back Button */}
+            <Pressable
+              style={styles.backButton}
+              onPress={() => {
+                setSelectedCharity(null);
+                setDonationAmount('');
+                setAmountError(null);
+              }}
+            >
+              <View style={styles.backButtonInner}>
+                <ArrowLeft size={20} color="#1c1917" strokeWidth={2.5} />
+              </View>
+            </Pressable>
 
-            <Text style={styles.heroTitle}>{selectedCharity.title}</Text>
-          </View>
-        </Animated.View>
+            {/* ✅ Title Overlay with Badges */}
+            <View style={styles.heroContent}>
+              {/* ✅ BADGE'Y - Category + Organization */}
+              <View style={styles.heroBadgesRow}>
+                {/* Category Badge */}
+                <View style={[styles.heroCategoryBadge, { 
+                  backgroundColor: `${categoryColors.bg}dd`,
+                  borderColor: categoryColors.border 
+                }]}>
+                  <Tag size={12} color={categoryColors.text} strokeWidth={2.5} />
+                  <Text style={[styles.heroCategoryText, { color: categoryColors.text }]}>
+                    {selectedCharity.category}
+                  </Text>
+                </View>
 
-        {/* ...existing code continues... */}
+                {/* Organization Badge */}
+                <View style={styles.heroOrgBadge}>
+                  <Building2 size={12} color="#ffffff" strokeWidth={2.5} />
+                  <Text style={styles.heroOrgText}>{selectedCharity.organization}</Text>
+                </View>
+              </View>
+
+              {/* ✅ Patron Badge - jeśli istnieje */}
+              {selectedCharity.patron && (
+                <View style={styles.heroPatronBadge}>
+                  <Crown size={16} color="#fbbf24" strokeWidth={2.5} fill="#fbbf24" />
+                  <Text style={styles.heroPatronText}>{selectedCharity.patron}</Text>
+                </View>
+              )}
+
+              <Text style={styles.heroTitle}>{selectedCharity.title}</Text>
+            </View>
+          </Animated.View>
 
           {/* Content Section */}
           <View style={styles.contentSection}>
@@ -445,12 +498,30 @@ if (selectedCharity) {
               </View>
 
               {/* Info/Error Messages */}
-              {!amountError && (
+              {!amountError && !donating && !isWalletReady && (
+                <View style={styles.infoMessage}>
+                  <ActivityIndicator size="small" color="#f59e0b" />
+                  <Text style={styles.infoMessageText}>
+                    Initializing wallet...
+                  </Text>
+                </View>
+              )}
+
+              {!amountError && !donating && isWalletReady && (
                 <View style={styles.infoMessage}>
                   <Info size={14} color="#78716c" />
                   <Text style={styles.infoMessageText}>
                     {t.tokens.minimumRequired?.replace('{amount}', selectedCharity.cost_tokens.toString()) || 
-                     `Minimum ${selectedCharity.cost_tokens} tokens required`}
+                    `Minimum ${selectedCharity.cost_tokens} tokens required`}
+                  </Text>
+                </View>
+              )}
+
+              {donating && !amountError && (
+                <View style={styles.infoMessage}>
+                  <ActivityIndicator size="small" color="#16a34a" />
+                  <Text style={styles.infoMessageText}>
+                    Processing blockchain transaction...
                   </Text>
                 </View>
               )}
@@ -553,6 +624,7 @@ if (selectedCharity) {
     );
   }
 
+  // ✅ DODAJ TO - główny widok listy charities
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -571,13 +643,12 @@ if (selectedCharity) {
 
         <ScrollView style={styles.charitiesList} showsVerticalScrollIndicator={false}>
           {charities.map((charity) => (
-            <View key={charity._id}>
-              <CharityCard
-                charity={charity}
-                onSelect={() => handleSelectCharity(charity)}
-                t={t}
-              />
-            </View>
+            <CharityCard
+              key={charity._id}
+              charity={charity}
+              onSelect={() => handleSelectCharity(charity)}
+              t={t}
+            />
           ))}
         </ScrollView>
       </LinearGradient>
@@ -585,6 +656,8 @@ if (selectedCharity) {
   );
 }
 
+
+// ✅ CharityCard component - poza główną funkcją
 function CharityCard({ charity, onSelect, t }: { charity: CharityAction; onSelect: () => void; t: any }) {
   const progress = charity.goal_tokens 
     ? (charity.total_tokens_raised / charity.goal_tokens) * 100 
