@@ -3,29 +3,17 @@ from typing import Optional
 from difflib import SequenceMatcher
 from datetime import datetime
 import uuid
-import logging  # ✅ DODAJ TO
+import logging
 import numpy as np
 
 from src.utils.mongodb import get_database
 from src.models.prayer import PrayerAnalysisRequest, DualAnalysisRequest, DualAnalysisResponse
-from src.config import (
-    CAPTCHA_ACCURACY_THRESHOLD,
-    LOW_TEXT_ACCURACY_THRESHOLD,
-    LOW_TEXT_ACCURACY_PENALTY,
-    ACCURACY_POINTS_MULTIPLIER,
-    STABILITY_POINTS_MULTIPLIER,
-    FLUENCY_POINTS_MULTIPLIER,
-    FOCUS_POINTS_MULTIPLIER,
-    VOICE_SERVICE_URL,
-    VOICE_SIMILARITY_THRESHOLD,
-    VOICE_SIMILARITY_BONUS_MULTIPLIER,
-)
+from src.config import settings  # ✅ TYLKO settings
 from src.utils.voice_verification import verify_recording_session
 
 router = APIRouter(prefix="/api/prayer", tags=["prayer"])
 logger = logging.getLogger(__name__)
 
-# Import funkcji z analysis.py
 from src.routers.analysis import (
     analyze_emotion_api,
     calculate_text_accuracy,
@@ -179,17 +167,14 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
             request.captcha_text.lower().strip()
         ).ratio()
         
-        captcha_passed = captcha_accuracy >= CAPTCHA_ACCURACY_THRESHOLD
+        captcha_passed = captcha_accuracy >= settings.CAPTCHA_ACCURACY_THRESHOLD  # ✅
         
         logger.info(f"Captcha accuracy: {captcha_accuracy:.2f} - {'PASSED' if captcha_passed else 'FAILED'}")
         
-        # ========================================
-        # VOICE VERIFICATION (if captcha passed)
-        # ========================================
         voice_verification = await verify_recording_session(
             prayer_transcription_id=request.prayer_transcription_id,
             captcha_transcription_id=request.captcha_transcription_id,
-            min_similarity=VOICE_SIMILARITY_THRESHOLD
+            min_similarity=settings.VOICE_SIMILARITY_THRESHOLD  # ✅
         )
         
         if not voice_verification.get("passed", False):
@@ -197,7 +182,6 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
             
             logger.warning(f"Verification failed: {failure_reasons}")
             
-            # ✅ KONWERTUJ numpy typy na Python typy
             verification_result_clean = {
                 "passed": bool(voice_verification.get("passed", False)),
                 "voice_match": bool(voice_verification.get("voice_match", False)),
@@ -216,13 +200,12 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
                 }
             }
             
-            # Log fraud attempt
             fraud_log = {
                 "_id": str(uuid.uuid4()),
                 "user_id": request.user_id,
                 "prayer_transcription_id": request.prayer_transcription_id,
                 "captcha_transcription_id": request.captcha_transcription_id,
-                "verification_result": verification_result_clean,  # ✅ Cleaned data
+                "verification_result": verification_result_clean,
                 "failure_reasons": failure_reasons,
                 "timestamp": datetime.now(),
                 "type": "voice_verification_failed"
@@ -234,7 +217,6 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
             except Exception as e:
                 logger.error(f"Failed to log fraud attempt: {e}")
             
-            # ✅ ZWRÓĆ 0 TOKENÓW (nie rzucaj błędu!)
             return DualAnalysisResponse(
                 analysis={
                     "focus_score": float(focus_score),
@@ -243,7 +225,7 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
                     "captcha_accuracy": float(captcha_accuracy),
                     "emotional_stability": float(emotional_stability),
                     "speech_fluency": float(speech_fluency),
-                    "tokens_earned": 0,  # ❌ 0 tokenów
+                    "tokens_earned": 0,
                 },
                 captcha_passed=False,
                 user_id=request.user_id,
@@ -254,21 +236,18 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
                 human_confidence=float(voice_verification.get("human_confidence", 0.0))
             )
         
-        # ========================================
-        # AWARD TOKENS (if everything passed)
-        # ========================================
         if captcha_passed:
-            accuracy_points = text_accuracy * ACCURACY_POINTS_MULTIPLIER
-            stability_points = emotional_stability * STABILITY_POINTS_MULTIPLIER
-            fluency_points = speech_fluency * FLUENCY_POINTS_MULTIPLIER
-            focus_points = focus_score * FOCUS_POINTS_MULTIPLIER
+            accuracy_points = text_accuracy * settings.ACCURACY_POINTS_MULTIPLIER  # ✅
+            stability_points = emotional_stability * settings.STABILITY_POINTS_MULTIPLIER  # ✅
+            fluency_points = speech_fluency * settings.FLUENCY_POINTS_MULTIPLIER  # ✅
+            focus_points = focus_score * settings.FOCUS_POINTS_MULTIPLIER  # ✅
             
-            voice_bonus = voice_verification["similarity_score"] * VOICE_SIMILARITY_BONUS_MULTIPLIER
+            voice_bonus = voice_verification["similarity_score"] * settings.VOICE_SIMILARITY_BONUS_MULTIPLIER  # ✅
             
             tokens_earned = int(accuracy_points + stability_points + fluency_points + focus_points + voice_bonus)
             
-            if text_accuracy < LOW_TEXT_ACCURACY_THRESHOLD:
-                tokens_earned = max(0, tokens_earned - LOW_TEXT_ACCURACY_PENALTY)
+            if text_accuracy < settings.LOW_TEXT_ACCURACY_THRESHOLD:  # ✅
+                tokens_earned = max(0, tokens_earned - settings.LOW_TEXT_ACCURACY_PENALTY)  # ✅
             
             logger.info(f"Token calculation - Accuracy: {accuracy_points:.0f}, Stability: {stability_points:.0f}, "
                        f"Fluency: {fluency_points:.0f}, Focus: {focus_points:.0f}, Voice bonus: {voice_bonus:.0f}")
@@ -287,7 +266,6 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
                 focus_score=focus_score
             )
             
-            # ✅ NOWE: Aktualizacja salda użytkownika w tabeli users
             await db.users.update_one(
                 {"_id": request.user_id},
                 {

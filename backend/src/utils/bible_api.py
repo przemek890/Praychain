@@ -18,6 +18,79 @@ class BibleAPIClient:
         self._es_books_cache = None
         logger.info("✅ Using bible-api.com (EN), www.biblia.info.pl (PL), biblia.my.to (ES)")
     
+    def _get_polish_book_map(self) -> Dict[str, str]:
+        """Mapowanie angielskich nazw na skróty API biblia.info.pl"""
+        return {
+            # Stary Testament
+            "Genesis": "rdz",       # Rodzaju (1 Mojżeszowa)
+            "Exodus": "wj",         # Wyjścia (2 Mojżeszowa)
+            "Leviticus": "kpl",     # Kapłańska (3 Mojżeszowa)
+            "Numbers": "lb",        # Liczb (4 Mojżeszowa)
+            "Deuteronomy": "pwt",   # Powtórzonego Prawa (5 Mojżeszowa)
+            "Joshua": "joz",
+            "Judges": "sdz",
+            "Ruth": "rt",
+            "1 Samuel": "1sm",
+            "2 Samuel": "2sm",
+            "1 Kings": "1krl",      # ✅ POPRAWIONE - 1 Królewska
+            "2 Kings": "2krl",      # ✅ POPRAWIONE - 2 Królewska
+            "1 Chronicles": "1krn", # Kronik
+            "2 Chronicles": "2krn",
+            "Ezra": "ezd",
+            "Nehemiah": "ne",
+            "Esther": "est",
+            "Job": "hi",            # Hioba
+            "Psalms": "ps",
+            "Proverbs": "prz",
+            "Ecclesiastes": "koh",  # Kaznodziei (Koheleta)
+            "Song of Solomon": "pnp", # Pieśń nad Pieśniami
+            "Isaiah": "iz",
+            "Jeremiah": "jr",
+            "Lamentations": "lm",
+            "Ezekiel": "ez",
+            "Daniel": "dn",
+            "Hosea": "oz",
+            "Joel": "jl",
+            "Amos": "am",
+            "Obadiah": "ab",
+            "Jonah": "jon",
+            "Micah": "mi",
+            "Nahum": "na",
+            "Habakkuk": "ha",
+            "Zephaniah": "so",
+            "Haggai": "ag",
+            "Zechariah": "za",
+            "Malachi": "ml",
+            # Nowy Testament
+            "Matthew": "mt",
+            "Mark": "mk",
+            "Luke": "lk",
+            "John": "j",
+            "Acts": "dz",
+            "Romans": "rz",
+            "1 Corinthians": "1kor",
+            "2 Corinthians": "2kor",
+            "Galatians": "ga",
+            "Ephesians": "ef",
+            "Philippians": "flp",
+            "Colossians": "kol",
+            "1 Thessalonians": "1tes",
+            "2 Thessalonians": "2tes",
+            "1 Timothy": "1tm",
+            "2 Timothy": "2tm",
+            "Titus": "tt",
+            "Philemon": "flm",
+            "Hebrews": "hbr",
+            "James": "jk",
+            "1 Peter": "1p",
+            "2 Peter": "2p",
+            "1 John": "1j",
+            "2 John": "2j",
+            "3 John": "3j",
+            "Jude": "jud",
+            "Revelation": "ap"      # Apokalipsa
+        }
+    
     async def _fetch_spanish_books(self) -> List[Dict]:
         if self._es_books_cache is not None:
             return self._es_books_cache
@@ -66,26 +139,28 @@ class BibleAPIClient:
         return name_mapping.get(english_book, "GEN")
     
     async def get_random_verse(self, lang: str = "en") -> Dict:
+        """Pobierz losowy werset z fallbackiem"""
         try:
             if lang == "pl":
-                async with httpx.AsyncClient(follow_redirects=True) as client:
-                    books = self.get_books("pl")
-                    book = random.choice(books)
-                    max_chapter = book.get("chapters", 1)
-                    chapter_num = random.randint(1, max_chapter)
-                    
-                    chapter_data = await self.get_chapter(book["id"], chapter_num, "pl")
-                    
-                    if chapter_data and chapter_data.get("verses"):
-                        verse = random.choice(chapter_data["verses"])
-                        return {
-                            "text": verse["text"],
-                            "reference": f"{book['name']} {chapter_num}:{verse['verse']}",
-                            "book_name": book["name"],
-                            "chapter": chapter_num,
-                            "verse": int(verse["verse"]) if verse["verse"].isdigit() else verse["verse"],
-                            "type": "bible_verse"
-                        }
+                # ✅ Bezpieczne książki dla PL
+                safe_books_en = ["Genesis", "Exodus", "Psalms", "Proverbs", "Matthew", "John", "Romans"]
+                english_book = random.choice(safe_books_en)
+                
+                max_chapter = CHAPTERS_PER_BOOK.get(english_book, 1)
+                chapter_num = random.randint(1, min(max_chapter, 25))  # Ogranicz do 25 rozdziałów
+                
+                chapter_data = await self.get_chapter(english_book, chapter_num, "pl")
+                
+                if chapter_data and chapter_data.get("verses"):
+                    verse = random.choice(chapter_data["verses"])
+                    return {
+                        "text": verse["text"],
+                        "reference": f"{chapter_data['book_name']} {chapter_num}:{verse['verse']}",
+                        "book_name": chapter_data['book_name'],
+                        "chapter": chapter_num,
+                        "verse": int(verse["verse"]) if str(verse["verse"]).isdigit() else verse["verse"],
+                        "type": "bible_verse"
+                    }
             
             elif lang == "es":
                 async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
@@ -120,6 +195,7 @@ class BibleAPIClient:
                             "type": "bible_verse"
                         }
             
+            # Angielski - użyj API bible-api.com
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.base_urls['en']}/?random=verse",
@@ -138,8 +214,38 @@ class BibleAPIClient:
                 }
                 
         except Exception as e:
-            logger.error(f"Error fetching random verse: {e}")
-            raise
+            logger.error(f"Error fetching random verse ({lang}): {e}")
+            
+            # ✅ FALLBACK - Jana 3:16
+            fallback = {
+                "en": {
+                    "text": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
+                    "reference": "John 3:16",
+                    "book_name": "John",
+                    "chapter": 3,
+                    "verse": 16,
+                    "type": "bible_verse"
+                },
+                "pl": {
+                    "text": "Albowiem tak Bóg umiłował świat, że Syna swego jednorodzonego dał, aby każdy, kto weń wierzy, nie zginął, ale miał żywot wieczny.",
+                    "reference": "Jana 3:16",
+                    "book_name": "Jana",
+                    "chapter": 3,
+                    "verse": 16,
+                    "type": "bible_verse"
+                },
+                "es": {
+                    "text": "Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito, para que todo aquel que en él cree no se pierda, sino que tenga vida eterna.",
+                    "reference": "Juan 3:16",
+                    "book_name": "Juan",
+                    "chapter": 3,
+                    "verse": 16,
+                    "type": "bible_verse"
+                }
+            }
+            
+            logger.info(f"Using fallback verse for {lang}")
+            return fallback.get(lang, fallback["en"])
     
     async def get_chapter(self, book_id: str, chapter_num: int, lang: str = "en") -> Dict:
         async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
@@ -149,7 +255,7 @@ class BibleAPIClient:
                     pl_book = book_map.get(book_id, book_id.lower())
                     
                     url = f"{self.base_urls['pl']}/biblia/{self.pl_bible}/{pl_book}/{chapter_num}"
-                    logger.info(f"Fetching PL chapter: {url}")
+                    logger.info(f"Fetching PL chapter: {url} (book_id={book_id} -> {pl_book})")
                     
                     response = await client.get(url)
                     response.raise_for_status()
@@ -172,12 +278,10 @@ class BibleAPIClient:
                         "reference": f"{book_name} {chapter_num}"
                     }
                 
-                # ✅ HISZPAŃSKI - UŻYJ ZAKRESU
                 elif lang == "es":
                     es_books = await self._fetch_spanish_books()
                     es_book_id = self._find_spanish_book_id(book_id, es_books)
                     
-                    # 1. Najpierw pobierz listę wersetów (bez treści) aby poznać zakres
                     verses_list_url = f"{self.base_urls['es']}/book/{es_book_id.lower()}/chapter/{chapter_num}/verse"
                     logger.info(f"Fetching ES verses list: {verses_list_url}")
                     
@@ -188,12 +292,10 @@ class BibleAPIClient:
                     if not verses_list:
                         raise Exception(f"No verses found for {es_book_id} chapter {chapter_num}")
                     
-                    # Znajdź zakres wersetów (pierwszy-ostatni)
                     first_verse = verses_list[0]["number"]
                     last_verse = verses_list[-1]["number"]
                     verse_range = f"{first_verse}-{last_verse}"
                     
-                    # 2. Pobierz wszystkie wersety z treścią używając zakresu
                     url = f"{self.base_urls['es']}/book/{es_book_id.lower()}/chapter/{chapter_num}/verse/{verse_range}"
                     logger.info(f"Fetching ES chapter with range: {url}")
                     
@@ -201,12 +303,10 @@ class BibleAPIClient:
                     response.raise_for_status()
                     data = response.json()
                     
-                    # Parsowanie odpowiedzi
                     verses = []
                     for v in data:
                         verse_num = str(v.get("number", ""))
                         content = v.get("content", "")
-                        # Usuń prefix typu "[3] " z początku
                         text = re.sub(r'^\[\d+\]\s*', '', content)
                         
                         verses.append({
@@ -214,7 +314,6 @@ class BibleAPIClient:
                             "text": text.strip()
                         })
                     
-                    # Get Spanish book name from API
                     book_name = next((b["name"] for b in es_books if b["id"] == es_book_id), book_id)
                     
                     logger.info(f"✅ Fetched {len(verses)} verses for {book_name} {chapter_num}")
@@ -250,36 +349,6 @@ class BibleAPIClient:
             except Exception as e:
                 logger.error(f"Error fetching chapter {book_id} {chapter_num} ({lang}): {e}")
                 raise
-    
-    def _get_polish_book_map(self) -> Dict[str, str]:
-        return {
-            "Genesis": "1mo", "Exodus": "2mo", "Leviticus": "3mo", 
-            "Numbers": "4mo", "Deuteronomy": "5mo",
-            "Joshua": "joz", "Judges": "sdz", "Ruth": "rt",
-            "1 Samuel": "1sm", "2 Samuel": "2sm",
-            "1 Kings": "1kr", "2 Kings": "2kr",
-            "1 Chronicles": "1krn", "2 Chronicles": "2krn",
-            "Ezra": "ezd", "Nehemiah": "ne", "Esther": "est",
-            "Job": "job", "Psalms": "ps", "Proverbs": "prz",
-            "Ecclesiastes": "kzn", "Song of Solomon": "pnp",
-            "Isaiah": "iz", "Jeremiah": "jer", "Lamentations": "lm",
-            "Ezekiel": "ez", "Daniel": "dn",
-            "Hosea": "oz", "Joel": "jl", "Amos": "am",
-            "Obadiah": "ab", "Jonah": "jon", "Micah": "mi",
-            "Nahum": "na", "Habakkuk": "ha", "Zephaniah": "so",
-            "Haggai": "ag", "Zechariah": "za", "Malachi": "ml",
-            "Matthew": "mt", "Mark": "mk", "Luke": "lk", "John": "j",
-            "Acts": "dz", "Romans": "rz",
-            "1 Corinthians": "1kor", "2 Corinthians": "2kor",
-            "Galatians": "ga", "Ephesians": "ef",
-            "Philippians": "flp", "Colossians": "kol",
-            "1 Thessalonians": "1tes", "2 Thessalonians": "2tes",
-            "1 Timothy": "1tm", "2 Timothy": "2tm",
-            "Titus": "tt", "Philemon": "flm", "Hebrews": "hbr",
-            "James": "jk", "1 Peter": "1p", "2 Peter": "2p",
-            "1 John": "1j", "2 John": "2j", "3 John": "3j",
-            "Jude": "jud", "Revelation": "obj"
-        }
     
     def get_books(self, lang: str = "en") -> List[Dict]:
         if lang == "pl":

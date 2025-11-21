@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { API_CONFIG } from '@/config/api';
+import { API_CONFIG, apiFetch } from '@/config/api';
 
 export interface CharityAction {
   _id: string;
@@ -42,7 +42,7 @@ export function useCharity() {
   const fetchCharities = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_CONFIG.BASE_URL}/api/charity/actions?lang=${language}`
       );
       const data = await response.json();
@@ -58,11 +58,8 @@ export function useCharity() {
 
   const donateToCharity = async (userId: string, charityId: string, amount: number) => {
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/charity/donate`, {
+      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/charity/donate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           user_id: userId,
           charity_id: charityId,
@@ -104,7 +101,7 @@ export function useCharityDonors(charityId: string | null) {
 
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await apiFetch(
         `${API_CONFIG.BASE_URL}/api/charity/actions/${charityId}/donors`
       );
       
