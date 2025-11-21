@@ -1,17 +1,74 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UserDataProvider } from '@/contexts/UserDataContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { PrivyProvider } from '@privy-io/expo';
+import { PrivyProvider, usePrivy } from '@privy-io/expo';
 import { View, Text, ActivityIndicator } from 'react-native';
 
 export { ErrorBoundary } from 'expo-router';
 
 SplashScreen.preventAutoHideAsync();
+
+function NavigationGuard({ children }: { children: React.ReactNode }) {
+  const { user, isReady } = usePrivy();
+  const segments = useSegments();
+  const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
+  const hasNavigatedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    const inAuthGroup = segments[0] === 'login';
+
+    // ✅ Zapobiegnij wielokrotnym przekierowaniom
+    if (hasNavigatedRef.current) return;
+
+    if (user && inAuthGroup) {
+      // Użytkownik zalogowany próbuje dostać się do login
+      console.log('✅ User logged in, redirecting to tabs');
+      hasNavigatedRef.current = true;
+      setIsNavigating(true);
+      
+      setTimeout(() => {
+        router.replace('/(tabs)');
+        setTimeout(() => setIsNavigating(false), 100);
+      }, 100);
+    } else if (!user && !inAuthGroup && segments.length > 0) {
+      // Użytkownik niezalogowany próbuje dostać się do chronionej strony
+      console.log('❌ User not logged in, redirecting to login');
+      hasNavigatedRef.current = true;
+      setIsNavigating(true);
+      
+      setTimeout(() => {
+        router.replace('/login');
+        setTimeout(() => setIsNavigating(false), 100);
+      }, 100);
+    }
+  }, [user, isReady, segments]);
+
+  // ✅ Reset flagi po wylogowaniu
+  useEffect(() => {
+    if (!user) {
+      hasNavigatedRef.current = false;
+    }
+  }, [user]);
+
+  // Pokaż loader podczas nawigacji lub gdy Privy nie jest gotowy
+  if (!isReady || isNavigating) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafaf9' }}>
+        <ActivityIndicator size="large" color="#92400e" />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -71,7 +128,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <LanguageProvider>
           <UserDataProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <NavigationGuard>
+              <Stack screenOptions={{ headerShown: false }} />
+            </NavigationGuard>
           </UserDataProvider>
         </LanguageProvider>
       </SafeAreaProvider>
