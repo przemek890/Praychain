@@ -29,6 +29,7 @@ export const en = {
     readAnyChapter: 'Read any chapter',
     loadingJourney: 'Loading your spiritual journey...',
     welcomeBack: 'Welcome back,',
+    loading: 'Loading...',
   },
 
   // Prayer Selection Screen
