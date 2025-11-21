@@ -85,12 +85,18 @@ export default function TermsAndConditions({
             {/* Governance Section */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Users size={20} color="#92400e" strokeWidth={2.5} />
-                <Text style={styles.sectionTitle}>{t.terms.governance.title}</Text>
+              <Users size={20} color="#92400e" strokeWidth={2.5} />
+              <Text style={styles.sectionTitle}>{t.terms.governance.title}</Text>
               </View>
               <Text style={styles.sectionText}>{t.terms.governance.description}</Text>
               <Text style={styles.sectionText}>{t.terms.governance.voting}</Text>
+              <View style={styles.bulletList}>
+              <Text style={styles.bulletPoint}>• {t.terms.governance.delegation}</Text>
+              <Text style={styles.bulletPoint}>• {t.terms.governance.multisig}</Text>
+              <Text style={styles.bulletPoint}>• {t.terms.governance.timelock}</Text>
+              </View>
             </View>
+
 
             {/* Verification Section */}
             <View style={styles.section}>

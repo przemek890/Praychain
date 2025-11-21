@@ -397,9 +397,12 @@ export const pl = {
       celo: 'Integracja z siecią CELO - popularną w krajach afrykańskich',
     },
     governance: {
-      title: 'Zarządzanie Społecznościowe',
-      description: 'Użytkownicy najbardziej zaangażowani (posiadający najwięcej tokenów) decydują, dla kogo pójdzie pomoc.',
-      voting: 'W przypadku prób defraudacji, społeczność może zagłosować bezwzględną większością za blokadą dalszych wypłat dla danego podmiotu pomocowego.',
+        title: 'Zarządzanie Społecznościowe',
+        description: 'Najbardziej zaangażowani użytkownicy (posiadający najwięcej tokenów) decydują, gdzie trafia pomoc. Aby zapewnić sprawiedliwość, siła głosu jest ograniczona dla dużych posiadaczy tokenów. Dodatkowe mechanizmy bezpieczeństwa chronią ekosystem przed manipulacjami, próbami przejęcia i nadużyciami.',
+        voting: 'W przypadku prób oszustwa społeczność może zagłosować bezwzględną większością za zablokowaniem dodatkowych płatności dla określonego podmiotu charytatywnego.',
+        delegation: 'Głosowanie delegowane (demokracja płynna) pozwala użytkownikom przypisać swoją siłę głosu zaufanym członkom.',
+        multisig: 'Autoryzacja wielopodpisowa jest wymagana do ważnych transferów środków, zapobiegając jednostronnym decyzjom.',
+        timelock: 'Głosowanie z blokadą czasową zapewnia, że duże zakupy tokenów nie wpłyną natychmiast na wyniki zarządzania.',
     },
     verification: {
       title: 'Protokół Proof-of-Prayer',
