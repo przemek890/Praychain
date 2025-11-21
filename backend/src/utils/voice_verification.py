@@ -1,7 +1,8 @@
 import logging
 import httpx
 from typing import Dict
-from src.config import VOICE_VERIFICATION_ENABLED, VOICE_SERVICE_URL, VOICE_SIMILARITY_THRESHOLD
+
+from src.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +17,10 @@ async def verify_recording_session(
     from src.utils.mongodb import get_database
     
     if min_similarity is None:
-        min_similarity = VOICE_SIMILARITY_THRESHOLD
+        min_similarity = settings.VOICE_SIMILARITY_THRESHOLD
     
     # Jeśli weryfikacja głosu wyłączona, zwróć sukces
-    if not VOICE_VERIFICATION_ENABLED:
+    if not settings.VOICE_VERIFICATION_ENABLED:
         logger.info("Voice verification disabled - skipping")
         return {
             "passed": True,
@@ -63,12 +64,12 @@ async def verify_recording_session(
         captcha_path = captcha_trans.get("file_path")
         
         logger.info(f"Verifying voice: {prayer_path} vs {captcha_path}")
-        logger.info(f"Using voice service at: {VOICE_SERVICE_URL}")
+        logger.info(f"Using voice service at: {settings.VOICE_SERVICE_URL}")
         
         # Wywołaj voice-service
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{VOICE_SERVICE_URL}/verify",
+                f"{settings.VOICE_SERVICE_URL}/verify",
                 json={
                     "audio_path_1": prayer_path,
                     "audio_path_2": captcha_path,
@@ -98,7 +99,7 @@ async def verify_recording_session(
                     "voice_matching_model": "speechbrain/spkrec-ecapa-voxceleb",
                     "threshold": min_similarity,
                     "confidence": result.get("confidence", 0.0),
-                    "service_url": VOICE_SERVICE_URL
+                    "service_url": settings.VOICE_SERVICE_URL
                 }
             }
             
@@ -115,6 +116,6 @@ async def verify_recording_session(
                 "ai_detection_model": "Error",
                 "voice_matching_model": "speechbrain/spkrec-ecapa-voxceleb",
                 "threshold": min_similarity,
-                "service_url": VOICE_SERVICE_URL
+                "service_url": settings.VOICE_SERVICE_URL
             }
         }

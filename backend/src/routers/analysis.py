@@ -1,41 +1,47 @@
 import os
 import logging
-import requests
 from fastapi import APIRouter, HTTPException
 from typing import Dict
 from datetime import datetime
 from difflib import SequenceMatcher
+import httpx
 
-from src.config import settings, HF_API_KEY, HF_API_BASE, HF_EMOTION_MODEL
+from src.config import settings
 from src.utils.mongodb import get_database
 from src.models.analysis import AnalysisResponse, AnalysisMetrics, TokenBreakdown
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 logger = logging.getLogger(__name__)
 
+async def call_hf_emotion_api(text: str) -> Dict:
+    """Call Hugging Face Emotion API"""
+    url = f"{settings.HF_API_BASE}/{settings.HF_EMOTION_MODEL}"
+    headers = {"Authorization": f"Bearer {settings.HF_API_KEY}"}
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.post(url, headers=headers, json={"inputs": text})
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"HF API error: {e}")
+            return None
+
 def analyze_emotion_api(text: str) -> Dict[str, float]:
     """Emotion analysis - j-hartmann/emotion-english-distilroberta-base"""
-    if not HF_API_KEY:
+    if not settings.HF_API_KEY:
         logger.warning("HF_API_KEY not set, using mock emotions")
         return {"joy": 0.7, "sadness": 0.1, "anger": 0.05, "fear": 0.05, "disgust": 0.05, "surprise": 0.05}
     
-    try:
-        url = f"{HF_API_BASE}/models/{HF_EMOTION_MODEL}"
-        headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-        response = requests.post(url, headers=headers, json={"inputs": text}, timeout=30)
-        
-        if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, list) and len(result) > 0:
-                emotions = {item["label"]: item["score"] for item in result[0]}
-                return emotions
-        
-        logger.warning(f"HF Emotion API error: {response.status_code}")
-        return {"joy": 0.5, "sadness": 0.1, "anger": 0.1, "fear": 0.1, "disgust": 0.1, "surprise": 0.1}
+    result = call_hf_emotion_api(text)
+    
+    if result is not None and isinstance(result, list) and len(result) > 0:
+        emotions = {item["label"]: item["score"] for item in result[0]}
+        return emotions
+    
+    logger.warning(f"HF Emotion API error")
+    return {"joy": 0.5, "sadness": 0.1, "anger": 0.1, "fear": 0.1, "disgust": 0.1, "surprise": 0.1}
             
-    except Exception as e:
-        logger.error(f"Emotion analysis failed: {e}")
-        return {"joy": 0.5, "sadness": 0.1, "anger": 0.1, "fear": 0.1, "disgust": 0.1, "surprise": 0.1}
 
 def calculate_text_accuracy(transcribed_text: str, reference_text: str) -> float:
     """Compare transcribed text with reference"""
@@ -103,10 +109,8 @@ async def analyze_with_reference(transcription_id: str, reference_text: str):
     
     transcribed_text = transcription["text"]
     
-    # Analiza emocji
     emotions = analyze_emotion_api(transcribed_text)
     
-    # Metryki (BEZ sentiment)
     text_accuracy = calculate_text_accuracy(transcribed_text, reference_text)
     emotional_stability = analyze_emotional_stability(emotions)
     speech_fluency = analyze_speech_fluency(transcribed_text)
@@ -114,18 +118,10 @@ async def analyze_with_reference(transcription_id: str, reference_text: str):
     
     engagement_score = round((emotions.get("joy", 0) + text_accuracy) / 2, 2)
     
-    # Oblicz tokeny
-    from src.config import (
-        ACCURACY_POINTS_MULTIPLIER,
-        STABILITY_POINTS_MULTIPLIER,
-        FLUENCY_POINTS_MULTIPLIER,
-        FOCUS_POINTS_MULTIPLIER
-    )
-    
-    accuracy_points = int(text_accuracy * ACCURACY_POINTS_MULTIPLIER)
-    stability_points = int(emotional_stability * STABILITY_POINTS_MULTIPLIER)
-    fluency_points = int(speech_fluency * FLUENCY_POINTS_MULTIPLIER)
-    focus_points = int(focus_score * FOCUS_POINTS_MULTIPLIER)
+    accuracy_points = int(text_accuracy * settings.ACCURACY_POINTS_MULTIPLIER)
+    stability_points = int(emotional_stability * settings.STABILITY_POINTS_MULTIPLIER)
+    fluency_points = int(speech_fluency * settings.FLUENCY_POINTS_MULTIPLIER)
+    focus_points = int(focus_score * settings.FOCUS_POINTS_MULTIPLIER)
     
     tokens_earned = accuracy_points + stability_points + fluency_points + focus_points
     

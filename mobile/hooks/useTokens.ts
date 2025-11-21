@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
-const API_URL = `http://${API_HOST}:${API_PORT}`;
+import { API_CONFIG, apiFetch } from '@/config/api';
 
 export interface UserTokens {
   balance: number;
@@ -14,7 +11,6 @@ export function useTokens(userId: string) {
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Użyj useCallback aby funkcja była stabilna
   const fetchBalance = useCallback(async () => {
     if (!userId) {
       console.warn('useTokens: No userId provided');
@@ -26,7 +22,7 @@ export function useTokens(userId: string) {
       setLoading(true);
       console.log(`Fetching balance for user: ${userId}`);
       
-      const response = await fetch(`${API_URL}/api/users/${userId}`);
+      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/users/${userId}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -40,11 +36,11 @@ export function useTokens(userId: string) {
     } finally {
       setLoading(false);
     }
-  }, [userId]); // ✅ Zależy tylko od userId
+  }, [userId]);
 
   useEffect(() => {
     fetchBalance();
-  }, [fetchBalance]); // ✅ Teraz fetchBalance jest stabilne
+  }, [fetchBalance]);
 
   return {
     balance,
