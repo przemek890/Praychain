@@ -36,9 +36,8 @@ const calculateLevel = (totalEarned: number) => {
 
 export default function HomeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const { t } = useLanguage(); // ✅ DODAJ
+  const { t } = useLanguage();
   
-  // Hooks
   const { userData, dailyQuote, loading, refreshing, refreshQuote, refresh, username } = useUserData();
   const { 
     settingsVisible, 
@@ -65,16 +64,22 @@ export default function HomeScreen() {
     }
   }, [loading]);
 
+  // ✅ NOWY LOADING SCREEN - wyśrodkowany z gradientem
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#92400e" />
-        <Text style={styles.loadingText}>{t.home.loading}</Text>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#78350f20', '#44403c30', '#78350f25']}
+          style={styles.gradient}
+        >
+            <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color="#92400e" />
+            </View>
+        </LinearGradient>
       </View>
     );
   }
 
-  // Settings view
   if (settingsVisible) {
     return (
       <Settings
@@ -90,7 +95,6 @@ export default function HomeScreen() {
     );
   }
 
-  // Main home view
   const displayName = username || 'Guest';
   const tokens = userData?.tokens_balance || 0;
   const streak = userData?.streak_days || 0;
@@ -278,18 +282,27 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
   },
-  loadingContainer: {
+  // ✅ NOWE STYLE - wyśrodkowany loading
+  centerContent: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fafaf9',
-    gap: 12,
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   loadingText: {
+    marginTop: 12,
     fontSize: 14,
     color: '#78716c',
-    marginTop: 8,
+    fontWeight: '500',
   },
+  // ✅ USUNIĘTE stare style
+  // loadingContainer: {
+  //   flex: 1,
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  //   backgroundColor: '#fafaf9',
+  //   gap: 12,
+  // },
   header: {
     paddingHorizontal: 16,
     marginBottom: 20,
