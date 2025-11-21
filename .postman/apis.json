@@ -3,7 +3,7 @@
     "name": "Praychain API",
     "description": "Complete API collection for Praychain - Prayer transcription and charity token system",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "2.0.0"
+    "version": "3.0.0"
   },
   "variable": [
     {
@@ -45,40 +45,72 @@
           "name": "Root",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/",
-              "host": ["{{baseUrl}}"],
-              "path": [""]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/"
+          }
         },
         {
           "name": "Health Check",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["health"]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/health"
+          }
         },
         {
           "name": "API Health Check",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "health"]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"wallet_address\": \"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb\"\n}"
+            },
+            "url": "{{baseUrl}}/api/users"
+          }
+        },
+        {
+          "name": "Get User by Email",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/users/by-email/user@example.com"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/users/{{userId}}"
+          }
+        },
+        {
+          "name": "Update Wallet Address",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_address\": \"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb\"\n}"
+            },
+            "url": "{{baseUrl}}/api/users/{{userId}}/wallet"
+          }
+        },
+        {
+          "name": "Add Tokens to User",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/api/users/{{userId}}/add-tokens?tokens=100"
+          }
         }
       ]
     },
@@ -86,7 +118,7 @@
       "name": "Transcription",
       "item": [
         {
-          "name": "Transcribe Prayer Audio",
+          "name": "Transcribe Audio (EN)",
           "event": [
             {
               "listen": "test",
@@ -96,136 +128,88 @@
                   "    const jsonData = pm.response.json();",
                   "    pm.collectionVariables.set('prayerTranscriptionId', jsonData.transcription.id);",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
-            "header": [],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": "/path/to/prayer_audio.mp3"
-                },
-                {
-                  "key": "audio_type",
-                  "value": "prayer",
-                  "type": "text"
-                }
+                {"key": "file", "type": "file", "src": "/path/to/audio.mp3"},
+                {"key": "audio_type", "value": "prayer", "type": "text"},
+                {"key": "lang", "value": "en", "type": "text"}
               ]
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/transcribe",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "transcribe"]
-            },
-            "description": "Upload prayer audio file for transcription"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/transcribe"
+          }
         },
         {
-          "name": "Transcribe Captcha Audio",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('captchaTranscriptionId', jsonData.transcription.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
+          "name": "Transcribe Audio (PL)",
           "request": {
             "method": "POST",
-            "header": [],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": "/path/to/captcha_audio.mp3"
-                },
-                {
-                  "key": "audio_type",
-                  "value": "captcha",
-                  "type": "text"
-                }
+                {"key": "file", "type": "file", "src": "/path/to/audio.mp3"},
+                {"key": "audio_type", "value": "prayer", "type": "text"},
+                {"key": "lang", "value": "pl", "type": "text"}
               ]
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/transcribe",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "transcribe"]
+            "url": "{{baseUrl}}/api/transcribe"
+          }
+        },
+        {
+          "name": "Transcribe Audio (ES)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": "/path/to/audio.mp3"},
+                {"key": "audio_type", "value": "prayer", "type": "text"},
+                {"key": "lang", "value": "es", "type": "text"}
+              ]
             },
-            "description": "Upload captcha audio file for transcription"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/transcribe"
+          }
+        },
+        {
+          "name": "Transcribe Audio (Auto-detect)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "file", "type": "file", "src": "/path/to/audio.mp3"},
+                {"key": "audio_type", "value": "prayer", "type": "text"},
+                {"key": "lang", "value": "auto", "type": "text"}
+              ]
+            },
+            "url": "{{baseUrl}}/api/transcribe"
+          }
         },
         {
           "name": "Get Transcription by ID",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/transcriptions/{{prayerTranscriptionId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "transcriptions", "{{prayerTranscriptionId}}"]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/transcriptions/{{prayerTranscriptionId}}"
+          }
         },
         {
           "name": "List Transcriptions",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/transcriptions?skip=0&limit=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "transcriptions"],
-              "query": [
-                {
-                  "key": "skip",
-                  "value": "0"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/transcriptions?skip=0&limit=10"
+          }
         },
         {
           "name": "Change Whisper Model",
           "request": {
             "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/change-model?model_name=base",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "change-model"],
-              "query": [
-                {
-                  "key": "model_name",
-                  "value": "base",
-                  "description": "Options: tiny, base, small, medium, large"
-                }
-              ]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/change-model?model_name=base"
+          }
         }
       ]
     },
@@ -233,7 +217,7 @@
       "name": "Analysis",
       "item": [
         {
-          "name": "Analyze Transcription with Reference",
+          "name": "Analyze with Reference Text",
           "event": [
             {
               "listen": "test",
@@ -241,296 +225,126 @@
                 "exec": [
                   "if (pm.response.code === 200) {",
                   "    const jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('analysisId', jsonData.id);",
+                  "    pm.collectionVariables.set('analysisId', 'analysis_' + jsonData.transcription_id);",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/api/analysis/analyze/{{prayerTranscriptionId}}/with-reference?reference_text=Our Father, who art in heaven&user_id={{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analysis", "analyze", "{{prayerTranscriptionId}}", "with-reference"],
-              "query": [
-                {
-                  "key": "reference_text",
-                  "value": "Our Father, who art in heaven"
-                },
-                {
-                  "key": "user_id",
-                  "value": "{{userId}}"
-                }
-              ]
-            },
-            "description": "Analyze transcription with reference text"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/analysis/analyze/{{prayerTranscriptionId}}/with-reference?reference_text=Our Father, who art in heaven"
+          }
         },
         {
           "name": "Get Analysis by ID",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/analysis/{{analysisId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analysis", "{{analysisId}}"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "List Analyses",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/analysis?skip=0&limit=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "analysis"],
-              "query": [
-                {
-                  "key": "skip",
-                  "value": "0"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/analysis/{{analysisId}}"
+          }
         }
       ]
     },
     {
-      "name": "Bible",
+      "name": "Bible & Prayers",
       "item": [
         {
-          "name": "Get Random Quote",
+          "name": "Get Random Bible Quote (EN)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/bible/random-quote",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bible", "random-quote"]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/random-quote?lang=en"
+          }
         },
         {
-          "name": "Get Short Quote",
+          "name": "Get Random Bible Quote (PL)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/bible/short-quote",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bible", "short-quote"]
-            },
-            "description": "Get a short inspirational Bible quote"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/random-quote?lang=pl"
+          }
         },
         {
-          "name": "Get Prayer by ID",
+          "name": "Get Random Bible Quote (ES)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/bible/prayer/our_father",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bible", "prayer", "our_father"]
-            },
-            "description": "Get a specific prayer (our_father, hail_mary, glory_be, apostles_creed)"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/random-quote?lang=es"
+          }
         },
         {
-          "name": "List All Prayers",
+          "name": "Get Short Quote (EN)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/bible/prayers",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bible", "prayers"]
-            },
-            "description": "Get list of all available prayers"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/short-quote?lang=en"
+          }
         },
         {
-          "name": "Get Specific Verse",
+          "name": "Get Short Quote (PL)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/bible/verse/John 3:16",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bible", "verse", "John 3:16"]
-            },
-            "description": "Get a specific Bible verse by reference"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/short-quote?lang=pl"
+          }
         },
         {
-          "name": "Get Daily Reading",
+          "name": "Get Daily Reading (EN)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/bible/daily-reading",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bible", "daily-reading"]
-            },
-            "description": "Get today's Bible reading"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/daily-reading?lang=en"
+          }
         },
         {
-          "name": "Read Bible Passage",
+          "name": "Get Daily Reading (PL)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/bible/read?book=Genesis&chapter=1&verses=1-5",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bible", "read"],
-              "query": [
-                {
-                  "key": "book",
-                  "value": "Genesis"
-                },
-                {
-                  "key": "chapter",
-                  "value": "1"
-                },
-                {
-                  "key": "verses",
-                  "value": "1-5"
-                }
-              ]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/daily-reading?lang=pl"
+          }
         },
         {
-          "name": "List Bible Books",
+          "name": "List Bible Books (EN)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/bible/books",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "bible", "books"]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Prayer",
-      "item": [
-        {
-          "name": "🆕 Analyze Dual Recording (Prayer + Captcha)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"prayer_transcription_id\": \"{{prayerTranscriptionId}}\",\n  \"captcha_transcription_id\": \"{{captchaTranscriptionId}}\",\n  \"bible_text\": \"Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven.\",\n  \"captcha_text\": \"rainbow sunset mountain\",\n  \"user_id\": \"{{userId}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/prayer/analyze-dual",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "prayer", "analyze-dual"]
-            },
-            "description": "✅ NEW: Analyze two separate recordings - prayer and captcha. Awards tokens automatically (0-100 based on quality). CAPTCHA must be 50%+ accurate to earn tokens."
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/books?lang=en"
+          }
         },
         {
-          "name": "Analyze Prayer (Legacy - Single Recording)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"bible_text\": \"Our Father, who art in heaven, hallowed be thy name\",\n  \"captcha_text\": \"rainbow sunset mountain\",\n  \"user_id\": \"{{userId}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/prayer/analyze/{{prayerTranscriptionId}}?bible_reference=Matthew 6:9",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "prayer", "analyze", "{{prayerTranscriptionId}}"],
-              "query": [
-                {
-                  "key": "bible_reference",
-                  "value": "Matthew 6:9"
-                }
-              ]
-            },
-            "description": "⚠️ LEGACY: Old version for single recording (prayer + captcha together)"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Prayer History",
+          "name": "List Bible Books (PL)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/prayer/history?skip=0&limit=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "prayer", "history"],
-              "query": [
-                {
-                  "key": "skip",
-                  "value": "0"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/books?lang=pl"
+          }
         },
         {
-          "name": "Get Prayer Stats",
+          "name": "Get Bible Chapter",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/prayer/stats",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "prayer", "stats"]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/bible/chapter?book=John&chapter=3&lang=en"
+          }
+        },
+        {
+          "name": "List Available Prayers (EN)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/bible/prayers?lang=en"
+          }
+        },
+        {
+          "name": "List Available Prayers (PL)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/bible/prayers?lang=pl"
+          }
+        },
+        {
+          "name": "Get Prayer by ID (EN)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/bible/prayer/our_father?lang=en"
+          }
+        },
+        {
+          "name": "Get Prayer by ID (PL)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/bible/prayer/our_father?lang=pl"
+          }
         }
       ]
     },
@@ -541,105 +355,46 @@
           "name": "Get Token Balance",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/tokens/balance/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tokens", "balance", "{{userId}}"]
-            },
-            "description": "Get current token balance for a user"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/tokens/balance/{{userId}}"
+          }
         },
         {
-          "name": "🎁 ADMIN: Give Tokens to User",
+          "name": "Add Tokens (Admin)",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"amount\": 1000,\n  \"source\": \"admin:gift\",\n  \"description\": \"Welcome bonus - 1000 tokens!\"\n}"
+              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"amount\": 1000,\n  \"source\": \"admin:gift\",\n  \"description\": \"Welcome bonus\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/tokens/add",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tokens", "add"]
-            },
-            "description": "🔑 ADMIN ONLY: Manually add tokens to any user account"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/tokens/add"
+          }
         },
         {
-          "name": "🎯 Award Tokens for Prayer (Manual)",
+          "name": "Award Tokens for Prayer",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"transcription_id\": \"{{prayerTranscriptionId}}\",\n  \"text_accuracy\": 0.85,\n  \"emotional_stability\": 0.75,\n  \"speech_fluency\": 0.90,\n  \"captcha_accuracy\": 0.80,\n  \"focus_score\": 0.88\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/tokens/award",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tokens", "award"]
-            },
-            "description": "⚠️ Manual endpoint - normally called automatically by /prayer/analyze-dual. Awards 0-100 tokens. CAPTCHA must be 50%+ to earn tokens."
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/tokens/award"
+          }
         },
         {
-          "name": "Get Transactions",
+          "name": "Get User Transactions",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/tokens/transactions/{{userId}}?skip=0&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tokens", "transactions", "{{userId}}"],
-              "query": [
-                {
-                  "key": "skip",
-                  "value": "0"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
-              ]
-            },
-            "description": "Get transaction history for a user"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/tokens/transactions/{{userId}}?skip=0&limit=20"
+          }
         },
         {
           "name": "Get Leaderboard",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/tokens/leaderboard?limit=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tokens", "leaderboard"],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            },
-            "description": "Get top token earners"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/tokens/leaderboard?limit=10"
+          }
         }
       ]
     },
@@ -647,303 +402,100 @@
       "name": "Charity",
       "item": [
         {
-          "name": "List Charity Actions",
+          "name": "List Charity Actions (EN)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/actions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "actions"]
-            },
-            "description": "Get list of all active charity actions"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/charity/actions?lang=en"
+          }
         },
         {
-          "name": "Get Charity Action by ID",
+          "name": "List Charity Actions (PL)",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/actions/{{charityId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "actions", "{{charityId}}"]
-            },
-            "description": "Get details of a specific charity action"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/charity/actions?lang=pl"
+          }
         },
         {
-          "name": "💰 Donate Tokens to Charity",
+          "name": "List Charity Actions (ES)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/charity/actions?lang=es"
+          }
+        },
+        {
+          "name": "Get Charity Action by ID (EN)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/charity/actions/{{charityId}}?lang=en"
+          }
+        },
+        {
+          "name": "Get Charity Action by ID (PL)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/charity/actions/{{charityId}}?lang=pl"
+          }
+        },
+        {
+          "name": "Donate to Charity",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"charity_id\": \"charity_001\",\n  \"tokens_amount\": 100\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/donate",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "donate"]
-            },
-            "description": "Donate tokens to a charity. Deducts from user balance and updates charity stats."
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/charity/donate"
+          }
         },
         {
-          "name": "Get User Donations History",
+          "name": "Get User Donations",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/donations/{{userId}}?skip=0&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "donations", "{{userId}}"],
-              "query": [
-                {
-                  "key": "skip",
-                  "value": "0"
-                },
-                {
-                  "key": "limit",
-                  "value": "20"
-                }
-              ]
-            },
-            "description": "⚠️ LEGACY: Use /user/{user_id}/donations instead"
-          },
-          "response": []
-        },
-        {
-          "name": "Get User Charity Stats",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/user/{{userId}}/donations",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "user", "{{userId}}", "donations"]
-            },
-            "description": "✅ Get user donation stats: total donated, charities supported, breakdown"
-          },
-          "response": []
-        },
-        {
-          "name": "Get Charity Stats",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/actions/{{charityId}}/stats",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "actions", "{{charityId}}", "stats"]
-            },
-            "description": "Get stats for specific charity: total raised, supporters, recent donations"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/charity/donations/{{userId}}?skip=0&limit=20"
+          }
         },
         {
           "name": "Get Charity Categories",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/categories",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "categories"]
-            },
-            "description": "Get list of all charity categories"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/charity/categories"
+          }
         },
         {
           "name": "Get Overall Charity Stats",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/stats",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "stats"]
-            },
-            "description": "Get overall charity statistics across all actions"
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/charity/stats"
+          }
+        },
+        {
+          "name": "Get Charity Action Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/charity/actions/{{charityId}}/stats"
+          }
+        },
+        {
+          "name": "Get User Charity Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/charity/user/{{userId}}/donations"
+          }
         },
         {
           "name": "Get Charity Leaderboard",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/leaderboard?limit=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "leaderboard"],
-              "query": [
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            },
-            "description": "Get top charities by tokens raised and supporters"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "🎯 Complete Workflow",
-      "item": [
-        {
-          "name": "1. Upload Prayer Audio",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('prayerTranscriptionId', jsonData.transcription.id);",
-                  "    console.log('✅ Prayer transcription ID saved:', jsonData.transcription.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": "/path/to/prayer.mp3"
-                },
-                {
-                  "key": "audio_type",
-                  "value": "prayer",
-                  "type": "text"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/transcribe",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "transcribe"]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/charity/leaderboard?limit=10"
+          }
         },
         {
-          "name": "2. Upload Captcha Audio",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.collectionVariables.set('captchaTranscriptionId', jsonData.transcription.id);",
-                  "    console.log('✅ Captcha transcription ID saved:', jsonData.transcription.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": "/path/to/captcha.mp3"
-                },
-                {
-                  "key": "audio_type",
-                  "value": "captcha",
-                  "type": "text"
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/transcribe",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "transcribe"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "3. Analyze & Award Tokens",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"prayer_transcription_id\": \"{{prayerTranscriptionId}}\",\n  \"captcha_transcription_id\": \"{{captchaTranscriptionId}}\",\n  \"bible_text\": \"Our Father, who art in heaven, hallowed be thy name; thy kingdom come; thy will be done on earth as it is in heaven.\",\n  \"captcha_text\": \"rainbow sunset mountain\",\n  \"user_id\": \"{{userId}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/prayer/analyze-dual",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "prayer", "analyze-dual"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "4. Check Balance",
+          "name": "Get Charity Donors",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/tokens/balance/{{userId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "tokens", "balance", "{{userId}}"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "5. Donate to Charity",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"charity_id\": \"charity_001\",\n  \"tokens_amount\": 50\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/charity/donate",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "charity", "donate"]
-            }
-          },
-          "response": []
+            "url": "{{baseUrl}}/api/charity/actions/{{charityId}}/donors?limit=50"
+          }
         }
       ]
     }

@@ -5,12 +5,9 @@ import uuid
 import os
 import logging
 from faster_whisper import WhisperModel
+from pathlib import Path
 
-from src.config import (
-    UPLOAD_DIR,
-    ALLOWED_EXTENSIONS,
-    MAX_FILE_SIZE
-)
+from src.config import settings
 from src.utils.mongodb import get_database
 from src.models.transcription import TranscriptionResponse, AudioUploadResponse
 
@@ -24,35 +21,41 @@ logger.info("Whisper model loaded on CPU")
 @router.post("/transcribe", response_model=AudioUploadResponse)
 async def transcribe_audio(
     file: UploadFile = File(...),
-    audio_type: str = "prayer",
-    lang: str = Query("auto", regex="^(auto|en|pl|es)$")  # ✅ DODANE
+    audio_type: Optional[str] = Query("prayer", regex="^(prayer|captcha)$"),
+    lang: Optional[str] = Query("en", regex="^(en|pl|es)$")
 ):
     db = get_database()
     
+    # Walidacja rozszerzenia
+    file_ext = Path(file.filename).suffix.lower()
+    if file_ext not in settings.ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(settings.ALLOWED_EXTENSIONS)}"
+        )
+    
+    # Walidacja rozmiaru
+    contents = await file.read()
+    if len(contents) > settings.MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Max size: {settings.MAX_FILE_SIZE / (1024*1024)}MB"
+        )
+    
+    # Zapisz plik
+    file_id = str(uuid.uuid4())
+    file_path = Path(settings.UPLOAD_DIR) / f"{file_id}{file_ext}"
+    
+    with open(file_path, "wb") as f:
+        f.write(contents)
+    
     try:
-        file_ext = os.path.splitext(file.filename or "")[1].lower()
-        if file_ext not in ALLOWED_EXTENSIONS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
-            )
-        
-        transcription_id = str(uuid.uuid4())
-        file_path = os.path.join(UPLOAD_DIR, f"{transcription_id}{file_ext}")
-        
-        with open(file_path, "wb") as f:
-            content = await file.read()
-            if len(content) > MAX_FILE_SIZE:
-                os.remove(file_path)
-                raise HTTPException(status_code=400, detail="File too large (max 100MB)")
-            f.write(content)
-        
         logger.info(f"Transcribing {audio_type}: {file_path} (lang: {lang})")
         
         # ✅ POPRAWIONE - wykrywanie lub wymuszanie języka
         if lang == "auto":
             segments, info = whisper_model.transcribe(
-                file_path, 
+                str(file_path), 
                 beam_size=5,
                 vad_filter=True,
                 vad_parameters=dict(min_silence_duration_ms=500)
@@ -61,7 +64,7 @@ async def transcribe_audio(
             logger.info(f"Detected language: {detected_language}")
         else:
             segments, info = whisper_model.transcribe(
-                file_path, 
+                str(file_path), 
                 language=lang,
                 beam_size=5,
                 vad_filter=True,
@@ -73,25 +76,25 @@ async def transcribe_audio(
         text = " ".join([segment.text for segment in segments])
         
         transcription_data = {
-            "_id": transcription_id,
+            "_id": file_id,
             "text": text.strip(),
             "language": detected_language,
             "duration": info.duration,
-            "file_path": file_path,
+            "file_path": str(file_path),
             "audio_type": audio_type,
             "created_at": datetime.utcnow()
         }
         
         await db.transcriptions.insert_one(transcription_data)
-        logger.info(f"Transcription saved with ID: {transcription_id} ({audio_type}, lang: {detected_language})")
+        logger.info(f"Transcription saved with ID: {file_id} ({audio_type}, lang: {detected_language})")
         
         return AudioUploadResponse(
             transcription=TranscriptionResponse(
-                id=transcription_id,
+                id=file_id,
                 text=transcription_data["text"],
                 language=transcription_data["language"],
                 duration=transcription_data["duration"],
-                file_path=file_path,
+                file_path=str(file_path),
                 created_at=transcription_data["created_at"]
             ),
             message=f"{audio_type.capitalize()} transcribed successfully"

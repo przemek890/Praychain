@@ -1,6 +1,6 @@
+import logging
 from motor.motor_asyncio import AsyncIOMotorClient
 from src.config import settings
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -10,14 +10,14 @@ database = None
 async def connect_to_mongo():
     global mongodb_client, database
     try:
+        logger.info(f"Connecting to MongoDB: {settings.MONGO_DB_NAME}")
         mongodb_client = AsyncIOMotorClient(settings.MONGODB_URL)
-        database = mongodb_client[settings.MONGO_DB_NAME]  # ✅ Zmienione z DATABASE_NAME
+        database = mongodb_client[settings.MONGO_DB_NAME]
         
         await mongodb_client.admin.command('ping')
-        logger.info(f"Connected to MongoDB: {settings.MONGO_DB_NAME}")
-        
+        logger.info("✅ MongoDB connection successful")
     except Exception as e:
-        logger.error(f"Could not connect to MongoDB: {e}")
+        logger.error(f"❌ MongoDB connection failed: {e}")
         raise
 
 async def close_mongo_connection():
@@ -27,6 +27,4 @@ async def close_mongo_connection():
         logger.info("MongoDB connection closed")
 
 def get_database():
-    if database is None:
-        raise Exception("Database not initialized. Call connect_to_mongo() first.")
     return database

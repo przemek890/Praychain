@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+from src.config import settings
 from src.utils.mongodb import connect_to_mongo, close_mongo_connection
 from src.routers import base, transcription, analysis, bible, prayer, tokens, charity, users
 
@@ -15,22 +16,17 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    try:
-        await connect_to_mongo()
-        logger.info("MongoDB connected")
-        yield
-    except Exception as e:
-        logger.error(f"Startup failed: {e}")
-        raise
-    finally:
-        # Shutdown
-        await close_mongo_connection()
-        logger.info("Application shutdown complete")
+    logger.info("🚀 Starting PrayChain API...")
+    await connect_to_mongo()
+    logger.info(f"📡 Server running on {settings.BACKEND_HOST}:{settings.BACKEND_PORT}")
+    yield
+    # Shutdown
+    logger.info("👋 Shutting down...")
+    await close_mongo_connection()
 
 app = FastAPI(
-    title="Praychain API",
-    description="Prayer analysis with AI fraud detection",
-    version="2.0.0",
+    title="PrayChain API",
+    version="1.0.0",
     lifespan=lifespan
 )
 
@@ -38,10 +34,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"], 
-    allow_headers=["*"], 
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+# Routers
 app.include_router(base.router)
 app.include_router(transcription.router)
 app.include_router(analysis.router)
@@ -53,4 +50,9 @@ app.include_router(users.router)
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "main:app",
+        host=settings.BACKEND_HOST,
+        port=settings.BACKEND_PORT,
+        reload=True
+    )

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useEmbeddedWallet } from '@privy-io/expo';
-import { API_CONFIG, ENDPOINTS } from '@/config/api';
+import { API_CONFIG, ENDPOINTS, apiFetch } from '@/config/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface UserData {
@@ -119,12 +119,9 @@ export function useUserData() {
     try {
       console.log('🔄 Fetching user data for:', email);
       
-      let userResponse = await fetch(
+      let userResponse = await apiFetch(
         `${API_CONFIG.BASE_URL}${ENDPOINTS.USER_BY_EMAIL(email)}`,
-        {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        }
+        { method: 'GET' }
       );
 
       if (userResponse.status === 404) {
@@ -146,11 +143,10 @@ export function useUserData() {
         }
         
         const username = email.split('@')[0];
-        const createResponse = await fetch(
+        const createResponse = await apiFetch(
           `${API_CONFIG.BASE_URL}${ENDPOINTS.USERS}`,
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               username,
               email,
@@ -194,11 +190,10 @@ export function useUserData() {
       
       if (walletAddress && userData.wallet_address !== walletAddress) {
         console.log('Updating wallet address...');
-        const updateResponse = await fetch(
+        const updateResponse = await apiFetch(
           `${API_CONFIG.BASE_URL}/api/users/${userData.id}/wallet`,
           {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ wallet_address: walletAddress }),
           }
         );
@@ -226,10 +221,7 @@ export function useUserData() {
       const endpoint = `${API_CONFIG.BASE_URL}/api/bible/short-quote?lang=${language}`;
       console.log(`🔄 Fetching daily quote in ${language}`);
       
-      const response = await fetch(endpoint, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const response = await apiFetch(endpoint, { method: 'GET' });
 
       if (response.ok) {
         const data = await response.json();
