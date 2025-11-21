@@ -435,9 +435,12 @@ export const es = {
       celo: 'Integración con la red CELO - popular en países africanos',
     },
     governance: {
-      title: 'Gobernanza Comunitaria',
-      description: 'Los usuarios más comprometidos (que poseen más tokens) deciden a dónde va la ayuda.',
-      voting: 'En caso de intentos de fraude, la comunidad puede votar por mayoría absoluta para bloquear pagos adicionales a una entidad benéfica determinada.',
+        title: 'Gobernanza Comunitaria',
+        description: 'Los usuarios más comprometidos (que poseen más tokens) deciden a dónde va la ayuda. Para garantizar la equidad, el poder de voto está limitado para los grandes poseedores de tokens. Mecanismos de seguridad adicionales protegen el ecosistema de manipulaciones, intentos de toma de control y mal uso.',
+        voting: 'En caso de intentos de fraude, la comunidad puede votar por mayoría absoluta para bloquear pagos adicionales a una entidad benéfica específica.',
+        delegation: 'La votación delegada (democracia líquida) permite a los usuarios asignar su poder de voto a miembros de confianza.',
+        multisig: 'Se requiere autorización de múltiples firmas para transferencias importantes de fondos, evitando decisiones unilaterales.',
+        timelock: 'La votación con bloqueo temporal asegura que grandes compras de tokens no influyan inmediatamente en los resultados de la gobernanza.',
     },
     verification: {
       title: 'Protocolo Proof-of-Prayer',

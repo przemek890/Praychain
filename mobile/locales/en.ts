@@ -402,9 +402,12 @@ export const en = {
       celo: 'Integration with CELO network - popular in African countries',
     },
     governance: {
-      title: 'Community Governance',
-      description: 'Most engaged users (holding most tokens) decide where the help goes.',
-      voting: 'In case of fraud attempts, the community can vote by absolute majority to block further payments to a given charity entity.',
+        title: 'Community Governance',
+        description: 'The most engaged users (holding the most tokens) decide where the help goes. To ensure fairness, voting power is capped for large token holders. Additional safety mechanisms protect the ecosystem from manipulation, takeover attempts, and misuse.',
+        voting: 'In case of fraud attempts, the community can vote by absolute majority to block further payments to a specific charity entity.',
+        delegation: 'Delegated voting (liquid democracy) allows users to assign their voting power to trusted members.',
+        multisig: 'Multi-signature authorization is required for major fund transfers to prevent unilateral decisions.',
+        timelock: 'Time-locked voting ensures that large token purchases cannot immediately influence governance outcomes.',
     },
     verification: {
       title: 'Proof-of-Prayer Protocol',
