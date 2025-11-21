@@ -22,7 +22,6 @@ const getCategoryColor = (category: string) => {
   return colors[category] || { bg: '#f3f4f6', border: '#6b7280', text: '#374151' };
 };
 
-
 export default function TokensScreen() {
   const { t } = useLanguage();
   const { userData, loading: userDataLoading } = useUserData();
@@ -55,7 +54,6 @@ export default function TokensScreen() {
       if (userId) {
         refreshTokens();
       }
-      // Reset animations
       fadeAnim.setValue(0);
       slideAnim.setValue(50);
     }, [userId, refreshTokens])
@@ -86,7 +84,6 @@ export default function TokensScreen() {
     fadeAnim.setValue(0);
     slideAnim.setValue(50);
     
-    // Trigger animation after a short delay
     setTimeout(() => {
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -222,6 +219,7 @@ export default function TokensScreen() {
 
   const loading = tokensLoading || charitiesLoading || userDataLoading;
 
+  // ✅ NOWY ERROR SCREEN - tak jak w prayer.tsx
   if (!userId && !userDataLoading) {
     return (
       <View style={styles.container}>
@@ -260,29 +258,54 @@ export default function TokensScreen() {
     );
   }
 
+  // ✅ LOADING SCREEN
   if (loading) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#92400e" />
-        <Text style={styles.loadingText}>{t.tokens.loading}</Text>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#78350f20', '#44403c30', '#78350f25']}
+          style={styles.gradient}
+        >
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color="#92400e" />
+            <Text style={styles.loadingText}>{t.tokens.loading}</Text>
+          </View>
+        </LinearGradient>
       </View>
     );
   }
 
+
+  // ✅ ERROR SCREEN
   if (error) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.errorText}>{t.tokens.error}</Text>
-        <Pressable 
-          style={styles.retryButton} 
-          onPress={() => {
-            refreshTokens();
-            refreshCharities();
-          }}
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#78350f20', '#44403c30', '#78350f25']}
+          style={styles.gradient}
         >
-          <RefreshCw size={20} color="#92400e" />
-          <Text style={styles.retryText}>{t.tokens.retry}</Text>
-        </Pressable>
+          <View style={styles.centerContent}>
+            <View style={styles.errorContainerMain}>
+              <LinearGradient colors={['#fee2e2', '#fecaca']} style={styles.errorGradientMain}>
+                <AlertCircle size={48} color="#dc2626" />
+                <Text style={styles.errorTitleMain}>{t.tokens.error}</Text>
+                <Text style={styles.errorMessageMain}>{error}</Text>
+                <Pressable 
+                  style={styles.retryButtonError} 
+                  onPress={() => {
+                    refreshTokens();
+                    refreshCharities();
+                  }}
+                >
+                  <LinearGradient colors={['#92400e', '#78350f']} style={styles.retryButtonGradient}>
+                    <RefreshCw size={16} color="#ffffff" />
+                    <Text style={styles.retryButtonText}>{t.tokens.retry}</Text>
+                  </LinearGradient>
+                </Pressable>
+              </LinearGradient>
+            </View>
+          </View>
+        </LinearGradient>
       </View>
     );
   }
@@ -305,7 +328,6 @@ export default function TokensScreen() {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/* Hero Section with Image */}
           <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
             {selectedCharity.image_url && (
               <Image
@@ -318,7 +340,6 @@ export default function TokensScreen() {
               style={styles.heroGradient}
             />
             
-            {/* Back Button */}
             <Pressable
               style={styles.backButton}
               onPress={() => {
@@ -332,11 +353,8 @@ export default function TokensScreen() {
               </View>
             </Pressable>
 
-            {/* ✅ Title Overlay with Badges */}
             <View style={styles.heroContent}>
-              {/* ✅ BADGE'Y - Category + Organization */}
               <View style={styles.heroBadgesRow}>
-                {/* Category Badge */}
                 <View style={[styles.heroCategoryBadge, { 
                   backgroundColor: `${categoryColors.bg}dd`,
                   borderColor: categoryColors.border 
@@ -347,14 +365,12 @@ export default function TokensScreen() {
                   </Text>
                 </View>
 
-                {/* Organization Badge */}
                 <View style={styles.heroOrgBadge}>
                   <Building2 size={12} color="#ffffff" strokeWidth={2.5} />
                   <Text style={styles.heroOrgText}>{selectedCharity.organization}</Text>
                 </View>
               </View>
 
-              {/* ✅ Patron Badge - jeśli istnieje */}
               {selectedCharity.patron && (
                 <View style={styles.heroPatronBadge}>
                   <Crown size={16} color="#fbbf24" strokeWidth={2.5} fill="#fbbf24" />
@@ -366,9 +382,7 @@ export default function TokensScreen() {
             </View>
           </Animated.View>
 
-          {/* Content Section */}
           <View style={styles.contentSection}>
-            {/* Stats Row */}
             <Animated.View style={[styles.statsRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
               <View style={styles.statCard}>
                 <LinearGradient colors={['#dcfce7', '#bbf7d0']} style={styles.statGradient}>
@@ -395,7 +409,6 @@ export default function TokensScreen() {
               </View>
             </Animated.View>
 
-            {/* Progress Bar */}
             {selectedCharity.goal_tokens && (
               <Animated.View style={[styles.progressContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                 <View style={styles.progressHeader}>
@@ -415,7 +428,6 @@ export default function TokensScreen() {
               </Animated.View>
             )}
 
-            {/* Description Card */}
             <Animated.View style={[styles.descriptionCardNew, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
               <View style={styles.descriptionHeader}>
                 <Info size={18} color="#92400e" strokeWidth={2.5} />
@@ -424,12 +436,10 @@ export default function TokensScreen() {
               <Text style={styles.descriptionTextNew}>{selectedCharity.description}</Text>
             </Animated.View>
 
-            {/* Donation Amount Section */}
             <Animated.View style={[styles.donationSection, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
               <View style={styles.donationTitleRow}>
                 <Text style={styles.donationTitle}>{t.tokens.donationAmount}</Text>
                 
-                {/* Top Supporters Badge */}
                 {donors.length > 0 && (
                   <Pressable 
                     style={styles.supportersBadge}
@@ -456,7 +466,6 @@ export default function TokensScreen() {
                 </View>
               </View>
 
-              {/* Quick Amount Buttons */}
               <View style={styles.quickAmountsContainer}>
                 {[1, 1.5, 2, 5, 10].map((multiplier) => {
                   const calculatedAmount = Math.floor(selectedCharity.cost_tokens * multiplier);
@@ -497,17 +506,7 @@ export default function TokensScreen() {
                 })}
               </View>
 
-              {/* Info/Error Messages */}
-              {!amountError && !donating && !isWalletReady && (
-                <View style={styles.infoMessage}>
-                  <ActivityIndicator size="small" color="#f59e0b" />
-                  <Text style={styles.infoMessageText}>
-                    Initializing wallet...
-                  </Text>
-                </View>
-              )}
-
-              {!amountError && !donating && isWalletReady && (
+              {!amountError && (
                 <View style={styles.infoMessage}>
                   <Info size={14} color="#78716c" />
                   <Text style={styles.infoMessageText}>
@@ -534,7 +533,6 @@ export default function TokensScreen() {
               )}
             </Animated.View>
 
-            {/* Donate Button */}
             <Animated.View style={[styles.donateButtonContainer, { opacity: fadeAnim }]}>
               <Pressable
                 style={[
@@ -566,7 +564,7 @@ export default function TokensScreen() {
           </View>
         </ScrollView>
 
-        {/* Top Supporters Modal */}
+        {/* Modal bez zmian */}
         <Modal
           animationType="slide"
           transparent={true}
@@ -643,12 +641,13 @@ export default function TokensScreen() {
 
         <ScrollView style={styles.charitiesList} showsVerticalScrollIndicator={false}>
           {charities.map((charity) => (
-            <CharityCard
-              key={charity._id}
-              charity={charity}
-              onSelect={() => handleSelectCharity(charity)}
-              t={t}
-            />
+            <Animated.View key={charity._id} style={{ opacity: fadeAnim }}>
+              <CharityCard
+                charity={charity}
+                onSelect={() => handleSelectCharity(charity)}
+                t={t}
+              />
+            </Animated.View>
           ))}
         </ScrollView>
       </LinearGradient>
@@ -1317,29 +1316,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: 12,
+    fontSize: 14,
     color: '#78716c',
+    fontWeight: '500',
   },
-  errorText: {
-    fontSize: 16,
+    errorContainerMain: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+    maxWidth: 400,
+  },
+  errorGradientMain: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  errorTitleMain: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#dc2626',
-    marginBottom: 16,
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#fef3c7',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryText: {
+  errorMessageMain: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#92400e',
+    color: '#78716c',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
   },
   loginPromptCard: {
     borderRadius: 16,

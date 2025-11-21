@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Animated, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Heart, Search, Play, AlertCircle, Mic, StopCircle, Check, BookOpen, Sparkles, ArrowLeft, RefreshCw } from 'lucide-react-native';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -44,7 +44,6 @@ export default function PrayerScreen() {
         alert('Please grant microphone permissions');
       }
       
-      // ✅ NOWE - Poczekaj na userData przed inicjalizacją
       if (userData?.id) {
         await initializeUserId(userData.id);
         await fetchPrayers();
@@ -86,7 +85,7 @@ export default function PrayerScreen() {
     }
   }, [result, triggerRefresh]);
 
-  // ✅ POPRAWIONE - Ładne wyświetlanie błędu logowania z Retry
+  // ✅ ERROR SCREEN - bez zmian
   if (!userData && !userDataLoading) {
     return (
       <View style={styles.container}>
@@ -103,6 +102,45 @@ export default function PrayerScreen() {
                   {t.bibleReader.checkConnection}
                 </Text>
                 <Pressable style={styles.retryButtonError} onPress={() => window.location.reload()}>
+                  <LinearGradient colors={['#92400e', '#78350f']} style={styles.retryButtonGradient}>
+                    <RefreshCw size={16} color="#ffffff" />
+                    <Text style={styles.retryButtonText}>{t.prayer.retry}</Text>
+                  </LinearGradient>
+                </Pressable>
+              </LinearGradient>
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  // ✅ NOWY LOADING SCREEN - tak jak w tokens.tsx
+  if (loading || userDataLoading) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color="#92400e" />
+            <Text style={styles.loadingTextMain}>{t.prayer.loading}</Text>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
+
+  // ✅ ERROR SCREEN
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
+          <View style={styles.centerContent}>
+            <View style={styles.errorContainerMain}>
+              <LinearGradient colors={['#fee2e2', '#fecaca']} style={styles.errorGradientMain}>
+                <AlertCircle size={48} color="#dc2626" />
+                <Text style={styles.errorTitleMain}>{t.prayer.error}</Text>
+                <Text style={styles.errorMessageMain}>{error}</Text>
+                <Pressable style={styles.retryButtonError} onPress={fetchPrayers}>
                   <LinearGradient colors={['#92400e', '#78350f']} style={styles.retryButtonGradient}>
                     <RefreshCw size={16} color="#ffffff" />
                     <Text style={styles.retryButtonText}>{t.prayer.retry}</Text>
@@ -418,7 +456,12 @@ export default function PrayerScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
+      <StatusBar barStyle="dark-content" />
+      
+      <LinearGradient
+        colors={['#78350f20', '#44403c30', '#78350f25']}
+        style={styles.gradient}
+      >
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View style={styles.titleRow}>
             <Heart size={32} color="#92400e" strokeWidth={2} />
@@ -441,40 +484,22 @@ export default function PrayerScreen() {
         </Animated.View>
 
         <ScrollView style={styles.prayerList} showsVerticalScrollIndicator={false}>
-          <View style={styles.sectionHeader}>
+          <Animated.View style={[styles.sectionHeader, { opacity: fadeAnim }]}>
             <BookOpen size={18} color="#92400e" />
             <Text style={styles.sectionTitle}>{t.prayer.availablePrayers}</Text>
-            {loading && <ActivityIndicator size="small" color="#92400e" />}
-          </View>
+          </Animated.View>
 
-          {error && (
-            <View style={styles.errorContainer}>
-              <LinearGradient colors={['#fee2e2', '#fecaca']} style={styles.errorGradient}>
-                <AlertCircle size={18} color="#dc2626" />
-                <Text style={styles.errorText}>{error}</Text>
-                <Pressable onPress={fetchPrayers} style={styles.retryButton}>
-                  <Text style={styles.retryText}>{t.prayer.retry}</Text>
-                </Pressable>
-              </LinearGradient>
-            </View>
+          {filteredPrayers.length === 0 && (
+            <Animated.View style={{ opacity: fadeAnim }}>
+              <View style={styles.emptyContainer}>
+                <Heart size={36} color="#d1d5db" />
+                <Text style={styles.emptyText}>{t.prayer.noPrayersFound}</Text>
+              </View>
+            </Animated.View>
           )}
 
-          {loading && !error && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#92400e" />
-              <Text style={styles.loadingText}>{t.prayer.loading}</Text>
-            </View>
-          )}
-
-          {!loading && !error && filteredPrayers.length === 0 && (
-            <View style={styles.emptyContainer}>
-              <Heart size={36} color="#d1d5db" />
-              <Text style={styles.emptyText}>{t.prayer.noPrayersFound}</Text>
-            </View>
-          )}
-
-          {!loading && !error && filteredPrayers.map((prayer) => (
-            <View key={prayer.id}>
+          {filteredPrayers.map((prayer) => (
+            <Animated.View key={prayer.id} style={{ opacity: fadeAnim }}>
               <Pressable onPress={() => selectPrayer(prayer)}>
                 <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.prayerCard}>
                   <View style={styles.prayerContent}>
@@ -509,7 +534,7 @@ export default function PrayerScreen() {
                   </View>
                 </LinearGradient>
               </Pressable>
-            </View>
+            </Animated.View>
           ))}
 
           <View style={{ height: 20 }} />
@@ -903,5 +928,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
+  },
+
+  // ✅ NOWE STYLE dla głównego loadingu i błędów
+  loadingTextMain: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#78716c',
+    fontWeight: '500',
+  },
+  errorContainerMain: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+    maxWidth: 400,
+  },
+  errorGradientMain: {
+    padding: 32,
+    alignItems: 'center',
+  },
+  errorTitleMain: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#dc2626',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorMessageMain: {
+    fontSize: 14,
+    color: '#78716c',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
   },
 });
