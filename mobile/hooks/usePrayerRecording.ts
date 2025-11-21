@@ -1,13 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Audio } from 'expo-av';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
-import { getCurrentUserId } from '@/config/currentUser';
+import { API_CONFIG, apiFetch } from '@/config/api';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
-const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 interface Prayer {
   id: string;
@@ -85,7 +79,7 @@ export const usePrayerRecording = () => {
       const uid = id || userId;
       if (!uid) return;
       
-      const response = await fetch(`${API_URL}/api/users/${uid}`);
+      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/users/${uid}`);
       if (response.ok) {
         const data = await response.json();
         setUserData(data);
@@ -100,8 +94,8 @@ export const usePrayerRecording = () => {
       setLoading(true);
       setError(null);
       
-      console.log(`Fetching prayers in ${language}:`, `${API_URL}/api/bible/prayers?lang=${language}`);
-      const response = await fetch(`${API_URL}/api/bible/prayers?lang=${language}`);
+      console.log(`Fetching prayers in ${language}`);
+      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/bible/prayers?lang=${language}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch prayers: ${response.status}`);
@@ -120,7 +114,7 @@ export const usePrayerRecording = () => {
         data.prayers.map(async (p: any) => {
           try {
             console.log(`Fetching prayer details: ${p.id}`);
-            const prayerResponse = await fetch(`${API_URL}/api/bible/prayer/${p.id}?lang=${language}`);
+            const prayerResponse = await apiFetch(`${API_CONFIG.BASE_URL}/api/bible/prayer/${p.id}?lang=${language}`);
             
             if (prayerResponse.ok) {
               const prayerData = await prayerResponse.json();
@@ -161,7 +155,7 @@ export const usePrayerRecording = () => {
 
   const fetchCaptchaQuote = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/bible/random-quote?lang=${language}`);
+      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/bible/random-quote?lang=${language}`);
       if (!response.ok) throw new Error('Failed to fetch verification quote');
       
       const data = await response.json();
@@ -245,7 +239,7 @@ export const usePrayerRecording = () => {
         name: 'prayer.wav',
       } as any);
 
-      const response = await fetch(`${API_URL}/api/transcribe?audio_type=prayer&lang=${language}`, {
+      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/transcribe?audio_type=prayer&lang=${language}`, {
         method: 'POST',
         body: formData,
       });
@@ -328,7 +322,7 @@ export const usePrayerRecording = () => {
         name: 'captcha.wav',
       } as any);
 
-      const response = await fetch(`${API_URL}/api/transcribe?audio_type=captcha&lang=${language}`, {
+      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/transcribe?audio_type=captcha&lang=${language}`, {
         method: 'POST',
         body: formData,
       });
@@ -350,9 +344,8 @@ export const usePrayerRecording = () => {
 
   const analyzeRecordings = async (prayerId: string, captchaId: string) => {
     try {
-      const analysisResponse = await fetch(`${API_URL}/api/prayer/analyze-dual`, {
+      const analysisResponse = await apiFetch(`${API_CONFIG.BASE_URL}/api/prayer/analyze-dual`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prayer_transcription_id: prayerId,
           captcha_transcription_id: captchaId,
@@ -381,13 +374,11 @@ export const usePrayerRecording = () => {
     setCaptchaQuote(null);
   };
 
-  // ✅ NOWY EFFECT - odśwież modlitwy przy zmianie języka
   useEffect(() => {
     if (userId) {
       console.log(`🌍 Language changed to ${language}, reloading prayers`);
       fetchPrayers();
       
-      // ✅ Jeśli użytkownik ma wybraną modlitwę, resetuj ją
       if (selectedPrayer) {
         resetPrayer();
       }

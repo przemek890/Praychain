@@ -1,7 +1,6 @@
 import json
 import logging
 from pathlib import Path
-
 from web3 import Web3
 from web3.middleware import ExtraDataToPOAMiddleware
 from eth_account import Account
@@ -12,25 +11,35 @@ logger = logging.getLogger(__name__)
 
 # Połączenie z Celo (tylko jeśli włączone)
 if settings.CELO_ENABLED:
-    w3 = Web3(Web3.HTTPProvider(settings.CELO_RPC_URL))
-    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
-
-    # Wczytanie ABI PRAY
-    ABI_PATH = Path(__file__).resolve().parent.parent / "abi" / "pray_token.json"
-    with ABI_PATH.open() as f:
-        PRAY_ABI = json.load(f)
-
-    PRAY_CONTRACT = w3.eth.contract(
-        address=Web3.to_checksum_address(settings.PRAY_CONTRACT_ADDRESS),
-        abi=PRAY_ABI,
-    )
-
-    # Konta demo
-    TREASURY_ACCOUNT = Account.from_key(settings.TREASURY_PRIVATE_KEY)
-    TREASURY_ADDRESS = TREASURY_ACCOUNT.address
-
-    USER_ACCOUNT = Account.from_key(settings.USER_PRIVATE_KEY)
-    USER_ADDRESS = USER_ACCOUNT.address
+    try:
+        w3 = Web3(Web3.HTTPProvider(settings.CELO_RPC_URL))
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+        
+        contract_path = Path(__file__).parent.parent.parent / "contracts" / "PrayToken.json"
+        with open(contract_path) as f:
+            contract_json = json.load(f)
+        
+        pray_contract = w3.eth.contract(
+            address=Web3.to_checksum_address(settings.PRAY_CONTRACT_ADDRESS),
+            abi=contract_json["abi"]
+        )
+        
+        treasury_account = Account.from_key(settings.TREASURY_PRIVATE_KEY)
+        user_account = Account.from_key(settings.USER_PRIVATE_KEY)
+        
+        logger.info("✅ Celo blockchain connection established")
+    except Exception as e:
+        logger.error(f"❌ Celo initialization failed: {e}")
+        w3 = None
+        pray_contract = None
+        treasury_account = None
+        user_account = None
+else:
+    logger.info("ℹ️ Celo blockchain disabled")
+    w3 = None
+    pray_contract = None
+    treasury_account = None
+    user_account = None
 
 
 def _send_pray(from_account: Account, to_address: str, amount_tokens: int) -> str:
@@ -55,7 +64,7 @@ def _send_pray(from_account: Account, to_address: str, amount_tokens: int) -> st
     # Opcjonalnie: dodaj 20% buforu
     gas_price = int(gas_price * 1.2)
 
-    tx = PRAY_CONTRACT.functions.transfer(to, amount_wei).build_transaction({
+    tx = pray_contract.functions.transfer(to, amount_wei).build_transaction({
         "from": from_address,
         "nonce": nonce,
         "chainId": settings.CELO_CHAIN_ID,
@@ -80,7 +89,7 @@ def send_pray_to_user(amount_tokens: int) -> str:
     """
     if not settings.CELO_ENABLED:
         return ""
-    return _send_pray(TREASURY_ACCOUNT, USER_ADDRESS, amount_tokens)
+    return _send_pray(treasury_account, user_account.address, amount_tokens)
 
 
 def send_pray_back_to_treasury(amount_tokens: int) -> str:
@@ -90,4 +99,4 @@ def send_pray_back_to_treasury(amount_tokens: int) -> str:
     """
     if not settings.CELO_ENABLED:
         return ""
-    return _send_pray(USER_ACCOUNT, TREASURY_ADDRESS, amount_tokens)
+    return _send_pray(user_account, treasury_account.address, amount_tokens)
