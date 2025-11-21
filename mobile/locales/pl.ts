@@ -1,3 +1,5 @@
+import { loadAsync } from "expo-font";
+
 export const pl = {
   // Navigation
   nav: {
@@ -29,6 +31,7 @@ export const pl = {
     readAnyChapter: 'Czytaj dowolny rozdział',
     loadingJourney: 'Ładowanie twojej duchowej podróży...',
     welcomeBack: 'Witaj ponownie,',
+    loading: 'Ładowanie...',
   },
 
   // Prayer Selection Screen

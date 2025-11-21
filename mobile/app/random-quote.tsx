@@ -50,7 +50,7 @@ export default function RandomQuoteScreen() {
                 style={styles.errorPromptGradient}
               >
                 <Quote size={48} color="#92400e" strokeWidth={2} />
-                <Text style={styles.errorPromptTitle}>Unable to load quote</Text>
+                <Text style={styles.errorPromptTitle}>{t.bibleReader.error}</Text>
                 <Text style={styles.errorPromptSubtitle}>
                  {t.bibleReader.checkConnection}
                 </Text>
