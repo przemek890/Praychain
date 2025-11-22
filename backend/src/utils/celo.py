@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+
 from web3 import Web3
 from web3.middleware import ExtraDataToPOAMiddleware
 from eth_account import Account
@@ -11,35 +12,25 @@ logger = logging.getLogger(__name__)
 
 # Połączenie z Celo (tylko jeśli włączone)
 if settings.CELO_ENABLED:
-    try:
-        w3 = Web3(Web3.HTTPProvider(settings.CELO_RPC_URL))
-        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
-        
-        contract_path = Path(__file__).parent.parent.parent / "contracts" / "PrayToken.json"
-        with open(contract_path) as f:
-            contract_json = json.load(f)
-        
-        pray_contract = w3.eth.contract(
-            address=Web3.to_checksum_address(settings.PRAY_CONTRACT_ADDRESS),
-            abi=contract_json["abi"]
-        )
-        
-        treasury_account = Account.from_key(settings.TREASURY_PRIVATE_KEY)
-        user_account = Account.from_key(settings.USER_PRIVATE_KEY)
-        
-        logger.info("✅ Celo blockchain connection established")
-    except Exception as e:
-        logger.error(f"❌ Celo initialization failed: {e}")
-        w3 = None
-        pray_contract = None
-        treasury_account = None
-        user_account = None
-else:
-    logger.info("ℹ️ Celo blockchain disabled")
-    w3 = None
-    pray_contract = None
-    treasury_account = None
-    user_account = None
+    w3 = Web3(Web3.HTTPProvider(settings.CELO_RPC_URL))
+    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+
+    # Wczytanie ABI PRAY
+    abi_path = Path(__file__).resolve().parent.parent / "abi" / "pray_token.json"
+    with abi_path.open() as f:
+        pray_abi = json.load(f)
+
+    pray_contract = w3.eth.contract(
+        address=Web3.to_checksum_address(settings.PRAY_CONTRACT_ADDRESS),
+        abi=pray_abi,
+    )
+
+    # Konta demo
+    treasury_account = Account.from_key(settings.TREASURY_PRIVATE_KEY)
+    treasury_address = treasury_account.address
+
+    user_account = Account.from_key(settings.USER_PRIVATE_KEY)
+    user_address = user_account.address
 
 
 def _send_pray(from_account: Account, to_address: str, amount_tokens: int) -> str:
@@ -89,7 +80,7 @@ def send_pray_to_user(amount_tokens: int) -> str:
     """
     if not settings.CELO_ENABLED:
         return ""
-    return _send_pray(treasury_account, user_account.address, amount_tokens)
+    return _send_pray(treasury_account, user_address, amount_tokens)
 
 
 def send_pray_back_to_treasury(amount_tokens: int) -> str:
@@ -99,4 +90,4 @@ def send_pray_back_to_treasury(amount_tokens: int) -> str:
     """
     if not settings.CELO_ENABLED:
         return ""
-    return _send_pray(user_account, treasury_account.address, amount_tokens)
+    return _send_pray(user_account, treasury_address, amount_tokens)
