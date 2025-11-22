@@ -15,7 +15,7 @@ services:
     volumes:
       - audio-storage:/app/uploads
 
-  voice-service:
+  voice:
     build:
       context: ./voice-service
       dockerfile: Dockerfile
@@ -28,6 +28,19 @@ services:
       - audio-storage:/app/uploads
     profiles:
       - voice-verification
+      - production
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    networks:
+      - praychain-network
+    restart: unless-stopped
+    profiles:
+      - production
 
 networks:
   praychain-network:

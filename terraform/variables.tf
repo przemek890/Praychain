@@ -18,3 +18,9 @@ variable "ecr_voice_image" {
   description = "ECR image URL for voice verification service"
   type        = string
 }
+
+variable "voice_verification_enabled" {
+  description = "Enable voice verification service"
+  type        = bool
+  default     = false
+}
