@@ -26,7 +26,7 @@ resource "aws_vpc" "main" {
 # Public Subnets
 resource "aws_subnet" "public" {
   count                   = 2
-  vpc_id                  = aws_vpc.main.id  # ✅ POPRAWIONE - dodane "aws_vpc"
+  vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.${count.index + 1}.0/24"
   availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
@@ -75,7 +75,6 @@ resource "aws_security_group" "ecs" {
   description = "Security group for PrayChain ECS tasks"
   vpc_id      = aws_vpc.main.id
 
-  # HTTP
   ingress {
     from_port   = 80
     to_port     = 80
@@ -84,7 +83,6 @@ resource "aws_security_group" "ecs" {
     description = "HTTP from anywhere"
   }
 
-  # HTTPS
   ingress {
     from_port   = 443
     to_port     = 443
@@ -93,40 +91,12 @@ resource "aws_security_group" "ecs" {
     description = "HTTPS from anywhere"
   }
 
-  # Backend port (internal)
-  ingress {
-    from_port   = 8000
-    to_port     = 8000
-    protocol    = "tcp"
-    self        = true
-    description = "Backend internal communication"
-  }
-
-  # Voice service port (internal)
-  ingress {
-    from_port   = 8001
-    to_port     = 8001
-    protocol    = "tcp"
-    self        = true
-    description = "Voice service internal communication"
-  }
-
-  # Allow all internal traffic between containers
-  ingress {
-    from_port   = 0
-    to_port     = 65535
-    protocol    = "tcp"
-    self        = true
-    description = "Internal container communication"
-  }
-
-  # Outbound - allow all
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-    description = "Allow all outbound traffic"
+    description = "Allow all outbound"
   }
 
   tags = {
@@ -193,84 +163,86 @@ resource "aws_ecs_task_definition" "praychain" {
   family                   = "praychain"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "1024"  # ✅ ZMNIEJSZONE z 2048 na 1024 (1 vCPU)
-  memory                   = "2048"  # ✅ ZMNIEJSZONE z 4096 na 2048 (2 GB RAM)
+  cpu                      = var.voice_verification_enabled ? "1024" : "512"
+  memory                   = var.voice_verification_enabled ? "2048" : "1024"
   execution_role_arn       = aws_iam_role.ecs_execution.arn
   task_role_arn            = aws_iam_role.ecs_execution.arn
 
-  container_definitions = jsonencode([
-    {
-      name      = "nginx"
-      image     = var.ecr_nginx_image
-      essential = true
-      cpu       = 128      # ✅ ZMNIEJSZONE z 256
-      memory    = 256      # ✅ ZMNIEJSZONE z 512
+  container_definitions = jsonencode(concat(
+    [
+      {
+        name      = "backend"
+        image     = var.ecr_backend_image
+        essential = true
+        cpu       = var.voice_verification_enabled ? 384 : 384
+        memory    = var.voice_verification_enabled ? 768 : 768
 
-      portMappings = [{
-        containerPort = 80
-        hostPort      = 80
-        protocol      = "tcp"
-      }]
+        portMappings = [{
+          containerPort = 8000
+          hostPort      = 8000
+          protocol      = "tcp"
+        }]
 
-      dependsOn = [
-        {
-          containerName = "backend"
-          condition     = "START"
-        },
-        {
-          containerName = "voice-service"
-          condition     = "START"
+        environment = [
+          {
+            name  = "VOICE_VERIFICATION_ENABLED"
+            value = var.voice_verification_enabled ? "true" : "false"
+          },
+          {
+            name  = "VOICE_SERVICE_URL"
+            value = "http://localhost:8001"
+          }
+        ]
+
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            "awslogs-group"         = aws_cloudwatch_log_group.praychain.name
+            "awslogs-region"        = var.aws_region
+            "awslogs-stream-prefix" = "backend"
+          }
         }
-      ]
+      },
+      {
+        name      = "nginx"
+        image     = var.ecr_nginx_image
+        essential = true
+        cpu       = var.voice_verification_enabled ? 128 : 128
+        memory    = var.voice_verification_enabled ? 256 : 256
 
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.praychain.name
-          "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "nginx"
+        portMappings = [{
+          containerPort = 80
+          hostPort      = 80
+          protocol      = "tcp"
+        }]
+
+        dependsOn = concat(
+          [{
+            containerName = "backend"
+            condition     = "START"
+          }],
+          var.voice_verification_enabled ? [{
+            containerName = "voice-service"
+            condition     = "START"
+          }] : []
+        )
+
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            "awslogs-group"         = aws_cloudwatch_log_group.praychain.name
+            "awslogs-region"        = var.aws_region
+            "awslogs-stream-prefix" = "nginx"
+          }
         }
       }
-    },
-    {
-      name      = "backend"
-      image     = var.ecr_backend_image
-      essential = true
-      cpu       = 512      # ✅ ZMNIEJSZONE z 1024
-      memory    = 1024     # ✅ ZMNIEJSZONE z 2048
-
-      portMappings = [{
-        containerPort = 8000
-        hostPort      = 8000
-        protocol      = "tcp"
-      }]
-
-      environment = [
-        {
-          name  = "VOICE_VERIFICATION_ENABLED"
-          value = "true"
-        },
-        {
-          name  = "VOICE_SERVICE_URL"
-          value = "http://localhost:8001"
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.praychain.name
-          "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "backend"
-        }
-      }
-    },
-    {
+    ],
+    var.voice_verification_enabled ? [{
       name      = "voice-service"
       image     = var.ecr_voice_image
-      essential = true
-      cpu       = 384      # ✅ ZMNIEJSZONE z 768
-      memory    = 768      # ✅ ZMNIEJSZONE z 1536
+      essential = false
+      cpu       = 512
+      memory    = 1024
 
       portMappings = [{
         containerPort = 8001
@@ -286,8 +258,8 @@ resource "aws_ecs_task_definition" "praychain" {
           "awslogs-stream-prefix" = "voice-service"
         }
       }
-    }
-  ])
+    }] : []
+  ))
 
   tags = {
     Name = "praychain-task"
@@ -299,7 +271,7 @@ resource "aws_ecs_service" "praychain" {
   name            = "praychain-service"
   cluster         = aws_ecs_cluster.praychain.id
   task_definition = aws_ecs_task_definition.praychain.arn
-  desired_count   = 1  # ✅ POZOSTAJE 1 task
+  desired_count   = 1
   launch_type     = "FARGATE"
 
   enable_execute_command = true
@@ -308,11 +280,6 @@ resource "aws_ecs_service" "praychain" {
     subnets          = aws_subnet.public[*].id
     security_groups  = [aws_security_group.ecs.id]
     assign_public_ip = true
-  }
-
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 100
   }
 
   depends_on = [
