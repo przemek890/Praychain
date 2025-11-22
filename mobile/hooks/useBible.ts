@@ -1,6 +1,6 @@
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useState, useEffect, useRef } from 'react';
-import { API_CONFIG, apiFetch } from '@/config/api';
+import { API_CONFIG, ENDPOINTS, apiFetch } from '@/config/api';
 
 export interface Quote {
   text: string;
@@ -55,7 +55,9 @@ export function useRandomQuote() {
     }
 
     try {
-      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/bible/random-quote?lang=${language}`);
+      const response = await apiFetch(
+        `${API_CONFIG.BASE_URL}${ENDPOINTS.BIBLE_RANDOM_QUOTE}?lang=${language}`
+      );
       if (!response.ok) throw new Error('Failed to fetch random quote');
       
       const data = await response.json();
@@ -97,7 +99,9 @@ export function useDailyReading() {
     setReading(null);
     
     try {
-      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/bible/daily-reading?lang=${language}`);
+      const response = await apiFetch(
+        `${API_CONFIG.BASE_URL}${ENDPOINTS.BIBLE_DAILY_READING}?lang=${language}`
+      );
       if (!response.ok) throw new Error('Failed to fetch daily reading');
       
       const data = await response.json();
@@ -135,7 +139,9 @@ export function useBibleStructure() {
     setStructure(null);
     
     try {
-      const response = await apiFetch(`${API_CONFIG.BASE_URL}/api/bible/books?lang=${language}`);
+      const response = await apiFetch(
+        `${API_CONFIG.BASE_URL}${ENDPOINTS.BIBLE_BOOKS}?lang=${language}`
+      );
       if (response.ok) {
         const data = await response.json();
         
@@ -201,7 +207,7 @@ export function useBibleChapter(book: string, chapter: number) {
       setContent(null);
 
       const response = await apiFetch(
-        `${API_CONFIG.BASE_URL}/api/bible/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}&lang=${language}`
+        `${API_CONFIG.BASE_URL}${ENDPOINTS.BIBLE_CHAPTER}?book=${encodeURIComponent(book)}&chapter=${chapter}&lang=${language}`
       );
       
       if (response.ok) {

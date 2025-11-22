@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.praychain.app",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "PrayChain needs access to your microphone to record prayers.",
-        "NSSpeechRecognitionUsageDescription": "PrayChain needs access to speech recognition to transcribe your prayers."
+        "NSSpeechRecognitionUsageDescription": "PrayChain needs access to speech recognition to transcribe your prayers.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

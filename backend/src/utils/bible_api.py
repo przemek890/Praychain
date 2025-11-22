@@ -11,7 +11,7 @@ class BibleAPIClient:
     def __init__(self):
         self.base_urls = {
             "en": "https://bible-api.com",
-            "pl": "https://www.biblia.info.pl/api",
+            "pl": "https://bible-proxy.kikpl899.workers.dev/api",
             "es": "https://biblia.my.to"
         }
         self.pl_bible = "bw"
@@ -22,28 +22,28 @@ class BibleAPIClient:
         """Mapowanie angielskich nazw na skróty API biblia.info.pl"""
         return {
             # Stary Testament
-            "Genesis": "rdz",       # Rodzaju (1 Mojżeszowa)
-            "Exodus": "wj",         # Wyjścia (2 Mojżeszowa)
-            "Leviticus": "kpl",     # Kapłańska (3 Mojżeszowa)
-            "Numbers": "lb",        # Liczb (4 Mojżeszowa)
-            "Deuteronomy": "pwt",   # Powtórzonego Prawa (5 Mojżeszowa)
+            "Genesis": "rdz",
+            "Exodus": "wj",
+            "Leviticus": "kpl",
+            "Numbers": "lb",
+            "Deuteronomy": "pwt",
             "Joshua": "joz",
             "Judges": "sdz",
             "Ruth": "rt",
             "1 Samuel": "1sm",
             "2 Samuel": "2sm",
-            "1 Kings": "1krl",      # ✅ POPRAWIONE - 1 Królewska
-            "2 Kings": "2krl",      # ✅ POPRAWIONE - 2 Królewska
-            "1 Chronicles": "1krn", # Kronik
+            "1 Kings": "1krl",
+            "2 Kings": "2krl",
+            "1 Chronicles": "1krn",
             "2 Chronicles": "2krn",
             "Ezra": "ezd",
             "Nehemiah": "ne",
             "Esther": "est",
-            "Job": "hi",            # Hioba
+            "Job": "hi",
             "Psalms": "ps",
             "Proverbs": "prz",
-            "Ecclesiastes": "koh",  # Kaznodziei (Koheleta)
-            "Song of Solomon": "pnp", # Pieśń nad Pieśniami
+            "Ecclesiastes": "koh",
+            "Song of Solomon": "pnp",
             "Isaiah": "iz",
             "Jeremiah": "jr",
             "Lamentations": "lm",
@@ -88,7 +88,7 @@ class BibleAPIClient:
             "2 John": "2j",
             "3 John": "3j",
             "Jude": "jud",
-            "Revelation": "ap"      # Apokalipsa
+            "Revelation": "ap"
         }
     
     async def _fetch_spanish_books(self) -> List[Dict]:
@@ -139,216 +139,182 @@ class BibleAPIClient:
         return name_mapping.get(english_book, "GEN")
     
     async def get_random_verse(self, lang: str = "en") -> Dict:
-        """Pobierz losowy werset z fallbackiem"""
-        try:
-            if lang == "pl":
-                # ✅ Bezpieczne książki dla PL
-                safe_books_en = ["Genesis", "Exodus", "Psalms", "Proverbs", "Matthew", "John", "Romans"]
-                english_book = random.choice(safe_books_en)
-                
-                max_chapter = CHAPTERS_PER_BOOK.get(english_book, 1)
-                chapter_num = random.randint(1, min(max_chapter, 25))  # Ogranicz do 25 rozdziałów
-                
-                chapter_data = await self.get_chapter(english_book, chapter_num, "pl")
-                
-                if chapter_data and chapter_data.get("verses"):
-                    verse = random.choice(chapter_data["verses"])
-                    return {
-                        "text": verse["text"],
-                        "reference": f"{chapter_data['book_name']} {chapter_num}:{verse['verse']}",
-                        "book_name": chapter_data['book_name'],
-                        "chapter": chapter_num,
-                        "verse": int(verse["verse"]) if str(verse["verse"]).isdigit() else verse["verse"],
-                        "type": "bible_verse"
-                    }
+        """Pobierz losowy werset - rzuca wyjątek jeśli błąd"""
+        if lang == "pl":
+            safe_books_en = ["Genesis", "Exodus", "Psalms", "Proverbs", "Matthew", "John", "Romans"]
+            english_book = random.choice(safe_books_en)
             
-            elif lang == "es":
-                async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
-                    es_books = await self._fetch_spanish_books()
-                    if not es_books:
-                        raise Exception("No Spanish books available")
-                    
-                    valid_books = [b for b in es_books if b["id"] != "intro"]
-                    book = random.choice(valid_books)
-                    
-                    chapters_response = await client.get(f"{self.base_urls['es']}/book/{book['id'].lower()}/chapter")
-                    chapters_response.raise_for_status()
-                    chapters = chapters_response.json()
-                    
-                    valid_chapters = [c for c in chapters if str(c["number"]).isdigit()]
-                    if not valid_chapters:
-                        raise Exception(f"No valid chapters for book {book['name']}")
-                    
-                    chapter = random.choice(valid_chapters)
-                    chapter_num = int(chapter["number"])
-                    
-                    chapter_data = await self.get_chapter(book["id"], chapter_num, "es")
-                    
-                    if chapter_data and chapter_data.get("verses"):
-                        verse = random.choice(chapter_data["verses"])
-                        return {
-                            "text": verse["text"],
-                            "reference": f"{book['name']} {chapter_num}:{verse['verse']}",
-                            "book_name": book["name"],
-                            "chapter": chapter_num,
-                            "verse": int(verse["verse"]) if str(verse["verse"]).isdigit() else verse["verse"],
-                            "type": "bible_verse"
-                        }
+            max_chapter = CHAPTERS_PER_BOOK.get(english_book, 1)
+            chapter_num = random.randint(1, min(max_chapter, 25))
             
-            # Angielski - użyj API bible-api.com
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.base_urls['en']}/?random=verse",
-                    timeout=10.0
-                )
-                response.raise_for_status()
-                data = response.json()
-                
-                return {
-                    "text": data["text"].strip(),
-                    "reference": data["reference"],
-                    "book_name": data.get("book_name", ""),
-                    "chapter": data["verses"][0].get("chapter", 0) if data.get("verses") else 0,
-                    "verse": data["verses"][0].get("verse", 0) if data.get("verses") else 0,
-                    "type": "bible_verse"
-                }
-                
-        except Exception as e:
-            logger.error(f"Error fetching random verse ({lang}): {e}")
+            chapter_data = await self.get_chapter(english_book, chapter_num, "pl")
             
-            # ✅ FALLBACK - Jana 3:16
-            fallback = {
-                "en": {
-                    "text": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
-                    "reference": "John 3:16",
-                    "book_name": "John",
-                    "chapter": 3,
-                    "verse": 16,
-                    "type": "bible_verse"
-                },
-                "pl": {
-                    "text": "Albowiem tak Bóg umiłował świat, że Syna swego jednorodzonego dał, aby każdy, kto weń wierzy, nie zginął, ale miał żywot wieczny.",
-                    "reference": "Jana 3:16",
-                    "book_name": "Jana",
-                    "chapter": 3,
-                    "verse": 16,
-                    "type": "bible_verse"
-                },
-                "es": {
-                    "text": "Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito, para que todo aquel que en él cree no se pierda, sino que tenga vida eterna.",
-                    "reference": "Juan 3:16",
-                    "book_name": "Juan",
-                    "chapter": 3,
-                    "verse": 16,
-                    "type": "bible_verse"
-                }
+            if not chapter_data or not chapter_data.get("verses"):
+                raise Exception(f"No verses found for {english_book} {chapter_num}")
+            
+            verse = random.choice(chapter_data["verses"])
+            return {
+                "text": verse["text"],
+                "reference": f"{chapter_data['book_name']} {chapter_num}:{verse['verse']}",
+                "book_name": chapter_data['book_name'],
+                "chapter": chapter_num,
+                "verse": int(verse["verse"]) if str(verse["verse"]).isdigit() else verse["verse"],
+                "type": "bible_verse"
             }
+        
+        elif lang == "es":
+            async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+                es_books = await self._fetch_spanish_books()
+                if not es_books:
+                    raise Exception("No Spanish books available")
+                
+                valid_books = [b for b in es_books if b["id"] != "intro"]
+                book = random.choice(valid_books)
+                
+                chapters_response = await client.get(f"{self.base_urls['es']}/book/{book['id'].lower()}/chapter")
+                chapters_response.raise_for_status()
+                chapters = chapters_response.json()
+                
+                valid_chapters = [c for c in chapters if str(c["number"]).isdigit()]
+                if not valid_chapters:
+                    raise Exception(f"No valid chapters for book {book['name']}")
+                
+                chapter = random.choice(valid_chapters)
+                chapter_num = int(chapter["number"])
+                
+                chapter_data = await self.get_chapter(book["id"], chapter_num, "es")
+                
+                if not chapter_data or not chapter_data.get("verses"):
+                    raise Exception(f"No verses found for {book['name']} {chapter_num}")
+                
+                verse = random.choice(chapter_data["verses"])
+                return {
+                    "text": verse["text"],
+                    "reference": f"{book['name']} {chapter_num}:{verse['verse']}",
+                    "book_name": book["name"],
+                    "chapter": chapter_num,
+                    "verse": int(verse["verse"]) if str(verse["verse"]).isdigit() else verse["verse"],
+                    "type": "bible_verse"
+                }
+        
+        # English
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.base_urls['en']}/?random=verse",
+                timeout=10.0
+            )
+            response.raise_for_status()
+            data = response.json()
             
-            logger.info(f"Using fallback verse for {lang}")
-            return fallback.get(lang, fallback["en"])
+            if not data.get("text"):
+                raise Exception("No verse text in API response")
+            
+            return {
+                "text": data["text"].strip(),
+                "reference": data["reference"],
+                "book_name": data.get("book_name", ""),
+                "chapter": data["verses"][0].get("chapter", 0) if data.get("verses") else 0,
+                "verse": data["verses"][0].get("verse", 0) if data.get("verses") else 0,
+                "type": "bible_verse"
+            }
     
     async def get_chapter(self, book_id: str, chapter_num: int, lang: str = "en") -> Dict:
         async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
-            try:
-                if lang == "pl":
-                    book_map = self._get_polish_book_map()
-                    pl_book = book_map.get(book_id, book_id.lower())
-                    
-                    url = f"{self.base_urls['pl']}/biblia/{self.pl_bible}/{pl_book}/{chapter_num}"
-                    logger.info(f"Fetching PL chapter: {url} (book_id={book_id} -> {pl_book})")
-                    
-                    response = await client.get(url)
-                    response.raise_for_status()
-                    data = response.json()
-                    
-                    verses = []
-                    for v in data.get("verses", []):
-                        verses.append({
-                            "verse": str(v.get("verse", "")),
-                            "text": v.get("text", "").strip()
-                        })
-                    
-                    books = self.get_books("pl")
-                    book_name = next((b["name"] for b in books if b["id"] == book_id), book_id)
-                    
-                    return {
-                        "book_name": book_name,
-                        "chapter": chapter_num,
-                        "verses": verses,
-                        "reference": f"{book_name} {chapter_num}"
-                    }
+            if lang == "pl":
+                book_map = self._get_polish_book_map()
+                pl_book = book_map.get(book_id, book_id.lower())
                 
-                elif lang == "es":
-                    es_books = await self._fetch_spanish_books()
-                    es_book_id = self._find_spanish_book_id(book_id, es_books)
-                    
-                    verses_list_url = f"{self.base_urls['es']}/book/{es_book_id.lower()}/chapter/{chapter_num}/verse"
-                    logger.info(f"Fetching ES verses list: {verses_list_url}")
-                    
-                    list_response = await client.get(verses_list_url)
-                    list_response.raise_for_status()
-                    verses_list = list_response.json()
-                    
-                    if not verses_list:
-                        raise Exception(f"No verses found for {es_book_id} chapter {chapter_num}")
-                    
-                    first_verse = verses_list[0]["number"]
-                    last_verse = verses_list[-1]["number"]
-                    verse_range = f"{first_verse}-{last_verse}"
-                    
-                    url = f"{self.base_urls['es']}/book/{es_book_id.lower()}/chapter/{chapter_num}/verse/{verse_range}"
-                    logger.info(f"Fetching ES chapter with range: {url}")
-                    
-                    response = await client.get(url)
-                    response.raise_for_status()
-                    data = response.json()
-                    
-                    verses = []
-                    for v in data:
-                        verse_num = str(v.get("number", ""))
-                        content = v.get("content", "")
-                        text = re.sub(r'^\[\d+\]\s*', '', content)
-                        
-                        verses.append({
-                            "verse": verse_num,
-                            "text": text.strip()
-                        })
-                    
-                    book_name = next((b["name"] for b in es_books if b["id"] == es_book_id), book_id)
-                    
-                    logger.info(f"✅ Fetched {len(verses)} verses for {book_name} {chapter_num}")
-                    
-                    return {
-                        "book_name": book_name,
-                        "chapter": chapter_num,
-                        "verses": verses,
-                        "reference": f"{book_name} {chapter_num}"
-                    }
+                url = f"{self.base_urls['pl']}/biblia/{self.pl_bible}/{pl_book}/{chapter_num}"
+                logger.info(f"Fetching PL chapter: {url} (book_id={book_id} -> {pl_book})")
                 
-                # Angielski
-                reference = f"{book_id} {chapter_num}"
-                response = await client.get(f"{self.base_urls['en']}/{reference}")
+                response = await client.get(url)
                 response.raise_for_status()
                 data = response.json()
                 
-                verses = [
-                    {
-                        "verse": str(v["verse"]),
-                        "text": v["text"].strip()
-                    }
-                    for v in data.get("verses", [])
-                ]
+                verses = []
+                for v in data.get("verses", []):
+                    verses.append({
+                        "verse": str(v.get("verse", "")),
+                        "text": v.get("text", "").strip()
+                    })
+                
+                books = self.get_books("pl")
+                book_name = next((b["name"] for b in books if b["id"] == book_id), book_id)
                 
                 return {
-                    "book_name": book_id,
+                    "book_name": book_name,
                     "chapter": chapter_num,
                     "verses": verses,
-                    "reference": data.get("reference", f"{book_id} {chapter_num}")
+                    "reference": f"{book_name} {chapter_num}"
                 }
+            
+            elif lang == "es":
+                es_books = await self._fetch_spanish_books()
+                es_book_id = self._find_spanish_book_id(book_id, es_books)
                 
-            except Exception as e:
-                logger.error(f"Error fetching chapter {book_id} {chapter_num} ({lang}): {e}")
-                raise
+                verses_list_url = f"{self.base_urls['es']}/book/{es_book_id.lower()}/chapter/{chapter_num}/verse"
+                logger.info(f"Fetching ES verses list: {verses_list_url}")
+                
+                list_response = await client.get(verses_list_url)
+                list_response.raise_for_status()
+                verses_list = list_response.json()
+                
+                if not verses_list:
+                    raise Exception(f"No verses found for {es_book_id} chapter {chapter_num}")
+                
+                first_verse = verses_list[0]["number"]
+                last_verse = verses_list[-1]["number"]
+                verse_range = f"{first_verse}-{last_verse}"
+                
+                url = f"{self.base_urls['es']}/book/{es_book_id.lower()}/chapter/{chapter_num}/verse/{verse_range}"
+                logger.info(f"Fetching ES chapter with range: {url}")
+                
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+                
+                verses = []
+                for v in data:
+                    verse_num = str(v.get("number", ""))
+                    content = v.get("content", "")
+                    text = re.sub(r'^\[\d+\]\s*', '', content)
+                    
+                    verses.append({
+                        "verse": verse_num,
+                        "text": text.strip()
+                    })
+                
+                book_name = next((b["name"] for b in es_books if b["id"] == es_book_id), book_id)
+                
+                logger.info(f"✅ Fetched {len(verses)} verses for {book_name} {chapter_num}")
+                
+                return {
+                    "book_name": book_name,
+                    "chapter": chapter_num,
+                    "verses": verses,
+                    "reference": f"{book_name} {chapter_num}"
+                }
+            
+            # English
+            reference = f"{book_id} {chapter_num}"
+            response = await client.get(f"{self.base_urls['en']}/{reference}")
+            response.raise_for_status()
+            data = response.json()
+            
+            verses = [
+                {
+                    "verse": str(v["verse"]),
+                    "text": v["text"].strip()
+                }
+                for v in data.get("verses", [])
+            ]
+            
+            return {
+                "book_name": book_id,
+                "chapter": chapter_num,
+                "verses": verses,
+                "reference": data.get("reference", f"{book_id} {chapter_num}")
+            }
     
     def get_books(self, lang: str = "en") -> List[Dict]:
         if lang == "pl":
