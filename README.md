@@ -15,6 +15,8 @@ You can also interactively test requests (including files, request bodies, and h
 
 ### How to Build for iOS
 
+### How to Build for iOS
+
 1. **Remove the old iOS folder:**
     ```bash
     rm -rf ios
@@ -25,7 +27,20 @@ You can also interactively test requests (including files, request bodies, and h
     npx expo prebuild --platform ios --clean
     ```
 
-3. **Run the app on an iOS device:**
+3. **Open the Xcode project and remove "Sign in with Apple" capability:**
+    - Open the project:
+      ```bash
+      open ios/PrayChain.xcworkspace
+      ```
+    - In Xcode:
+      1. Select the **PrayChain** project in the left panel.
+      2. Select the **PrayChain** target.
+      3. Go to the **Signing & Capabilities** tab.
+      4. Find **Sign in with Apple** and click the **"-"** button to remove it.
+      5. Change the **Team** to **Personal Team**.
+      6. Save the changes (Cmd+S).
+
+4. **Run the app on an iOS device:**
     ```bash
     npx expo run:ios --device --configuration Release
     ```
