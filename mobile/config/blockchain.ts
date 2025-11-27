@@ -1,32 +1,8 @@
-import { defineChain } from 'viem';
+import { celo } from 'viem/chains';
 
-export const celoSepolia = defineChain({
-  id: 11142220,
-  name: 'Celo Sepolia Testnet',
-  network: 'celo-sepolia',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'CELO',
-    symbol: 'CELO',
-  },
-  rpcUrls: {
-    default: {
-      http: ['https://forno.celo-sepolia.celo-testnet.org'],
-    },
-    public: {
-      http: ['https://forno.celo-sepolia.celo-testnet.org'],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: 'Blockscout',
-      url: 'https://celo-sepolia.blockscout.com',
-    },
-  },
-  testnet: true,
-});
+export { celo };
 
-export const PRAY_TOKEN_ADDRESS = '0x6923599b116c3DF3A91787EEA10CE7C006c8D064' as const;
+export const PRAY_TOKEN_ADDRESS = '0xF0341E12F7Af56925b7f74560E0bCAD298126Eb7' as const;
 export const CHARITY_WALLET_ADDRESS = '0xa22fb84c98894aaaa4195005cd6b8dda932c3510' as const;
 
 export const PRAY_TOKEN_ABI = [
