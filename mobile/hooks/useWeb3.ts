@@ -64,8 +64,32 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       console.log('To:', CHARITY_WALLET_ADDRESS);
       console.log('Network: Celo (chainId:', celo.id, ')');
 
+      // ✅ Sprawdź salda przed transakcją
+      const [nativeBalance, prayBalance] = await Promise.all([
+        publicClient.getBalance({ address: walletAddress as `0x${string}` }),
+        publicClient.readContract({
+          address: PRAY_TOKEN_ADDRESS,
+          abi: PRAY_TOKEN_ABI,
+          functionName: 'balanceOf',
+          args: [walletAddress as `0x${string}`],
+        }),
+      ]);
+
+      console.log('💎 Native CELO balance:', formatUnits(nativeBalance, 18), 'CELO');
+      console.log('🙏 PRAY balance:', formatUnits(prayBalance as bigint, 18), 'PRAY');
+
       const amountInWei = parseUnits(amount.toString(), 18);
-      console.log('Amount in Wei:', amountInWei.toString());
+      console.log('Amount to send:', amountInWei.toString(), 'wei');
+
+      // ✅ Sprawdź czy jest wystarczająco PRAY
+      if ((prayBalance as bigint) < amountInWei) {
+        throw new Error(`Insufficient PRAY. You have ${formatUnits(prayBalance as bigint, 18)} PRAY.`);
+      }
+
+      // ✅ Sprawdź czy jest wystarczająco CELO na gas
+      if (nativeBalance === 0n) {
+        throw new Error('No native CELO for gas. Please add CELO to your wallet.');
+      }
 
       const data = encodeFunctionData({
         abi: PRAY_TOKEN_ABI,
@@ -74,19 +98,6 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       });
 
       console.log('📝 Encoded transaction data:', data);
-
-      // ✅ Symuluj transakcję
-      console.log('🔍 Simulating transaction...');
-      
-      await publicClient.simulateContract({
-        address: PRAY_TOKEN_ADDRESS,
-        abi: PRAY_TOKEN_ABI,
-        functionName: 'transfer',
-        args: [CHARITY_WALLET_ADDRESS, amountInWei],
-        account: walletAddress as `0x${string}`,
-      });
-
-      console.log('✅ Simulation successful');
 
       // ✅ Pobierz provider
       console.log('🔗 Getting provider from embedded wallet...');
@@ -99,18 +110,64 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
 
       console.log('✅ Provider obtained');
 
-      // ✅ Transakcja BEZ gas - niech node sam oszacuje
+      // ✅ Switch to Celo network
+      try {
+        console.log('🔄 Switching to Celo network (chainId:', celo.id, ')...');
+        await provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: `0x${celo.id.toString(16)}` }],
+        });
+        console.log('✅ Switched to Celo network');
+      } catch (switchError: any) {
+        if (switchError.code === 4902) {
+          console.log('🔄 Adding Celo network...');
+          await provider.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: `0x${celo.id.toString(16)}`,
+              chainName: 'Celo',
+              nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+              rpcUrls: ['https://forno.celo.org'],
+              blockExplorerUrls: ['https://celoscan.io'],
+            }],
+          });
+        } else {
+          console.warn('⚠️ Chain switch warning:', switchError.message);
+        }
+      }
+
+      // ✅ Estimate gas for the transaction
+      console.log('⛽ Estimating gas...');
+      const estimatedGas = await publicClient.estimateGas({
+        account: walletAddress as `0x${string}`,
+        to: PRAY_TOKEN_ADDRESS,
+        data: data as `0x${string}`,
+      });
+      
+      // Add 20% buffer to estimated gas
+      const gasLimit = (estimatedGas * 120n) / 100n;
+      console.log('⛽ Estimated gas:', estimatedGas.toString(), '| Using:', gasLimit.toString());
+
+      // ✅ Get current gas price
+      const gasPrice = await publicClient.getGasPrice();
+      console.log('⛽ Gas price:', gasPrice.toString());
+
+      // ✅ Przygotuj transakcję z wszystkimi parametrami
       const txParams = {
         from: walletAddress,
         to: PRAY_TOKEN_ADDRESS,
         data: data,
         value: '0x0',
+        gas: `0x${gasLimit.toString(16)}`,
+        gasLimit: `0x${gasLimit.toString(16)}`,
+        gasPrice: `0x${gasPrice.toString(16)}`,
+        chainId: `0x${celo.id.toString(16)}`,
       };
 
-      console.log('📤 Sending transaction (gas will be auto-estimated)...');
-      console.log('Transaction params:', txParams);
+      console.log('📤 Sending transaction...');
+      console.log('Transaction params:', JSON.stringify(txParams, null, 2));
 
-      // ✅ Wyślij transakcję - RPC node automatycznie oszacuje gas
+      // ✅ Wyślij transakcję
       const txHash = await provider.request({
         method: 'eth_sendTransaction',
         params: [txParams],
@@ -145,14 +202,12 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
 
       if (err.message?.includes('transfer amount exceeds balance')) {
         errorMessage = 'Insufficient PRAY token balance';
-      } else if (err.message?.includes('insufficient funds')) {
-        errorMessage = 'Insufficient CELO for gas fees';
+      } else if (err.message?.includes('insufficient funds') || err.message?.includes('No native CELO')) {
+        errorMessage = err.message.includes('No native CELO') ? err.message : 'Insufficient CELO for gas fees';
       } else if (err.message?.includes('user rejected') || err.message?.includes('User rejected')) {
         errorMessage = 'Transaction was rejected by user';
-      } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
-        errorMessage = 'Network error. Please check your connection';
-      } else if (err.message?.includes('nonce')) {
-        errorMessage = 'Transaction conflict. Please try again';
+      } else if (err.message?.includes('Insufficient PRAY')) {
+        errorMessage = err.message;
       } else if (err.message) {
         errorMessage = err.message;
       }
