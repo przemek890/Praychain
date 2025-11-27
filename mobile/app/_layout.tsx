@@ -1,8 +1,10 @@
+import '../polyfills';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState, useRef } from 'react';
+import { ErrorBoundary } from 'expo-router';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UserDataProvider } from '@/contexts/UserDataContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';

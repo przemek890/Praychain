@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { usePrivy, useEmbeddedWallet } from '@privy-io/expo';
-import { createWalletClient, createPublicClient, http, custom, parseUnits, formatUnits } from 'viem';
-import { celoSepolia, PRAY_TOKEN_ADDRESS, PRAY_TOKEN_ABI, CHARITY_WALLET_ADDRESS } from '@/config/blockchain';
+import { createPublicClient, http, parseUnits, formatUnits, encodeFunctionData } from 'viem';
+import { celo, PRAY_TOKEN_ADDRESS, PRAY_TOKEN_ABI, CHARITY_WALLET_ADDRESS } from '@/config/blockchain';
 
 interface UseWeb3Props {
   userWalletAddress?: string | null;
@@ -15,7 +15,6 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
   const [isWalletReady, setIsWalletReady] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
-  // ✅ Znajdź wallet address
   useEffect(() => {
     if (!isReady || !user) {
       setIsWalletReady(false);
@@ -23,7 +22,6 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       return;
     }
 
-    // Priorytet 1: Wallet z bazy danych
     if (userWalletAddress) {
       console.log('✅ Using wallet from database:', userWalletAddress);
       setWalletAddress(userWalletAddress);
@@ -31,10 +29,9 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       return;
     }
 
-    // Priorytet 2: Embedded wallet z Privy
-    if (embeddedWallet?.address) {
-      console.log('✅ Found Privy embedded wallet:', embeddedWallet.address);
-      setWalletAddress(embeddedWallet.address);
+    if (embeddedWallet?.account?.address) {
+      console.log('✅ Found Privy embedded wallet:', embeddedWallet.account.address);
+      setWalletAddress(embeddedWallet.account.address);
       setIsWalletReady(true);
     } else {
       console.warn('⚠️ No wallet found');
@@ -43,19 +40,17 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
     }
   }, [user, isReady, userWalletAddress, embeddedWallet]);
 
-  // ✅ Public client do odczytu
   const publicClient = createPublicClient({
-    chain: celoSepolia,
+    chain: celo,
     transport: http(),
   });
 
-  // ✅ Funkcja do wysyłania tokenów PRAY
   const sendPrayTokens = useCallback(async (amount: number): Promise<string> => {
     if (!isWalletReady || !walletAddress) {
       throw new Error('Wallet not ready. Please wait and try again.');
     }
 
-    if (!embeddedWallet) {
+    if (!embeddedWallet?.account) {
       throw new Error('Embedded wallet not initialized');
     }
 
@@ -67,58 +62,23 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       console.log('Amount:', amount, 'PRAY');
       console.log('From:', walletAddress);
       console.log('To:', CHARITY_WALLET_ADDRESS);
-      console.log('Network: Celo Sepolia (chainId:', celoSepolia.id, ')');
+      console.log('Network: Celo (chainId:', celo.id, ')');
 
-      // ✅ KROK 1: Stwórz provider bezpośrednio z embeddedWallet
-      console.log('🔗 Creating Ethereum provider...');
-      
-      // Użyj embedded wallet jako providera bezpośrednio
-      const provider = {
-        request: async ({ method, params }: any) => {
-          console.log('🔧 Provider request:', method);
-          
-          // Deleguj do embedded wallet
-          if (method === 'eth_sendTransaction') {
-            // Użyj metody send z embedded wallet
-            const txParams = params[0];
-            console.log('📤 Sending transaction via embedded wallet...');
-            
-            // Embedded wallet powinien mieć metodę do wysyłania transakcji
-            if (embeddedWallet.provider?.request) {
-              return await embeddedWallet.provider.request({ method, params });
-            }
-            
-            throw new Error('Embedded wallet provider not available');
-          }
-          
-          // Inne metody
-          if (embeddedWallet.provider?.request) {
-            return await embeddedWallet.provider.request({ method, params });
-          }
-          
-          throw new Error(`Method ${method} not supported`);
-        }
-      };
-
-      console.log('✅ Provider created');
-
-      // ✅ KROK 2: Stwórz Wallet Client z custom transport
-      const walletClient = createWalletClient({
-        account: walletAddress as `0x${string}`,
-        chain: celoSepolia,
-        transport: custom(provider),
-      });
-
-      console.log('✅ Wallet client created');
-
-      // ✅ KROK 3: Konwertuj kwotę na Wei (18 decimals)
       const amountInWei = parseUnits(amount.toString(), 18);
       console.log('Amount in Wei:', amountInWei.toString());
 
-      // ✅ KROK 4: Symuluj transakcję
+      const data = encodeFunctionData({
+        abi: PRAY_TOKEN_ABI,
+        functionName: 'transfer',
+        args: [CHARITY_WALLET_ADDRESS, amountInWei],
+      });
+
+      console.log('📝 Encoded transaction data:', data);
+
+      // ✅ Symuluj transakcję
       console.log('🔍 Simulating transaction...');
       
-      const { request } = await publicClient.simulateContract({
+      await publicClient.simulateContract({
         address: PRAY_TOKEN_ADDRESS,
         abi: PRAY_TOKEN_ABI,
         functionName: 'transfer',
@@ -128,20 +88,43 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
 
       console.log('✅ Simulation successful');
 
-      // ✅ KROK 5: Wyślij transakcję
-      console.log('📤 Sending transaction to blockchain...');
+      // ✅ Pobierz provider
+      console.log('🔗 Getting provider from embedded wallet...');
       
-      const txHash = await walletClient.writeContract(request);
+      const provider = await embeddedWallet.getProvider();
+      
+      if (!provider) {
+        throw new Error('Failed to get provider from embedded wallet');
+      }
+
+      console.log('✅ Provider obtained');
+
+      // ✅ Transakcja BEZ gas - niech node sam oszacuje
+      const txParams = {
+        from: walletAddress,
+        to: PRAY_TOKEN_ADDRESS,
+        data: data,
+        value: '0x0',
+      };
+
+      console.log('📤 Sending transaction (gas will be auto-estimated)...');
+      console.log('Transaction params:', txParams);
+
+      // ✅ Wyślij transakcję - RPC node automatycznie oszacuje gas
+      const txHash = await provider.request({
+        method: 'eth_sendTransaction',
+        params: [txParams],
+      });
 
       console.log('✅ Transaction broadcasted!');
       console.log('Hash:', txHash);
-      console.log(`🔗 View on explorer: https://celo-sepolia.blockscout.com/tx/${txHash}`);
+      console.log(`🔗 View on explorer: https://celoscan.io/tx/${txHash}`);
 
-      // ✅ KROK 6: Czekaj na potwierdzenie
-      console.log('⏳ Waiting for confirmation (1 block)...');
+      // ✅ Czekaj na potwierdzenie
+      console.log('⏳ Waiting for confirmation...');
       
       const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
+        hash: txHash as `0x${string}`,
         confirmations: 1,
       });
 
@@ -152,14 +135,12 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       console.log('✅ Transaction confirmed!');
       console.log('Block number:', receipt.blockNumber.toString());
       console.log('Gas used:', receipt.gasUsed.toString());
-      console.log('Status:', receipt.status);
 
-      return txHash;
+      return txHash as string;
 
     } catch (err: any) {
       console.error('❌ Transaction failed:', err);
 
-      // Mapuj błędy
       let errorMessage = 'Transaction failed';
 
       if (err.message?.includes('transfer amount exceeds balance')) {
@@ -172,8 +153,6 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
         errorMessage = 'Network error. Please check your connection';
       } else if (err.message?.includes('nonce')) {
         errorMessage = 'Transaction conflict. Please try again';
-      } else if (err.message?.includes('gas')) {
-        errorMessage = 'Gas estimation failed. Check token balance';
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -186,16 +165,12 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
     }
   }, [embeddedWallet, walletAddress, isWalletReady, publicClient]);
 
-  // ✅ Funkcja do pobierania on-chain balansu PRAY
   const getOnChainBalance = useCallback(async (): Promise<string> => {
     if (!walletAddress) {
-      console.warn('No wallet address to check balance');
       return '0';
     }
 
     try {
-      console.log('💰 Fetching on-chain PRAY balance for:', walletAddress);
-
       const balance = await publicClient.readContract({
         address: PRAY_TOKEN_ADDRESS,
         abi: PRAY_TOKEN_ABI,
@@ -203,18 +178,13 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
         args: [walletAddress as `0x${string}`],
       });
 
-      const formattedBalance = formatUnits(balance as bigint, 18);
-      console.log('✅ On-chain balance:', formattedBalance, 'PRAY');
-
-      return formattedBalance;
-
+      return formatUnits(balance as bigint, 18);
     } catch (err) {
-      console.error('❌ Error fetching on-chain balance:', err);
+      console.error('❌ Error fetching balance:', err);
       return '0';
     }
   }, [walletAddress, publicClient]);
 
-  // ✅ Funkcja do sprawdzania balansu CELO (gas)
   const getNativeBalance = useCallback(async (): Promise<string> => {
     if (!walletAddress) {
       return '0';
@@ -225,11 +195,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
         address: walletAddress as `0x${string}`,
       });
 
-      const formattedBalance = formatUnits(balance, 18);
-      console.log('💎 Native CELO balance:', formattedBalance);
-
-      return formattedBalance;
-
+      return formatUnits(balance, 18);
     } catch (err) {
       console.error('Error fetching native balance:', err);
       return '0';
@@ -237,12 +203,9 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
   }, [walletAddress, publicClient]);
 
   return {
-    // Actions
     sendPrayTokens,
     getOnChainBalance,
     getNativeBalance,
-    
-    // State
     sending,
     error,
     walletAddress,
