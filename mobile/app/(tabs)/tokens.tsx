@@ -33,7 +33,8 @@ export default function TokensScreen() {
   sendPrayTokens, 
   sending: blockchainSending, 
   walletAddress, 
-  isWalletReady 
+  isWalletReady,
+  isBlockchainEnabled  // ✅ DODAJ
 } = useWeb3({ 
   userWalletAddress: userData?.wallet_address 
 });
