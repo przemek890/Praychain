@@ -8,6 +8,7 @@ import { useTokens } from '@/hooks/useTokens';
 import { useFocusEffect } from 'expo-router';
 import { useUserDataRefresh } from '@/contexts/UserDataContext';
 import { useUserData } from '@/hooks/useUserData';
+import { useWeb3 } from '@/hooks/useWeb3';
 
 const getCategoryColor = (category: string) => {
   const colors: Record<string, { bg: string; border: string; text: string }> = {
@@ -28,6 +29,15 @@ export default function TokensScreen() {
   
   const { balance: userTokens, loading: tokensLoading, refresh: refreshTokens } = useTokens(userId);
   const { charities, loading: charitiesLoading, error, donateToCharity, refresh: refreshCharities } = useCharity();
+  const { 
+  sendPrayTokens, 
+  sending: blockchainSending, 
+  walletAddress, 
+  isWalletReady,
+  isBlockchainEnabled  // ✅ DODAJ
+} = useWeb3({ 
+  userWalletAddress: userData?.wallet_address 
+});
   const [selectedCharity, setSelectedCharity] = useState<CharityAction | null>(null);
   const [donationAmount, setDonationAmount] = useState('');
   const [selectedMultiplier, setSelectedMultiplier] = useState<number | null>(null);
@@ -121,44 +131,92 @@ export default function TokensScreen() {
   };
 
   const handleDonate = async () => {
-    if (!selectedCharity || !donationAmount || amountError || !userId) return;
+  if (!selectedCharity || !donationAmount || amountError || !userId) return;
 
-    const amount = parseInt(donationAmount);
+  const amount = parseInt(donationAmount);
+  
+  if (isNaN(amount) || amount <= 0) {
+    setAmountError('Please enter a valid amount');
+    return;
+  }
+
+  if (amount < selectedCharity.cost_tokens) {
+    setAmountError(`Minimum ${selectedCharity.cost_tokens} tokens required`);
+    return;
+  }
+
+  if (amount > userTokens) {
+    setAmountError(`Insufficient balance. You have ${userTokens} PRAY tokens`);
+    return;
+  }
+
+  // ✅ ZAKTUALIZOWANE SPRAWDZENIE
+  if (!walletAddress) {
+    setAmountError('Wallet address not found. Please contact support.');
+    return;
+  }
+
+  if (!isWalletReady) {
+    setAmountError('Wallet is initializing. Please wait a moment and try again.');
+    return;
+  }
+
+  try {
+    setDonating(true);
+    setAmountError(null);
     
-    if (isNaN(amount) || amount <= 0) {
-      setAmountError('Please enter a valid amount');
-      return;
-    }
+    console.log('🎯 Starting donation process...');
+    console.log('Amount:', amount, 'PRAY');
+    console.log('Charity:', selectedCharity.title);
+    console.log('User ID:', userId);
+    console.log('Wallet:', walletAddress);
 
-    if (amount < selectedCharity.cost_tokens) {
-      setAmountError(`Minimum ${selectedCharity.cost_tokens} tokens required`);
-      return;
-    }
+    console.log('📤 Step 1: Sending blockchain transaction...');
+    const txHash = await sendPrayTokens(amount);
+    console.log('✅ Blockchain transaction successful:', txHash);
 
-    if (amount > userTokens) {
-      setAmountError(`Insufficient balance. You have ${userTokens} PRAY tokens`);
-      return;
-    }
+    console.log('💾 Step 2: Updating backend...');
+    await donateToCharity(userId, selectedCharity._id, amount);
+    console.log('✅ Backend updated successfully');
 
-    try {
-      setDonating(true);
-      await donateToCharity(userId, selectedCharity._id, amount);
-      
-      await Promise.all([refreshTokens(), refreshCharities()]);
-      
-      console.log('Donation completed - triggering refresh');
-      triggerRefresh();
-      
-      setSelectedCharity(null);
-      setDonationAmount('');
-      setAmountError(null);
-    } catch (err: any) {
-      console.error('Donation failed:', err);
-      setAmountError(err.message || 'Donation failed');
-    } finally {
-      setDonating(false);
+    console.log('🔄 Step 3: Refreshing data...');
+    await Promise.all([
+      refreshTokens(),
+      refreshCharities()
+    ]);
+    
+    console.log('✅ Donation completed - triggering UI refresh');
+    triggerRefresh();
+    
+    setSelectedCharity(null);
+    setDonationAmount('');
+    setAmountError(null);
+    setSelectedMultiplier(null);
+
+    console.log('✨ Donation process completed successfully!');
+    
+  } catch (err: any) {
+    console.error('❌ Donation failed:', err);
+    
+    let errorMessage = 'Donation failed';
+    
+    if (err.message?.includes('Insufficient')) {
+      errorMessage = err.message;
+    } else if (err.message?.includes('rejected')) {
+      errorMessage = 'Transaction was rejected';
+    } else if (err.message?.includes('network')) {
+      errorMessage = 'Network error. Please check your connection';
+    } else if (err.message?.includes('not ready')) {
+      errorMessage = 'Wallet still initializing. Please try again.';
+    } else if (err.message) {
+      errorMessage = err.message;
     }
-  };
+    
+    setAmountError(errorMessage);
+  } finally {
+    setDonating(false);
+  }
+};
 
   const loading = tokensLoading || charitiesLoading || userDataLoading;
 
@@ -454,7 +512,16 @@ export default function TokensScreen() {
                   <Info size={14} color="#78716c" />
                   <Text style={styles.infoMessageText}>
                     {t.tokens.minimumRequired?.replace('{amount}', selectedCharity.cost_tokens.toString()) || 
-                     `Minimum ${selectedCharity.cost_tokens} tokens required`}
+                    `Minimum ${selectedCharity.cost_tokens} tokens required`}
+                  </Text>
+                </View>
+              )}
+
+              {donating && !amountError && (
+                <View style={styles.infoMessage}>
+                  <ActivityIndicator size="small" color="#16a34a" />
+                  <Text style={styles.infoMessageText}>
+                    Processing blockchain transaction...
                   </Text>
                 </View>
               )}
@@ -556,6 +623,7 @@ export default function TokensScreen() {
     );
   }
 
+  // ✅ DODAJ TO - główny widok listy charities
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -588,6 +656,8 @@ export default function TokensScreen() {
   );
 }
 
+
+// ✅ CharityCard component - poza główną funkcją
 function CharityCard({ charity, onSelect, t }: { charity: CharityAction; onSelect: () => void; t: any }) {
   const progress = charity.goal_tokens 
     ? (charity.total_tokens_raised / charity.goal_tokens) * 100 
