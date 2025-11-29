@@ -1,11 +1,28 @@
 import { useState, useCallback, useEffect } from 'react';
 import { usePrivy, useEmbeddedWallet } from '@privy-io/expo';
 import { createPublicClient, http, parseUnits, formatUnits, encodeFunctionData } from 'viem';
-import { celo, PRAY_TOKEN_ADDRESS, PRAY_TOKEN_ABI, CHARITY_WALLET_ADDRESS } from '@/config/blockchain';
+import { 
+  celo, 
+  PRAY_TOKEN_ADDRESS, 
+  PRAY_TOKEN_ABI, 
+  CHARITY_WALLET_ADDRESS,
+  BLOCKCHAIN_ENABLED,  // ✅ IMPORT FLAGI
+  logBlockchainStatus  // ✅ IMPORT LOGGERA
+} from '@/config/blockchain';
 
 interface UseWeb3Props {
   userWalletAddress?: string | null;
 }
+
+// ✅ HELPER - generuje fake transaction hash
+const generateFakeTransactionHash = (): string => {
+  const chars = '0123456789abcdef';
+  let hash = '0x';
+  for (let i = 0; i < 64; i++) {
+    hash += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return hash;
+};
 
 export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
   const { user, isReady } = usePrivy();
@@ -14,6 +31,11 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
   const [error, setError] = useState<string | null>(null);
   const [isWalletReady, setIsWalletReady] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+
+  // ✅ Log blockchain status on mount
+  useEffect(() => {
+    logBlockchainStatus();
+  }, []);
 
   useEffect(() => {
     if (!isReady || !user) {
@@ -45,19 +67,53 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
     transport: http(),
   });
 
+  // ✅ NOWA FUNKCJA - symulacja transakcji
+  const simulateTransaction = useCallback(async (amount: number): Promise<string> => {
+    console.log('🟡 ═══════════════════════════════════════════');
+    console.log('🟡 SIMULATION MODE - No real blockchain transaction');
+    console.log('🟡 ═══════════════════════════════════════════');
+    console.log('🟡 Would transfer:', amount, 'PRAY');
+    console.log('🟡 From:', walletAddress);
+    console.log('🟡 To:', CHARITY_WALLET_ADDRESS);
+    console.log('🟡 Token:', PRAY_TOKEN_ADDRESS);
+    console.log('🟡 Network: Celo (chainId:', celo.id, ')');
+    
+    // ✅ Symuluj opóźnienie transakcji (1-2 sekundy)
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+    
+    const fakeTxHash = generateFakeTransactionHash();
+    
+    console.log('🟡 ═══════════════════════════════════════════');
+    console.log('🟡 SIMULATED Transaction hash:', fakeTxHash);
+    console.log('🟡 (This is NOT a real blockchain transaction)');
+    console.log('🟡 ═══════════════════════════════════════════');
+    
+    return fakeTxHash;
+  }, [walletAddress]);
+
+  // ✅ ZAKTUALIZOWANA FUNKCJA - sprawdza flagę
   const sendPrayTokens = useCallback(async (amount: number): Promise<string> => {
     if (!isWalletReady || !walletAddress) {
       throw new Error('Wallet not ready. Please wait and try again.');
-    }
-
-    if (!embeddedWallet?.account) {
-      throw new Error('Embedded wallet not initialized');
     }
 
     setSending(true);
     setError(null);
 
     try {
+      // ✅ SPRAWDŹ FLAGĘ - jeśli wyłączona, symuluj
+      if (!BLOCKCHAIN_ENABLED) {
+        console.log('⚠️ BLOCKCHAIN_ENABLED = false');
+        return await simulateTransaction(amount);
+      }
+
+      // ✅ RZECZYWISTA TRANSAKCJA - tylko gdy BLOCKCHAIN_ENABLED = true
+      console.log('🟢 BLOCKCHAIN_ENABLED = true - executing real transaction');
+      
+      if (!embeddedWallet?.account) {
+        throw new Error('Embedded wallet not initialized');
+      }
+
       console.log('🎯 Starting PRAY token transfer...');
       console.log('Amount:', amount, 'PRAY');
       console.log('From:', walletAddress);
@@ -218,11 +274,17 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
     } finally {
       setSending(false);
     }
-  }, [embeddedWallet, walletAddress, isWalletReady, publicClient]);
+  }, [embeddedWallet, walletAddress, isWalletReady, publicClient, simulateTransaction]);
 
   const getOnChainBalance = useCallback(async (): Promise<string> => {
     if (!walletAddress) {
       return '0';
+    }
+
+    // ✅ W trybie symulacji zwróć "unknown"
+    if (!BLOCKCHAIN_ENABLED) {
+      console.log('🟡 SIMULATION MODE - returning mock balance');
+      return '∞'; // lub możesz zwrócić dowolną wartość
     }
 
     try {
@@ -243,6 +305,12 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
   const getNativeBalance = useCallback(async (): Promise<string> => {
     if (!walletAddress) {
       return '0';
+    }
+
+    // ✅ W trybie symulacji zwróć "unknown"
+    if (!BLOCKCHAIN_ENABLED) {
+      console.log('🟡 SIMULATION MODE - returning mock native balance');
+      return '∞';
     }
 
     try {
@@ -266,5 +334,6 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
     walletAddress,
     isWalletReady,
     isFromDatabase: !!userWalletAddress,
+    isBlockchainEnabled: BLOCKCHAIN_ENABLED,  // ✅ EKSPORT FLAGI
   };
 }
