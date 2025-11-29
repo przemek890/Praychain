@@ -1,12 +1,11 @@
 // ✅ Centralna konfiguracja API
 const API_HOST = process.env.EXPO_PUBLIC_API_HOST;
-const API_PORT = process.env.EXPO_PUBLIC_API_PORT;
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT || '8000';
 const API_MODE = process.env.EXPO_PUBLIC_API_MODE || 'development';
-const API_USERNAME = process.env.EXPO_PUBLIC_API_USERNAME;
-const API_PASSWORD = process.env.EXPO_PUBLIC_API_PASSWORD;
+const API_USERNAME = process.env.EXPO_PUBLIC_API_USERNAME || '';
+const API_PASSWORD = process.env.EXPO_PUBLIC_API_PASSWORD || '';
 
 export const API_CONFIG = {
-  // ✅ W production używamy HTTPS bez portu, w dev HTTP z portem
   BASE_URL: API_MODE === 'production' 
     ? `https://${API_HOST}` 
     : `http://${API_HOST}:${API_PORT}`,
@@ -16,6 +15,7 @@ export const API_CONFIG = {
     : `http://${API_HOST}:${API_PORT}/health`,
   
   TIMEOUT: 10000,
+  UPLOAD_TIMEOUT: 120000, // ✅ 2 minuty dla uploadu audio
   IS_PRODUCTION: API_MODE === 'production',
   AUTH: {
     USERNAME: API_USERNAME,
@@ -23,95 +23,78 @@ export const API_CONFIG = {
   }
 };
 
-/**
- * Lista endpointów które NIE wymagają Basic Auth (publiczne)
- */
-const PUBLIC_ENDPOINTS = [
-  '/',
-  '/health',
-  '/api/health',
-];
-
-/**
- * Sprawdź czy endpoint wymaga Basic Auth
- */
-const requiresAuth = (url: string, method: string = 'GET'): boolean => {
-  // W development NIGDY nie używaj Basic Auth
-  if (!API_CONFIG.IS_PRODUCTION) {
-    console.log('🔓 Development mode - no auth required');
-    return false;
-  }
-  
-  // Sprawdź czy URL jest w PUBLIC_ENDPOINTS
-  const urlPath = url.replace(API_CONFIG.BASE_URL, '');
-  const isPublic = PUBLIC_ENDPOINTS.some(endpoint => {
-    if (endpoint === '/') return urlPath === '/' || urlPath === '';
-    return urlPath === endpoint || urlPath.startsWith(endpoint);
-  });
-  
-  if (isPublic) {
-    console.log('🔓 Public endpoint (no auth):', urlPath);
-    return false;
-  }
-  
-  // ✅ GET/HEAD/OPTIONS są publiczne (zgodnie z nginx)
-  if (method.toUpperCase() === 'GET' || 
-      method.toUpperCase() === 'HEAD' || 
-      method.toUpperCase() === 'OPTIONS') {
-    console.log('🔓 GET/HEAD/OPTIONS - no auth required:', urlPath);
-    return false;
-  }
-  
-  // ✅ POST/PUT/DELETE/PATCH wymagają Basic Auth
-  console.log('🔐 Non-GET request in production - auth required:', method, urlPath);
-  return true;
-};
-
-/**
- * Get headers z opcjonalnym Basic Auth
- */
 export const getAuthHeaders = (url: string, method: string = 'GET', skipAuth: boolean = false): HeadersInit => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
-
-  // Dodaj Basic Auth tylko jeśli:
-  // 1. NIE jest to GET/HEAD/OPTIONS
-  // 2. Endpoint tego wymaga
-  // 3. Nie jest wyraźnie wyłączony (skipAuth)
-  // 4. Mamy credentials
-  if (!skipAuth && requiresAuth(url, method) && API_USERNAME && API_PASSWORD) {
-    const credentials = btoa(`${API_USERNAME}:${API_PASSWORD}`);
-    headers['Authorization'] = `Basic ${credentials}`;
-    console.log('✅ Added Basic Auth for:', method, url);
+  
+  // Dodaj Basic Auth tylko w produkcji
+  if (API_CONFIG.IS_PRODUCTION && !skipAuth && API_CONFIG.AUTH.USERNAME) {
+    const credentials = btoa(`${API_CONFIG.AUTH.USERNAME}:${API_CONFIG.AUTH.PASSWORD}`);
+    (headers as Record<string, string>)['Authorization'] = `Basic ${credentials}`;
   }
-
+  
   return headers;
 };
 
 /**
- * Helper for fetch with automatic auth
+ * ✅ POPRAWIONA funkcja - obsługuje FormData bez Content-Type
  */
 export const apiFetch = async (url: string, options: RequestInit = {}) => {
   const method = options.method || 'GET';
-  const authHeaders = getAuthHeaders(url, method);
   
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...authHeaders,
-      ...options.headers,
-    },
-  });
-
-  // Log dla debugowania
-  if (!response.ok) {
-    console.error(`❌ Request failed: ${response.status} ${response.statusText}`);
-    console.error('Method:', method);
-    console.error('URL:', url);
+  // ✅ Sprawdź czy to FormData
+  const isFormData = options.body instanceof FormData;
+  
+  // Pobierz bazowe headery (ale nie dla FormData)
+  const baseHeaders = isFormData ? {} : getAuthHeaders(url, method);
+  
+  const headers: Record<string, string> = {
+    ...baseHeaders as Record<string, string>,
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
+  // ✅ KLUCZOWE: Usuń Content-Type dla FormData - browser/RN ustawi sam z boundary
+  if (isFormData) {
+    delete headers['Content-Type'];
   }
+  
+  // ✅ Użyj dłuższego timeout dla uploadu
+  const timeout = isFormData ? API_CONFIG.UPLOAD_TIMEOUT : API_CONFIG.TIMEOUT;
+  
+  // ✅ AbortController dla timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    console.log(`📡 ${method} ${url} (timeout: ${timeout}ms, formData: ${isFormData})`);
+    
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
 
-  return response;
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error(`❌ Request failed: ${response.status} ${response.statusText}`);
+    } else {
+      console.log(`✅ Request OK: ${response.status}`);
+    }
+
+    return response;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    
+    if (error.name === 'AbortError') {
+      console.error(`⏰ Request timeout after ${timeout}ms: ${url}`);
+      throw new Error(`Request timeout after ${timeout / 1000}s`);
+    }
+    
+    console.error(`❌ Network error: ${error.message}`);
+    throw error;
+  }
 };
 
 export const ENDPOINTS = {
@@ -135,9 +118,7 @@ export const ENDPOINTS = {
   USER_WALLET: (userId: string) => `/api/users/${userId}/wallet`,
 };
 
-/**
- * Extract username from email (part before @)
- */
 export const extractUsername = (email: string): string => {
-  return email.split('@')[0].toLowerCase();
+  if (!email) return 'user';
+  return email.split('@')[0];
 };
