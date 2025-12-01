@@ -92,6 +92,17 @@ jobs:
         with:
           terraform_version: "1.5.0"
 
+      - name: Create Terraform tfvars
+        working-directory: terraform
+        run: |
+          cat > terraform.tfvars <<EOF
+          aws_region                 = "eu-central-1"
+          voice_verification_enabled = false
+          ecr_nginx_image            = "506100848058.dkr.ecr.eu-central-1.amazonaws.com/praychain-nginx:latest"
+          ecr_backend_image          = "506100848058.dkr.ecr.eu-central-1.amazonaws.com/praychain-backend:latest"
+          ecr_voice_image            = "506100848058.dkr.ecr.eu-central-1.amazonaws.com/praychain-voice:latest"
+          EOF
+
       - name: Terraform Init & Apply
         working-directory: terraform
         run: |
