@@ -1,11 +1,9 @@
 name: CI/CD Pipeline
 
 on:
-  pull_request:
+  push:
     branches:
       - main
-    types:
-      - closed
 
 env:
   AWS_REGION: eu-central-1
@@ -18,7 +16,6 @@ jobs:
   # ==================== CI - Build ====================
   ci:
     name: CI - Build Docker Images
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
