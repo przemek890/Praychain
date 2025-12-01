@@ -530,6 +530,7 @@ npx expo run:android
 This repository is made available for **viewing and educational purposes only**.
 
 **⚠️ Restrictions:**
+
 - ❌ No permission to copy, modify, or distribute this code
 - ❌ No commercial or personal use without explicit written consent
 - ❌ No derivative works allowed

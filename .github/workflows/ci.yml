@@ -1,0 +1,194 @@
+name: CI - Build and Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: |
+          echo "🔨 Building Docker images..."
+
+          # Build nginx
+          docker build -t praychain-nginx:latest -f nginx/Dockerfile nginx/
+          echo "✅ nginx image built"
+
+          # Build backend
+          docker build -t praychain-backend:latest -f backend/Dockerfile backend/
+          echo "✅ backend image built"
+
+          # Build voice-service
+          docker build -t praychain-voice:latest -f voice-service/Dockerfile voice-service/
+          echo "✅ voice-service image built"
+
+      - name: Build Summary
+        run: |
+          echo "✅ All Docker images built successfully!"
+          docker images | grep praychain
+
+  # Opcjonalny deploy przy PR - uruchamia się tylko gdy zmienna DEPLOY_ON_PR jest ustawiona na 'true'
+  deploy-preview:
+    needs: build
+    if: vars.DEPLOY_ON_PR == 'true'
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: eu-central-1
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-central-1.amazonaws.com
+      ECS_CLUSTER: praychain-cluster
+      ECS_SERVICE: praychain-service
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      DOMAIN: praychain.pl
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Create ECR repositories if not exist
+        run: |
+          for repo in praychain-nginx praychain-backend praychain-voice; do
+            if ! aws ecr describe-repositories --repository-names $repo --region ${{ env.AWS_REGION }} 2>/dev/null; then
+              echo "Creating repository: $repo"
+              aws ecr create-repository --repository-name $repo --region ${{ env.AWS_REGION }}
+            fi
+          done
+
+      - name: Build Docker images
+        run: |
+          docker build -t praychain-nginx:latest -f nginx/Dockerfile nginx/
+          docker build -t praychain-backend:latest -f backend/Dockerfile backend/
+          docker build -t praychain-voice:latest -f voice-service/Dockerfile voice-service/
+
+      - name: Tag and Push images to ECR
+        run: |
+          docker tag praychain-nginx:latest ${{ env.ECR_REGISTRY }}/praychain-nginx:latest
+          docker tag praychain-backend:latest ${{ env.ECR_REGISTRY }}/praychain-backend:latest
+          docker tag praychain-voice:latest ${{ env.ECR_REGISTRY }}/praychain-voice:latest
+
+          docker push ${{ env.ECR_REGISTRY }}/praychain-nginx:latest
+          docker push ${{ env.ECR_REGISTRY }}/praychain-backend:latest
+          docker push ${{ env.ECR_REGISTRY }}/praychain-voice:latest
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for ECS service to stabilize
+        run: |
+          echo "Waiting for ECS service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Get ECS Task Public IP
+        id: get-ip
+        run: |
+          TASK_ARN=$(aws ecs list-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service-name ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'taskArns[0]' \
+            --output text)
+
+          ENI_ID=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --region ${{ env.AWS_REGION }} \
+            --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value' \
+            --output text)
+
+          PUBLIC_IP=$(aws ec2 describe-network-interfaces \
+            --network-interface-ids $ENI_ID \
+            --region ${{ env.AWS_REGION }} \
+            --query 'NetworkInterfaces[0].Association.PublicIp' \
+            --output text)
+
+          echo "Public IP: $PUBLIC_IP"
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+
+      - name: Get Cloudflare DNS Record IDs
+        id: get-dns-records
+        run: |
+          ROOT_RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ env.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=${{ env.DOMAIN }}" \
+            -H "Authorization: Bearer ${{ env.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" | jq -r '.result[0].id')
+          echo "root_record_id=$ROOT_RECORD_ID" >> $GITHUB_OUTPUT
+
+          WWW_RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ env.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=www.${{ env.DOMAIN }}" \
+            -H "Authorization: Bearer ${{ env.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" | jq -r '.result[0].id')
+          echo "www_record_id=$WWW_RECORD_ID" >> $GITHUB_OUTPUT
+
+      - name: Update Cloudflare DNS Records
+        run: |
+          PUBLIC_IP="${{ steps.get-ip.outputs.public_ip }}"
+
+          curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ env.CLOUDFLARE_ZONE_ID }}/dns_records/${{ steps.get-dns-records.outputs.root_record_id }}" \
+            -H "Authorization: Bearer ${{ env.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{
+              "type": "A",
+              "name": "${{ env.DOMAIN }}",
+              "content": "'"$PUBLIC_IP"'",
+              "ttl": 1,
+              "proxied": true
+            }'
+
+          curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/${{ env.CLOUDFLARE_ZONE_ID }}/dns_records/${{ steps.get-dns-records.outputs.www_record_id }}" \
+            -H "Authorization: Bearer ${{ env.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{
+              "type": "A",
+              "name": "www",
+              "content": "'"$PUBLIC_IP"'",
+              "ttl": 1,
+              "proxied": true
+            }'
+
+      - name: Health Check
+        run: |
+          PUBLIC_IP="${{ steps.get-ip.outputs.public_ip }}"
+          echo "🏥 Running health check on $PUBLIC_IP..."
+          sleep 30
+
+          RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 "http://$PUBLIC_IP/health" || echo "FAILED")
+
+          if echo "$RESPONSE" | grep -q '"status":"ok"'; then
+            echo "✅ Health check passed!"
+          else
+            echo "❌ Health check FAILED!"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+
+      - name: Preview Deploy Summary
+        run: |
+          echo "✅ Preview deployment completed!"
+          echo "🌐 IP: ${{ steps.get-ip.outputs.public_ip }}"
+          echo "🔗 https://${{ env.DOMAIN }}"
