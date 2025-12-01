@@ -18,9 +18,9 @@
 
 [📱 Demo](#-demo) • [✨ Features](#-features) • [🏗️ Architecture](#%EF%B8%8F-architecture) • [🚀 Quick Start](#-quick-start) • [📖 Documentation](#-api-documentation)
 
----
-
 <img src="mobile/assets/icon.png" alt="PrayChain Logo" width="150" style="border-radius: 15px;"/>
+
+</div>
 
 ---
 
@@ -529,8 +529,7 @@ npx expo run:android
 
 This repository is made available for **viewing and educational purposes only**.
 
-⚠️ **Restrictions:**
-
+**⚠️ Restrictions:**
 - ❌ No permission to copy, modify, or distribute this code
 - ❌ No commercial or personal use without explicit written consent
 - ❌ No derivative works allowed
