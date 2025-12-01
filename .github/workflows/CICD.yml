@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - main
+    types:
+      - closed
 
 env:
   AWS_REGION: eu-central-1
@@ -16,6 +18,7 @@ jobs:
   # ==================== CI - Build ====================
   ci:
     name: CI - Build Docker Images
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -45,7 +48,7 @@ jobs:
   cd:
     name: CD - Deploy to AWS ECS
     needs: ci
-    if: vars.DEPLOY_ON_PR == 'true'
+    if: vars.DEPLOY_ON_PR == 'true' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
