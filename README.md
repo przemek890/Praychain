@@ -20,9 +20,7 @@
 
 ---
 
-<img src="mobile/assets/images/icon.png" alt="PrayChain Logo" width="150"/>
-
-</div>
+<img src="mobile/assets/icon.png" alt="PrayChain Logo" width="150" style="border-radius: 15px;"/>
 
 ---
 
