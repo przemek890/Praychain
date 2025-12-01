@@ -38,7 +38,7 @@ jobs:
 
       - name: Create ECR repositories if not exist
         run: |
-          for repo in praychain-nginx praychain-backend praychain-voice; do
+          for repo in praychain-nginx praychain-backend; do
             if ! aws ecr describe-repositories --repository-names $repo --region ${{ env.AWS_REGION }} 2>/dev/null; then
               echo "Creating repository: $repo"
               aws ecr create-repository --repository-name $repo --region ${{ env.AWS_REGION }}
@@ -54,18 +54,18 @@ jobs:
           echo "✅ nginx built"
           docker build -t praychain-backend:latest -f backend/Dockerfile backend/
           echo "✅ backend built"
-          docker build -t praychain-voice:latest -f voice-service/Dockerfile voice-service/
-          echo "✅ voice-service built"
+          # docker build -t praychain-voice:latest -f voice-service/Dockerfile voice-service/
+          # echo "✅ voice-service built"
 
           # Tag
           docker tag praychain-nginx:latest ${{ env.ECR_REGISTRY }}/praychain-nginx:latest
           docker tag praychain-backend:latest ${{ env.ECR_REGISTRY }}/praychain-backend:latest
-          docker tag praychain-voice:latest ${{ env.ECR_REGISTRY }}/praychain-voice:latest
+          # docker tag praychain-voice:latest ${{ env.ECR_REGISTRY }}/praychain-voice:latest
 
           # Push
           docker push ${{ env.ECR_REGISTRY }}/praychain-nginx:latest
           docker push ${{ env.ECR_REGISTRY }}/praychain-backend:latest
-          docker push ${{ env.ECR_REGISTRY }}/praychain-voice:latest
+          # docker push ${{ env.ECR_REGISTRY }}/praychain-voice:latest
 
           echo "✅ All images pushed to ECR!"
 
