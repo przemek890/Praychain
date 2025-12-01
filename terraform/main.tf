@@ -6,6 +6,13 @@ terraform {
     }
   }
   required_version = ">= 1.5.0"
+
+  # Remote state w S3 - wymagane dla CI/CD
+  backend "s3" {
+    bucket = "praychain-terraform-state"
+    key    = "terraform.tfstate"
+    region = "eu-central-1"
+  }
 }
 
 provider "aws" {
