@@ -18,7 +18,7 @@
 
 [📱 Demo](#-demo) • [✨ Features](#-features) • [🏗️ Architecture](#%EF%B8%8F-architecture) • [🚀 Quick Start](#-quick-start) • [📖 Documentation](#-api-documentation)
 
-<img src="mobile/assets/icon.png" alt="PrayChain Logo" width="150" style="border-radius: 15px;"/>
+<img src="mobile/assets/icon.png" alt="PrayChain Logo" width="150"/>
 
 </div>
 
@@ -508,7 +508,9 @@ npx expo run:android
 
 | Role                     | Responsibility                                  |
 | ------------------------ | ----------------------------------------------- |
-| **Full-Stack Developer** | Mobile app, Backend API, Blockchain integration |
+| **DevOps / Web Developer / AI** | Infrastructure, CI/CD, AI model integration, Backend development |
+| **Frontend / UI/UX / Blockchain** | Website & app UI, user experience, smart contracts, frontend blockchain integration |
+| **DevRel / Crypto** | Developer relations, community building, crypto education, content creation |
 
 </div>
 
@@ -555,4 +557,3 @@ _Transforming prayers into positive real-world impact_
 [🔝 Back to Top](#-praychain)
 
 </div>
-
