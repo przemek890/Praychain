@@ -198,6 +198,14 @@ resource "aws_ecs_task_definition" "praychain" {
           {
             name  = "VOICE_SERVICE_URL"
             value = "http://localhost:8001"
+          },
+          {
+            name  = "MONGODB_URL"
+            value = var.mongodb_url
+          },
+          {
+            name  = "HF_API_KEY"
+            value = var.hf_api_key
           }
         ]
 

@@ -24,3 +24,15 @@ variable "voice_verification_enabled" {
   type        = bool
   default     = false
 }
+
+variable "mongodb_url" {
+  description = "MongoDB connection URL"
+  type        = string
+  sensitive   = true
+}
+
+variable "hf_api_key" {
+  description = "Hugging Face API key"
+  type        = string
+  sensitive   = true
+}

@@ -101,6 +101,8 @@ jobs:
           ecr_nginx_image            = "506100848058.dkr.ecr.eu-central-1.amazonaws.com/praychain-nginx:latest"
           ecr_backend_image          = "506100848058.dkr.ecr.eu-central-1.amazonaws.com/praychain-backend:latest"
           ecr_voice_image            = "506100848058.dkr.ecr.eu-central-1.amazonaws.com/praychain-voice:latest"
+          mongodb_url                = "${{ secrets.MONGODB_URL }}"
+          hf_api_key                 = "${{ secrets.HF_API_KEY }}"
           EOF
 
       - name: Terraform Init & Apply
@@ -183,17 +185,24 @@ jobs:
         run: |
           PUBLIC_IP="${{ steps.get-ip.outputs.public_ip }}"
           echo "🏥 Running health check..."
-          sleep 30
 
-          RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 "http://$PUBLIC_IP/health" || echo "FAILED")
-
-          if echo "$RESPONSE" | grep -q '"status":"ok"'; then
-            echo "✅ Health check passed!"
-          else
-            echo "❌ Health check FAILED!"
+          # Czekaj do 3 minut z retry co 10 sekund
+          for i in {1..18}; do
+            echo "Attempt $i/18..."
+            RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 "http://$PUBLIC_IP/health" 2>&1 || echo "FAILED")
+            
+            if echo "$RESPONSE" | grep -q '"status":"ok"'; then
+              echo "✅ Health check passed!"
+              exit 0
+            fi
+            
             echo "Response: $RESPONSE"
-            exit 1
-          fi
+            echo "Waiting 10 seconds before retry..."
+            sleep 10
+          done
+
+          echo "❌ Health check FAILED after 18 attempts!"
+          exit 1
 
       - name: Deployment Summary
         run: |
