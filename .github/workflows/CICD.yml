@@ -26,36 +26,6 @@ jobs:
         run: |
           echo "${{ secrets.HTPASSWD_CONTENT }}" > nginx/.htpasswd
 
-      - name: Build Docker images
-        run: |
-          echo "🔨 Building Docker images..."
-          docker build -t praychain-nginx:latest -f nginx/Dockerfile nginx/
-          echo "✅ nginx built"
-          docker build -t praychain-backend:latest -f backend/Dockerfile backend/
-          echo "✅ backend built"
-          docker build -t praychain-voice:latest -f voice-service/Dockerfile voice-service/
-          echo "✅ voice-service built"
-
-      - name: Build Summary
-        run: |
-          echo "✅ All Docker images built successfully!"
-          docker images | grep praychain
-
-  # ==================== CD - Deploy ====================
-  cd:
-    name: CD - Deploy to AWS ECS
-    needs: ci
-    if: vars.DEPLOY_ON_PR == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create .htpasswd file
-        run: |
-          echo "${{ secrets.HTPASSWD_CONTENT }}" > nginx/.htpasswd
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -77,20 +47,45 @@ jobs:
 
       - name: Build, Tag and Push images to ECR
         run: |
+          echo "🔨 Building Docker images..."
+
           # Build
           docker build -t praychain-nginx:latest -f nginx/Dockerfile nginx/
+          echo "✅ nginx built"
           docker build -t praychain-backend:latest -f backend/Dockerfile backend/
+          echo "✅ backend built"
           docker build -t praychain-voice:latest -f voice-service/Dockerfile voice-service/
-          
+          echo "✅ voice-service built"
+
           # Tag
           docker tag praychain-nginx:latest ${{ env.ECR_REGISTRY }}/praychain-nginx:latest
           docker tag praychain-backend:latest ${{ env.ECR_REGISTRY }}/praychain-backend:latest
           docker tag praychain-voice:latest ${{ env.ECR_REGISTRY }}/praychain-voice:latest
-          
+
           # Push
           docker push ${{ env.ECR_REGISTRY }}/praychain-nginx:latest
           docker push ${{ env.ECR_REGISTRY }}/praychain-backend:latest
           docker push ${{ env.ECR_REGISTRY }}/praychain-voice:latest
+
+          echo "✅ All images pushed to ECR!"
+
+  # ==================== CD - Deploy ====================
+  cd:
+    name: CD - Deploy to AWS ECS
+    needs: ci
+    if: vars.DEPLOY_ON_PR == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -102,7 +97,7 @@ jobs:
         run: |
           # Inicjalizacja Terraform
           terraform init
-          
+
           # Sprawdź czy infrastruktura istnieje, jeśli nie - utwórz
           terraform apply -auto-approve
 
