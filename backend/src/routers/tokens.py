@@ -299,11 +299,11 @@ async def award_tokens_internal(
     focus_score: float
 ):
     """
-    Wewnętrzna funkcja do przyznawania tokenów.
-    Pobiera wallet_address z bazy danych i wysyła PRAY on-chain.
+    Internal function for awarding tokens.
+    Gets wallet_address from database and sends PRAY on-chain.
     """
     try:
-        # Pobierz wallet_address użytkownika z bazy
+        # Get user wallet_address from database
         user = await db.users.find_one({"_id": user_id})
         user_wallet_address = user.get("wallet_address") if user else None
         
@@ -312,7 +312,7 @@ async def award_tokens_internal(
         else:
             logger.info(f"User {user_id} wallet_address: {user_wallet_address}")
         
-        # Aktualizacja off-chain salda użytkownika w Mongo
+        # Update user off-chain balance in Mongo
         balance = await db.token_balances.find_one({"user_id": user_id})
         
         if balance:
@@ -335,7 +335,7 @@ async def award_tokens_internal(
                 "last_updated": datetime.utcnow()
             })
         
-        # Aktualizuj też tokens_balance w kolekcji users
+        # Also update tokens_balance in users collection
         await db.users.update_one(
             {"_id": user_id},
             {
@@ -376,7 +376,7 @@ async def award_tokens_internal(
         
         await db.token_transactions.insert_one(transaction)
 
-        # Wysłanie PRAY on-chain na wallet użytkownika z bazy
+        # Send PRAY on-chain to user wallet from database
         tx_hash = None
         try:
             if tokens_earned > 0 and user_wallet_address:
@@ -393,7 +393,7 @@ async def award_tokens_internal(
                         }}
                     )
                     logger.info(
-                        f"✅ On-chain: sent {tokens_earned} PRAY to {user_wallet_address} (tx: {tx_hash})"
+                        f"On-chain: sent {tokens_earned} PRAY to {user_wallet_address} (tx: {tx_hash})"
                     )
             elif tokens_earned > 0:
                 logger.warning(f"User {user_id} has no wallet_address, tokens awarded off-chain only")
@@ -401,7 +401,7 @@ async def award_tokens_internal(
                 logger.info("No tokens_earned, skipping on-chain transfer")
                 
         except Exception as onchain_err:
-            # Nie blokujemy całej logiki przez błąd on-chain – logujemy i lecimy dalej
+            # Don't block entire logic due to on-chain error - log and continue
             logger.error(f"Error sending on-chain PRAY to {user_wallet_address}: {onchain_err}")
 
         logger.info(

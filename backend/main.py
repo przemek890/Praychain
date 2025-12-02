@@ -16,12 +16,12 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("🚀 Starting PrayChain API...")
+    logger.info("Starting PrayChain API...")
     await connect_to_mongo()
-    logger.info(f"📡 Server running on {settings.BACKEND_HOST}:{settings.BACKEND_PORT}")
+    logger.info(f"Server running on {settings.BACKEND_HOST}:{settings.BACKEND_PORT}")
     yield
     # Shutdown
-    logger.info("👋 Shutting down...")
+    logger.info("Shutting down...")
     await close_mongo_connection()
 
 app = FastAPI(

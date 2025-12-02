@@ -164,27 +164,27 @@ export default function TokensScreen() {
     setDonating(true);
     setAmountError(null);
     
-    console.log('🎯 Starting donation process...');
+    console.log('Starting donation process...');
     console.log('Amount:', amount, 'PRAY');
     console.log('Charity:', selectedCharity.title);
     console.log('User ID:', userId);
     console.log('Wallet:', walletAddress);
 
-    console.log('📤 Step 1: Sending blockchain transaction...');
+    console.log('Step 1: Sending blockchain transaction...');
     const txHash = await sendPrayTokens(amount);
-    console.log('✅ Blockchain transaction successful:', txHash);
+    console.log('Blockchain transaction successful:', txHash);
 
-    console.log('💾 Step 2: Updating backend...');
+    console.log('Step 2: Updating backend...');
     await donateToCharity(userId, selectedCharity._id, amount);
-    console.log('✅ Backend updated successfully');
+    console.log('Backend updated successfully');
 
-    console.log('🔄 Step 3: Refreshing data...');
+    console.log('Step 3: Refreshing data...');
     await Promise.all([
       refreshTokens(),
       refreshCharities()
     ]);
     
-    console.log('✅ Donation completed - triggering UI refresh');
+    console.log('Donation completed - triggering UI refresh');
     triggerRefresh();
     
     setSelectedCharity(null);
@@ -192,10 +192,10 @@ export default function TokensScreen() {
     setAmountError(null);
     setSelectedMultiplier(null);
 
-    console.log('✨ Donation process completed successfully!');
+    console.log('Donation process completed successfully!');
     
   } catch (err: any) {
-    console.error('❌ Donation failed:', err);
+    console.error('Donation failed:', err);
     
     let errorMessage = 'Donation failed';
     
@@ -1444,7 +1444,6 @@ const styles = StyleSheet.create({
     color: '#92400e',
   },
 
-  // STYLE DLA BADGE'ÓW - HERO DETAIL
   heroBadgesRow: {
     flexDirection: 'row',
     gap: 8,

@@ -27,7 +27,6 @@ interface BibleQuote {
   category?: string;
 }
 
-// Wyciąga EMAIL z linked_accounts
 const getEmailFromPrivyUser = (user: any): string | null => {
   if (!user?.linked_accounts) return null;
   
@@ -38,11 +37,10 @@ const getEmailFromPrivyUser = (user: any): string | null => {
   return emailAccount?.address || null;
 };
 
-// Wyciąga WALLET ADDRESS z linked_accounts
 const getWalletFromPrivyUser = (user: any): string | null => {
   if (!user?.linked_accounts) return null;
   
-  // 1. PRIORYTET 1: Embedded Ethereum wallet
+  // Embedded Ethereum wallet
   const ethWallet = user.linked_accounts.find(
     (account: any) => 
       account.type === 'wallet' && 
@@ -52,7 +50,7 @@ const getWalletFromPrivyUser = (user: any): string | null => {
   
   if (ethWallet?.address) return ethWallet.address;
   
-  // 2. PRIORYTET 2: Embedded Solana wallet
+  // Embedded Solana wallet
   const solWallet = user.linked_accounts.find(
     (account: any) => 
       account.type === 'wallet' && 
@@ -62,7 +60,7 @@ const getWalletFromPrivyUser = (user: any): string | null => {
   
   if (solWallet?.address) return solWallet.address;
   
-  // 3. PRIORYTET 3: Cross-app embedded wallet
+  // Cross-app embedded wallet
   const crossAppAccount = user.linked_accounts.find(
     (account: any) => account.type === 'cross_app'
   );
@@ -71,7 +69,7 @@ const getWalletFromPrivyUser = (user: any): string | null => {
     return crossAppAccount.embedded_wallets[0].address;
   }
   
-  // 4. FALLBACK: Jakikolwiek wallet
+  // Fallback: Any wallet
   const anyWallet = user.linked_accounts.find(
     (account: any) => account.type === 'wallet' && account.address
   );
@@ -88,14 +86,14 @@ export function useUserData() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // FLAGA - zapobiega wielokrotnym wywołaniom
+  // FLAG - prevents multiple calls
   const isFetchingRef = useRef(false);
   const hasInitializedRef = useRef(false);
 
   const fetchUserData = useCallback(async () => {
-    // Jeśli już fetchujemy, przerwij
+    // If already fetching, abort
     if (isFetchingRef.current) {
-      console.log('⚠️ Already fetching user data, skipping...');
+      console.log('Already fetching user data, skipping...');
       return;
     }
 
@@ -113,11 +111,11 @@ export function useUserData() {
       return;
     }
 
-    // Ustaw flagę
+    // Set flag
     isFetchingRef.current = true;
 
     try {
-      console.log('🔄 Fetching user data for:', email);
+      console.log('Fetching user data for:', email);
       
       let userResponse = await apiFetch(
         `${API_CONFIG.BASE_URL}${ENDPOINTS.USER_BY_EMAIL(email)}`,
@@ -127,7 +125,7 @@ export function useUserData() {
       if (userResponse.status === 404) {
         console.log('User not found, creating...');
         
-        // Spróbuj uzyskać wallet przed utworzeniem użytkownika
+        // Try to get wallet before creating user
         let walletAddress = getWalletFromPrivyUser(user);
         
         if (!walletAddress && wallet) {
@@ -136,7 +134,7 @@ export function useUserData() {
             await wallet.create();
             await new Promise(resolve => setTimeout(resolve, 1000));
             walletAddress = wallet.address;
-            console.log('✅ Wallet created:', walletAddress);
+            console.log('Wallet created:', walletAddress);
           } catch (error) {
             console.error('Wallet creation failed:', error);
           }
@@ -160,7 +158,7 @@ export function useUserData() {
         }
 
         const newUser = await createResponse.json();
-        console.log('✅ New user created:', newUser.username);
+        console.log('New user created:', newUser.username);
         setUserData(newUser);
         return;
       }
@@ -170,9 +168,9 @@ export function useUserData() {
       }
 
       const userData = await userResponse.json();
-      console.log('✅ User data loaded:', userData.username);
+      console.log('User data loaded:', userData.username);
       
-      // Aktualizuj wallet tylko jeśli jest nowy i użytkownik już istnieje
+      // Update wallet only if new and user already exists
       let walletAddress = getWalletFromPrivyUser(user);
       
       if (!walletAddress && wallet && !wallet.address) {
@@ -200,17 +198,17 @@ export function useUserData() {
         
         if (updateResponse.ok) {
           userData.wallet_address = walletAddress;
-          console.log('✅ Wallet address updated');
+          console.log('Wallet address updated');
         }
       }
       
       setUserData(userData);
 
     } catch (error) {
-      console.error('❌ Error fetching user data:', error);
+      console.error('Error fetching user data:', error);
     } finally {
       setLoading(false);
-      // Zwolnij flagę
+      // Release flag
       isFetchingRef.current = false;
     }
   }, [user]);
@@ -218,13 +216,13 @@ export function useUserData() {
   const fetchDailyQuote = useCallback(async () => {
     try {
       const endpoint = `${API_CONFIG.BASE_URL}/api/bible/short-quote?lang=${language}`;
-      console.log(`🔄 Fetching daily quote in ${language}`);
+      console.log(`Fetching daily quote in ${language}`);
       
       const response = await apiFetch(endpoint, { method: 'GET' });
 
       if (response.ok) {
         const data = await response.json();
-        console.log(`✅ Daily quote loaded (${language}):`, data.reference);
+        console.log(`Daily quote loaded (${language}):`, data.reference);
         setDailyQuote(data);
       }
     } catch (error) {
@@ -239,7 +237,7 @@ export function useUserData() {
   }, [fetchDailyQuote]);
 
   const refresh = useCallback(async () => {
-    console.log('🔄 Manual refresh triggered');
+    console.log('Manual refresh triggered');
     setLoading(true);
     await Promise.all([
       fetchUserData(),
@@ -248,10 +246,10 @@ export function useUserData() {
     setLoading(false);
   }, [fetchUserData, fetchDailyQuote]);
 
-  // useFFECT - tylko raz po zalogowaniu
+  // useEffect - only once after login
   useEffect(() => {
     if (isReady && user && !hasInitializedRef.current) {
-      console.log('🚀 Initial data load');
+      console.log('Initial data load');
       hasInitializedRef.current = true;
       
       const loadData = async () => {
@@ -264,7 +262,7 @@ export function useUserData() {
       loadData();
     }
     
-    // Reset przy wylogowaniu
+    // Reset on logout
     if (!user) {
       hasInitializedRef.current = false;
       isFetchingRef.current = false;
@@ -273,10 +271,10 @@ export function useUserData() {
     }
   }, [isReady, user]);
 
-  // Odśwież cytat przy zmianie języka
+  // Refresh quote on language change
   useEffect(() => {
     if (user && hasInitializedRef.current) {
-      console.log(`🌍 Language changed to ${language}, refreshing quote`);
+      console.log(`Language changed to ${language}, refreshing quote`);
       fetchDailyQuote();
     }
   }, [language]);

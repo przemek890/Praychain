@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def translate_charity_action(action: dict, lang: str) -> dict:
     """
-    Tłumaczy akcję charytatywną na wybrany język
+    Translates charity action to the selected language
     """
     translations = action.get("translations", {})
     
@@ -23,20 +23,20 @@ def translate_charity_action(action: dict, lang: str) -> dict:
         action["description"] = trans.get("description", action.get("description"))
         action["impact_description"] = trans.get("impact_description", action.get("impact_description"))
     
-    # Usuń pole translations z odpowiedzi
+    # Remove translations field from response
     action.pop("translations", None)
     return action
 
 @router.get("/actions")
 async def get_charity_actions(lang: str = Query("en", regex="^(en|pl|es)$")):
     """
-    Pobiera listę aktywnych akcji charytatywnych z tłumaczeniami
+    Get list of active charity actions with translations
     """
     try:
         db = get_database()
         actions = await db.charity_actions.find({"is_active": True}).to_list(length=100)
         
-        # Tłumacz każdą akcję
+        # Translate each action
         translated_actions = [translate_charity_action(action, lang) for action in actions]
         
         return {"actions": translated_actions}
@@ -48,7 +48,7 @@ async def get_charity_actions(lang: str = Query("en", regex="^(en|pl|es)$")):
 @router.get("/actions/{charity_id}")
 async def get_charity_action(charity_id: str, lang: str = Query("en", regex="^(en|pl|es)$")):
     """
-    Pobiera pojedynczą akcję charytatywną z tłumaczeniem
+    Get single charity action with translation
     """
     try:
         db = get_database()
@@ -57,7 +57,7 @@ async def get_charity_action(charity_id: str, lang: str = Query("en", regex="^(e
         if not action:
             raise HTTPException(status_code=404, detail="Charity action not found")
         
-        # Zastosuj tłumaczenie
+        # Apply translation
         translated_action = translate_charity_action(action, lang)
         
         return translated_action
@@ -73,19 +73,19 @@ async def donate_to_charity(request: DonationRequest):
     try:
         db = get_database()
         
-        # Sprawdź czy akcja istnieje
+        # Check if action exists
         charity = await db.charity_actions.find_one({"_id": request.charity_id})
         if not charity:
             raise HTTPException(status_code=404, detail="Charity action not found")
         
-        # Sprawdź minimum tokenów
+        # Check minimum tokens
         if request.tokens_amount < charity.get("cost_tokens", 0):
             raise HTTPException(
                 status_code=400, 
                 detail=f"Minimum {charity.get('cost_tokens')} tokens required"
             )
         
-        # Sprawdź saldo użytkownika
+        # Check user balance
         user = await db.users.find_one({"_id": request.user_id})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -97,7 +97,7 @@ async def donate_to_charity(request: DonationRequest):
                 detail=f"Insufficient token balance. You have {current_balance} tokens"
             )
         
-        # Wykonaj donację
+        # Execute donation
         donation_id = str(uuid.uuid4())
         donation = {
             "_id": donation_id,
@@ -110,7 +110,7 @@ async def donate_to_charity(request: DonationRequest):
         
         await db.charity_donations.insert_one(donation)
         
-        # Zaktualizuj saldo użytkownika
+        # Update user balance
         new_balance = current_balance - request.tokens_amount
         await db.users.update_one(
             {"_id": request.user_id},
@@ -137,10 +137,10 @@ async def donate_to_charity(request: DonationRequest):
         
         tx_hash = None
         try:
-            # Sprawdź czy funkcja jest async czy nie
+            # Check if function is async or not
             from src.utils.celo import send_pray_back_to_treasury
             result = send_pray_back_to_treasury(request.tokens_amount)
-            # Jeśli jest async, użyj await
+            # If async, use await
             if hasattr(result, '__await__'):
                 tx_hash = await result
             else:
@@ -168,7 +168,7 @@ async def donate_to_charity(request: DonationRequest):
 @router.get("/donations/{user_id}")
 async def get_user_donations(user_id: str, skip: int = 0, limit: int = 20):
     """
-    Pobiera historię donacji użytkownika
+    Get user donation history
     """
     db = get_database()
     donations = await db.charity_donations.find(
@@ -187,7 +187,7 @@ async def get_user_donations(user_id: str, skip: int = 0, limit: int = 20):
 @router.get("/categories")
 async def get_charity_categories():
     """
-    Zwraca dostępne kategorie akcji charytatywnych
+    Returns available charity action categories
     """
     return {
         "categories": [
@@ -203,7 +203,7 @@ async def get_charity_categories():
 @router.get("/stats")
 async def get_charity_stats():
     """
-    Pobiera globalne statystyki akcji charytatywnych
+    Get global charity action statistics
     """
     db = get_database()
     
@@ -231,7 +231,7 @@ async def get_charity_stats():
 @router.get("/actions/{charity_id}/stats")
 async def get_charity_action_stats(charity_id: str):
     """
-    Pobiera statystyki konkretnej akcji charytatywnej
+    Get specific charity action statistics
     """
     db = get_database()
     charity = await db.charity_actions.find_one({"_id": charity_id})
@@ -254,7 +254,7 @@ async def get_charity_action_stats(charity_id: str):
 @router.get("/user/{user_id}/donations")
 async def get_user_charity_stats(user_id: str):
     """
-    Pobiera statystyki donacji użytkownika
+    Get user donation statistics
     """
     db = get_database()
     donations = await db.charity_donations.find({"user_id": user_id}).to_list(length=None)
@@ -272,7 +272,7 @@ async def get_user_charity_stats(user_id: str):
 @router.get("/leaderboard")
 async def get_charity_leaderboard(limit: int = 10):
     """
-    Pobiera ranking największych donatorów
+    Get top donors ranking
     """
     db = get_database()
     
@@ -295,17 +295,17 @@ async def get_charity_leaderboard(limit: int = 10):
 @router.get("/actions/{charity_id}/donors")
 async def get_charity_donors(charity_id: str, limit: int = 50):
     """
-    Zwraca listę donatorów dla danej akcji charytatywnej
+    Returns list of donors for a given charity action
     """
     try:
         db = get_database()
         
-        # Sprawdź czy akcja istnieje
+        # Check if action exists
         charity = await db.charity_actions.find_one({"_id": charity_id})
         if not charity:
             raise HTTPException(status_code=404, detail="Charity action not found")
         
-        # Agreguj donacje według użytkownika
+        # Aggregate donations by user
         pipeline = [
             {"$match": {"charity_id": charity_id}},
             {
@@ -322,7 +322,7 @@ async def get_charity_donors(charity_id: str, limit: int = 50):
         
         donors_agg = await db.charity_donations.aggregate(pipeline).to_list(length=limit)
         
-        # Pobierz informacje o użytkownikach
+        # Get user information
         donors = []
         for donor in donors_agg:
             user = await db.users.find_one({"_id": donor["_id"]})

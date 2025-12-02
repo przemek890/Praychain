@@ -22,11 +22,9 @@ export default function LoginScreen() {
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Reset ref when component mounts
   useEffect(() => {
     hasRedirectedRef.current = false;
     
-    // Reset animation
     fadeAnim.setValue(0);
     
     return () => {
@@ -34,20 +32,20 @@ export default function LoginScreen() {
     };
   }, []);
 
-  // Pojedyncze przekierowanie po zalogowaniu
+  // Single redirect after login
   useEffect(() => {
     if (ready && authenticated && user && !hasRedirectedRef.current) {
-      console.log('✅ User authenticated, redirecting...');
+      console.log('User authenticated, redirecting...');
       hasRedirectedRef.current = true;
       
-      // Małe opóźnienie przed przekierowaniem
+      // Small delay before redirecting
       setTimeout(() => {
         router.replace('/(tabs)');
       }, 100);
     }
   }, [ready, authenticated, user]);
 
-  // Animacja tylko gdy ready i nie ma użytkownika
+  // Animation only when ready and no user
   useEffect(() => {
     if (ready && !authenticated && !hasRedirectedRef.current) {
       Animated.timing(fadeAnim, {
@@ -82,15 +80,15 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await loginWithCode({ email: email.trim(), code: code.trim() });
-      // Po udanym logowaniu Privy zaktualizuje authenticated
-      // i useEffect przekieruje do /(tabs)
+      // After successful login, Privy will update authenticated
+      // and useEffect will redirect to /(tabs)
     } catch (error) {
       console.error('Login error:', error);
       setLoading(false);
     }
   };
 
-  // Loader gdy czekamy na Privy
+  // Loader when waiting for Privy
   if (!ready || hasRedirectedRef.current) {
     return (
       <View style={styles.loadingContainer}>
@@ -99,7 +97,7 @@ export default function LoginScreen() {
     );
   }
 
-  // Jeśli zalogowany, pokaż loader podczas przekierowania
+  // If authenticated, show loader during redirection
   if (authenticated && user) {
     return (
       <View style={styles.loadingContainer}>
@@ -142,7 +140,7 @@ export default function LoginScreen() {
 
               {/* Login Form */}
               <Animated.View style={[styles.formSection, { opacity: fadeAnim }]}>
-                {/* Single Input - Email lub Code */}
+                {/* Single Input - Email*/}
                 <View style={styles.inputWrapper}>
                   {codeSent ? (
                     <LogIn size={20} color="#78716c" style={styles.inputIcon} />
@@ -197,7 +195,7 @@ export default function LoginScreen() {
                   </LinearGradient>
                 </Pressable>
 
-                {/* Change email link - tylko gdy code sent */}
+                {/* Change email link - only when code sent */}
                 {codeSent && (
                   <Pressable 
                     onPress={() => {

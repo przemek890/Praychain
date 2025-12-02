@@ -1,7 +1,3 @@
-"""
-Krótkie, inspirujące cytaty biblijne w języku polskim, angielskim i hiszpańskim
-"""
-
 SHORT_BIBLE_QUOTES = [
     {
         "text_en": "Be still, and know that I am God.",

@@ -49,7 +49,6 @@ export default function Settings({
   const [showTerms, setShowTerms] = useState(false);
   const termsFadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Animacja dla Terms
   useEffect(() => {
     if (showTerms) {
       termsFadeAnim.setValue(0);

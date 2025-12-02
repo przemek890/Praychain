@@ -1,7 +1,3 @@
-"""
-Klasyczne modlitwy chrześcijańskie w językach: angielski, polski, hiszpański
-"""
-
 CLASSIC_PRAYERS = {
     "our_father": {
         "title": {

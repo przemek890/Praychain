@@ -19,7 +19,7 @@ async def verify_recording_session(
     if min_similarity is None:
         min_similarity = settings.VOICE_SIMILARITY_THRESHOLD
     
-    # Jeśli weryfikacja głosu wyłączona, zwróć sukces
+    # If voice verification is disabled, return success
     if not settings.VOICE_VERIFICATION_ENABLED:
         logger.info("Voice verification disabled - skipping")
         return {
@@ -40,7 +40,7 @@ async def verify_recording_session(
     db = get_database()
     
     try:
-        # Pobierz ścieżki do plików audio
+        # Get audio file paths
         prayer_trans = await db.transcriptions.find_one({"_id": prayer_transcription_id})
         captcha_trans = await db.transcriptions.find_one({"_id": captcha_transcription_id})
         
@@ -66,7 +66,7 @@ async def verify_recording_session(
         logger.info(f"Verifying voice: {prayer_path} vs {captcha_path}")
         logger.info(f"Using voice service at: {settings.VOICE_SERVICE_URL}")
         
-        # Wywołaj voice-service
+        # Call voice-service
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{settings.VOICE_SERVICE_URL}/verify",
