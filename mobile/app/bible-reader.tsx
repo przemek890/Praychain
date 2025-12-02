@@ -7,7 +7,7 @@ import { useBibleStructure, useBibleChapter } from '@/hooks/useBible';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function BibleReaderScreen() {
-  const { t, language } = useLanguage(); // ✅ DODANE language
+  const { t, language } = useLanguage();
   const [selectedBook, setSelectedBook] = useState('John');
   const [selectedChapter, setSelectedChapter] = useState(1);
   const [bookModalVisible, setBookModalVisible] = useState(false);
@@ -39,7 +39,7 @@ export default function BibleReaderScreen() {
     setChapterModalVisible(false);
   };
 
-  // ✅ NOWA FUNKCJA - pobiera nazwę księgi w wybranym języku
+  // Pobiera nazwę księgi w wybranym języku
   const getBookDisplayName = (bookId: string): string => {
     if (!bibleStructure?.books_with_names) {
       return bookId;
@@ -117,7 +117,6 @@ export default function BibleReaderScreen() {
             </Animated.View>
           </Animated.View>
 
-          {/* Selectors */}
           <View style={styles.selectorsContainer}>
             <Animated.View style={[styles.selectorWrapper, { opacity: fadeAnim }]}>
               <Pressable onPress={() => setBookModalVisible(true)}>
@@ -127,7 +126,6 @@ export default function BibleReaderScreen() {
                 >
                   <Text style={styles.selectorLabel}>{t.bibleReader.book}</Text>
                   <View style={styles.selectorValueRow}>
-                    {/* ✅ ZMIENIONE - używa getBookDisplayName */}
                     <Text style={styles.selectorValue} numberOfLines={1}>
                       {getBookDisplayName(selectedBook)}
                     </Text>
@@ -189,7 +187,6 @@ export default function BibleReaderScreen() {
         </ScrollView>
       </LinearGradient>
 
-      {/* ✅ ZMIENIONY Book Selection Modal */}
       <Modal
         visible={bookModalVisible}
         animationType="slide"
@@ -493,7 +490,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
 
-  // ✅ NOWE Modal Styles
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -555,7 +552,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#92400e',
   },
 
-  // ✅ Chapters Grid
+  // Chapters Grid
   chaptersGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -586,7 +583,6 @@ const styles = StyleSheet.create({
     color: '#92400e',
   },
 
-  // NOWE STYLE
   centerContent: {
     flex: 1,
     justifyContent: 'center',
@@ -623,7 +619,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // ✅ DODAJ na końcu
   retryButtonError: {
     borderRadius: 12,
     overflow: 'hidden',

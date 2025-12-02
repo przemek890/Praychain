@@ -27,7 +27,7 @@ interface BibleQuote {
   category?: string;
 }
 
-// ✅ Wyciąga EMAIL z linked_accounts
+// Wyciąga EMAIL z linked_accounts
 const getEmailFromPrivyUser = (user: any): string | null => {
   if (!user?.linked_accounts) return null;
   
@@ -38,7 +38,7 @@ const getEmailFromPrivyUser = (user: any): string | null => {
   return emailAccount?.address || null;
 };
 
-// ✅ Wyciąga WALLET ADDRESS z linked_accounts
+// Wyciąga WALLET ADDRESS z linked_accounts
 const getWalletFromPrivyUser = (user: any): string | null => {
   if (!user?.linked_accounts) return null;
   
@@ -82,18 +82,18 @@ const getWalletFromPrivyUser = (user: any): string | null => {
 export function useUserData() {
   const { user, isReady } = usePrivy();
   const wallet = useEmbeddedWallet();
-  const { language } = useLanguage(); // ✅ DODANE
+  const { language } = useLanguage();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [dailyQuote, setDailyQuote] = useState<BibleQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   
-  // ✅ FLAGA - zapobiega wielokrotnym wywołaniom
+  // FLAGA - zapobiega wielokrotnym wywołaniom
   const isFetchingRef = useRef(false);
   const hasInitializedRef = useRef(false);
 
   const fetchUserData = useCallback(async () => {
-    // ✅ Jeśli już fetchujemy, przerwij
+    // Jeśli już fetchujemy, przerwij
     if (isFetchingRef.current) {
       console.log('⚠️ Already fetching user data, skipping...');
       return;
@@ -113,7 +113,7 @@ export function useUserData() {
       return;
     }
 
-    // ✅ Ustaw flagę
+    // Ustaw flagę
     isFetchingRef.current = true;
 
     try {
@@ -127,7 +127,7 @@ export function useUserData() {
       if (userResponse.status === 404) {
         console.log('User not found, creating...');
         
-        // ✅ Spróbuj uzyskać wallet przed utworzeniem użytkownika
+        // Spróbuj uzyskać wallet przed utworzeniem użytkownika
         let walletAddress = getWalletFromPrivyUser(user);
         
         if (!walletAddress && wallet) {
@@ -172,7 +172,7 @@ export function useUserData() {
       const userData = await userResponse.json();
       console.log('✅ User data loaded:', userData.username);
       
-      // ✅ Aktualizuj wallet tylko jeśli jest nowy i użytkownik już istnieje
+      // Aktualizuj wallet tylko jeśli jest nowy i użytkownik już istnieje
       let walletAddress = getWalletFromPrivyUser(user);
       
       if (!walletAddress && wallet && !wallet.address) {
@@ -210,12 +210,11 @@ export function useUserData() {
       console.error('❌ Error fetching user data:', error);
     } finally {
       setLoading(false);
-      // ✅ Zwolnij flagę
+      // Zwolnij flagę
       isFetchingRef.current = false;
     }
   }, [user]);
 
-  // ✅ POPRAWIONE - dodano język
   const fetchDailyQuote = useCallback(async () => {
     try {
       const endpoint = `${API_CONFIG.BASE_URL}/api/bible/short-quote?lang=${language}`;
@@ -231,7 +230,7 @@ export function useUserData() {
     } catch (error) {
       console.error('Error fetching daily quote:', error);
     }
-  }, [language]); // ✅ DODANE language do dependencies
+  }, [language]);
 
   const refreshQuote = useCallback(async () => {
     setRefreshing(true);
@@ -249,7 +248,7 @@ export function useUserData() {
     setLoading(false);
   }, [fetchUserData, fetchDailyQuote]);
 
-  // ✅ GŁÓWNY EFFECT - tylko raz po zalogowaniu
+  // useFFECT - tylko raz po zalogowaniu
   useEffect(() => {
     if (isReady && user && !hasInitializedRef.current) {
       console.log('🚀 Initial data load');
@@ -265,7 +264,7 @@ export function useUserData() {
       loadData();
     }
     
-    // ✅ Reset przy wylogowaniu
+    // Reset przy wylogowaniu
     if (!user) {
       hasInitializedRef.current = false;
       isFetchingRef.current = false;
@@ -274,7 +273,7 @@ export function useUserData() {
     }
   }, [isReady, user]);
 
-  // ✅ NOWY EFFECT - odśwież cytat przy zmianie języka
+  // Odśwież cytat przy zmianie języka
   useEffect(() => {
     if (user && hasInitializedRef.current) {
       console.log(`🌍 Language changed to ${language}, refreshing quote`);

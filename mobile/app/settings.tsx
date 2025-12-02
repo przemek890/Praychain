@@ -49,7 +49,7 @@ export default function Settings({
   const [showTerms, setShowTerms] = useState(false);
   const termsFadeAnim = useRef(new Animated.Value(0)).current;
 
-  // ✅ Animacja dla Terms
+  // Animacja dla Terms
   useEffect(() => {
     if (showTerms) {
       termsFadeAnim.setValue(0);
@@ -82,7 +82,6 @@ export default function Settings({
 
   return (
     <>
-      {/* ✅ MAIN SETTINGS VIEW */}
       {!showTerms && (
         <View style={styles.container}>
           <LinearGradient
@@ -239,7 +238,7 @@ export default function Settings({
         </View>
       )}
 
-      {/* ✅ TERMS & CONDITIONS VIEW */}
+      {/* TERMS & CONDITIONS VIEW */}
       {showTerms && (
         <TermsAndConditions
           visible={showTerms}

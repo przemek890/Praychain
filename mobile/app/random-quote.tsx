@@ -87,7 +87,6 @@ export default function RandomQuoteScreen() {
     <View style={styles.container}>
       <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* ✅ Header */}
           <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
             <Pressable 
               onPress={() => router.back()} 
@@ -105,7 +104,7 @@ export default function RandomQuoteScreen() {
             </View>
           </Animated.View>
 
-          {/* ✅ Quote Card - zaraz pod headerem */}
+          {/* Quote Card - zaraz pod headerem */}
           {quote && (
             <Animated.View style={[styles.contentSection, { opacity: fadeAnim }]}>
               <View style={styles.quoteCard}>
@@ -227,7 +226,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // ✅ Content Section - zaraz pod headerem
+  // Content Section - zaraz pod headerem
   contentSection: {
     paddingHorizontal: 16,
     paddingBottom: 40,
@@ -290,7 +289,7 @@ const styles = StyleSheet.create({
     color: '#dc2626',
   },
 
-  // ✅ Refresh Button - pod kartą
+  // Refresh Button - pod kartą
   refreshButtonBottom: {
     borderRadius: 16,
     overflow: 'hidden',

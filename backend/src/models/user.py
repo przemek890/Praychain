@@ -7,7 +7,7 @@ class UserBase(BaseModel):
     email: str
 
 class UserCreate(UserBase):
-    wallet_address: Optional[str] = None  # ✅ NOWE - opcjonalny adres portfela
+    wallet_address: Optional[str] = None
 
 class UserResponse(UserBase):
     id: str
@@ -22,7 +22,7 @@ class UserResponse(UserBase):
     level: int = 1
     experience: int = 0
     experience_to_next_level: int = 100
-    wallet_address: Optional[str] = None  # ✅ NOWE
+    wallet_address: Optional[str] = None
 
     class Config:
         from_attributes = True

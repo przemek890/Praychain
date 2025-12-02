@@ -326,8 +326,6 @@ const styles = StyleSheet.create({
     color: '#1c1917',
     letterSpacing: 0.1,
   },
-
-  // ✅ NOWE STYLE
   errorPromptCard: {
     borderRadius: 16,
     overflow: 'hidden',

@@ -27,7 +27,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
 
     const inAuthGroup = segments[0] === 'login';
 
-    // ✅ Zapobiegnij wielokrotnym przekierowaniom
+    // Zapobiegnij wielokrotnym przekierowaniom
     if (hasNavigatedRef.current) return;
 
     if (user && inAuthGroup) {
@@ -53,7 +53,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, isReady, segments]);
 
-  // ✅ Reset flagi po wylogowaniu
+  // Reset flagi po wylogowaniu
   useEffect(() => {
     if (!user) {
       hasNavigatedRef.current = false;
@@ -89,7 +89,7 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  // ✅ Sprawdź czy mamy wymagane zmienne środowiskowe
+  // Sprawdź czy mamy wymagane zmienne środowiskowe
   useEffect(() => {
     if (!process.env.EXPO_PUBLIC_PRIVY_APP_ID) {
       setPrivyError('Missing EXPO_PUBLIC_PRIVY_APP_ID');
@@ -105,7 +105,7 @@ export default function RootLayout() {
     return null;
   }
 
-  // ✅ Wyświetl błąd jeśli brakuje konfiguracji
+  // Wyświetl błąd jeśli brakuje konfiguracji
   if (privyError) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>

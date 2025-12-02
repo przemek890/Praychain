@@ -8,7 +8,7 @@ import numpy as np
 
 from src.utils.mongodb import get_database
 from src.models.prayer import PrayerAnalysisRequest, DualAnalysisRequest, DualAnalysisResponse
-from src.config import settings  # ✅ TYLKO settings
+from src.config import settings
 from src.utils.voice_verification import verify_recording_session
 
 router = APIRouter(prefix="/api/prayer", tags=["prayer"])
@@ -265,23 +265,7 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
                 captcha_accuracy=captcha_accuracy,
                 focus_score=focus_score
             )
-            
-            # ❌ USUŃ TEN BLOK - już jest w award_tokens_internal
-            # await db.users.update_one(
-            #     {"_id": request.user_id},
-            #     {
-            #         "$inc": {
-            #             "tokens_balance": tokens_earned,
-            #             "total_earned": tokens_earned,
-            #             "prayers_count": 1
-            #         },
-            #         "$set": {
-            #             "updated_at": datetime.utcnow()
-            #         }
-            #     }
-            # )
-            
-            # ✅ Tylko prayers_count nie jest w award_tokens_internal
+
             await db.users.update_one(
                 {"_id": request.user_id},
                 {

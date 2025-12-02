@@ -103,11 +103,10 @@ async def get_available_prayers(lang: str = Query("en", regex="^(en|pl|es)$")):
     """
     prayers = []
     for prayer_id, prayer_data in CLASSIC_PRAYERS.items():
-        # ✅ POPRAWIONE - sprawdź czy title jest dict czy string
         if isinstance(prayer_data["title"], dict):
             title = prayer_data["title"].get(lang, prayer_data["title"]["en"])
         else:
-            title = prayer_data["title"]  # fallback - użyj stringa bezpośrednio
+            title = prayer_data["title"]
         
         prayers.append({
             "id": prayer_id,
@@ -127,7 +126,6 @@ async def get_prayer_by_id(prayer_id: str, lang: str = Query("en", regex="^(en|p
     
     prayer_data = CLASSIC_PRAYERS[prayer_id]
     
-    # ✅ POPRAWIONE - sprawdź typ przed użyciem .get()
     if isinstance(prayer_data["title"], dict):
         title = prayer_data["title"].get(lang, prayer_data["title"]["en"])
     else:

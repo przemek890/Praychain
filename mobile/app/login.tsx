@@ -18,11 +18,11 @@ export default function LoginScreen() {
   const [code, setCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const hasRedirectedRef = useRef(false); // ✅ ZMIEŃ na useRef
+  const hasRedirectedRef = useRef(false);
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // ✅ Reset ref when component mounts
+  // Reset ref when component mounts
   useEffect(() => {
     hasRedirectedRef.current = false;
     
@@ -34,20 +34,20 @@ export default function LoginScreen() {
     };
   }, []);
 
-  // ✅ Pojedyncze przekierowanie po zalogowaniu
+  // Pojedyncze przekierowanie po zalogowaniu
   useEffect(() => {
     if (ready && authenticated && user && !hasRedirectedRef.current) {
       console.log('✅ User authenticated, redirecting...');
       hasRedirectedRef.current = true;
       
-      // ✅ Małe opóźnienie przed przekierowaniem
+      // Małe opóźnienie przed przekierowaniem
       setTimeout(() => {
         router.replace('/(tabs)');
       }, 100);
     }
   }, [ready, authenticated, user]);
 
-  // ✅ Animacja tylko gdy ready i nie ma użytkownika
+  // Animacja tylko gdy ready i nie ma użytkownika
   useEffect(() => {
     if (ready && !authenticated && !hasRedirectedRef.current) {
       Animated.timing(fadeAnim, {
@@ -82,7 +82,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await loginWithCode({ email: email.trim(), code: code.trim() });
-      // ✅ Po udanym logowaniu Privy zaktualizuje authenticated
+      // Po udanym logowaniu Privy zaktualizuje authenticated
       // i useEffect przekieruje do /(tabs)
     } catch (error) {
       console.error('Login error:', error);
@@ -90,7 +90,7 @@ export default function LoginScreen() {
     }
   };
 
-  // ✅ Loader gdy czekamy na Privy
+  // Loader gdy czekamy na Privy
   if (!ready || hasRedirectedRef.current) {
     return (
       <View style={styles.loadingContainer}>
@@ -99,7 +99,7 @@ export default function LoginScreen() {
     );
   }
 
-  // ✅ Jeśli zalogowany, pokaż loader podczas przekierowania
+  // Jeśli zalogowany, pokaż loader podczas przekierowania
   if (authenticated && user) {
     return (
       <View style={styles.loadingContainer}>

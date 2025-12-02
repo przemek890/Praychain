@@ -303,7 +303,7 @@ async def award_tokens_internal(
     Pobiera wallet_address z bazy danych i wysyła PRAY on-chain.
     """
     try:
-        # 🔹 1. Pobierz wallet_address użytkownika z bazy
+        # Pobierz wallet_address użytkownika z bazy
         user = await db.users.find_one({"_id": user_id})
         user_wallet_address = user.get("wallet_address") if user else None
         
@@ -312,7 +312,7 @@ async def award_tokens_internal(
         else:
             logger.info(f"User {user_id} wallet_address: {user_wallet_address}")
         
-        # 🔹 2. Aktualizacja off-chain salda użytkownika w Mongo
+        # Aktualizacja off-chain salda użytkownika w Mongo
         balance = await db.token_balances.find_one({"user_id": user_id})
         
         if balance:
@@ -335,7 +335,7 @@ async def award_tokens_internal(
                 "last_updated": datetime.utcnow()
             })
         
-        # 🔹 3. Aktualizuj też tokens_balance w kolekcji users
+        # Aktualizuj też tokens_balance w kolekcji users
         await db.users.update_one(
             {"_id": user_id},
             {
@@ -347,7 +347,7 @@ async def award_tokens_internal(
             }
         )
         
-        # 🔹 4. Wyliczenie breakdown'u do historii
+        # Wyliczenie breakdown'u do historii
         accuracy_points = text_accuracy * 50
         stability_points = emotional_stability * 25
         fluency_points = speech_fluency * 15
@@ -376,7 +376,7 @@ async def award_tokens_internal(
         
         await db.token_transactions.insert_one(transaction)
 
-        # 🔹 5. Wysłanie PRAY on-chain na wallet użytkownika z bazy
+        # Wysłanie PRAY on-chain na wallet użytkownika z bazy
         tx_hash = None
         try:
             if tokens_earned > 0 and user_wallet_address:
