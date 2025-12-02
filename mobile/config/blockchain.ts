@@ -4,16 +4,13 @@ export { celo };
 
 export const PRAY_TOKEN_ADDRESS = '0xF0341E12F7Af56925b7f74560E0bCAD298126Eb7' as const;
 export const CHARITY_WALLET_ADDRESS = '0xa22fb84c98894aaaa4195005cd6b8dda932c3510' as const;
-
-// ✅ NOWA FLAGA - kontroluje czy wykonywać transakcje blockchain
 export const BLOCKCHAIN_ENABLED = process.env.EXPO_PUBLIC_BLOCKCHAIN_ENABLED === 'true';
 
-// ✅ Helper do logowania stanu
 export const logBlockchainStatus = () => {
-  console.log('🔗 Blockchain config:');
+  console.log('Blockchain config:');
   console.log('   BLOCKCHAIN_ENABLED:', BLOCKCHAIN_ENABLED);
   console.log('   ENV value:', process.env.EXPO_PUBLIC_BLOCKCHAIN_ENABLED);
-  console.log('   Mode:', BLOCKCHAIN_ENABLED ? '🟢 REAL TRANSACTIONS' : '🟡 SIMULATION MODE');
+  console.log('   Mode:', BLOCKCHAIN_ENABLED ? 'REAL TRANSACTIONS' : 'SIMULATION MODE');
 };
 
 export const PRAY_TOKEN_ABI = [

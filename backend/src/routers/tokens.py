@@ -5,12 +5,30 @@ from pydantic import BaseModel
 import uuid
 import logging
 
-from src.utils.celo import send_pray_to_user
+from src.utils.celo import send_pray_to_user_wallet, get_pray_balance
 from src.utils.mongodb import get_database
 from src.models.token import TokenBalance, AddTokensRequest, AwardTokensRequest
 
 router = APIRouter(prefix="/api/tokens", tags=["tokens"])
 logger = logging.getLogger(__name__)
+
+
+async def get_user_wallet_address(db, user_id: str) -> Optional[str]:
+    """
+    Pobiera wallet_address użytkownika z bazy danych.
+    
+    Args:
+        db: Połączenie z bazą danych
+        user_id: ID użytkownika (np. "krzysiot444")
+        
+    Returns:
+        wallet_address lub None jeśli nie znaleziono
+    """
+    user = await db.users.find_one({"_id": user_id})
+    if user:
+        return user.get("wallet_address")
+    return None
+
 
 @router.get("/balance/{user_id}")
 async def get_token_balance(user_id: str):
@@ -33,6 +51,38 @@ async def get_token_balance(user_id: str):
     except Exception as e:
         logger.error(f"Error fetching token balance: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/on-chain-balance/{user_id}")
+async def get_on_chain_balance(user_id: str):
+    """
+    Pobiera saldo PRAY on-chain dla użytkownika.
+    Wymaga wallet_address w bazie danych.
+    """
+    try:
+        db = get_database()
+        wallet_address = await get_user_wallet_address(db, user_id)
+        
+        if not wallet_address:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"User {user_id} has no wallet_address configured"
+            )
+        
+        balance = get_pray_balance(wallet_address)
+        
+        return {
+            "user_id": user_id,
+            "wallet_address": wallet_address,
+            "on_chain_balance": balance
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching on-chain balance: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/add")
 async def add_tokens_manually(request: AddTokensRequest):
@@ -89,6 +139,7 @@ async def add_tokens_manually(request: AddTokensRequest):
         logger.error(f"Error adding tokens: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/transactions/{user_id}")
 async def get_transactions(user_id: str, skip: int = 0, limit: int = 20):
     try:
@@ -110,6 +161,7 @@ async def get_transactions(user_id: str, skip: int = 0, limit: int = 20):
         logger.error(f"Error fetching transactions: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/leaderboard")
 async def get_leaderboard(limit: int = 10):
     try:
@@ -127,6 +179,7 @@ async def get_leaderboard(limit: int = 10):
     except Exception as e:
         logger.error(f"Error fetching leaderboard: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/award")
 async def award_tokens_for_prayer(request: AwardTokensRequest):
@@ -148,11 +201,14 @@ async def award_tokens_for_prayer(request: AwardTokensRequest):
             }
             await db.token_transactions.insert_one(transaction)
             
+            balance_doc = await db.token_balances.find_one({"user_id": request.user_id})
+            current_balance = balance_doc["current_balance"] if balance_doc else 0
+            
             return {
                 "success": False,
                 "tokens_earned": 0,
                 "reason": f"CAPTCHA verification failed (accuracy: {request.captcha_accuracy * 100:.0f}%). Required: 50%+",
-                "current_balance": (await db.token_balances.find_one({"user_id": request.user_id}))["current_balance"] if await db.token_balances.find_one({"user_id": request.user_id}) else 0
+                "current_balance": current_balance
             }
         
         accuracy_points = request.text_accuracy * 50
@@ -230,6 +286,7 @@ async def award_tokens_for_prayer(request: AwardTokensRequest):
         logger.error(f"Error awarding tokens: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 async def award_tokens_internal(
     db,
     user_id: str,
@@ -241,8 +298,21 @@ async def award_tokens_internal(
     captcha_accuracy: float,
     focus_score: float
 ):
+    """
+    Internal function for awarding tokens.
+    Gets wallet_address from database and sends PRAY on-chain.
+    """
     try:
-        # 🔹 1. Aktualizacja off-chain salda użytkownika w Mongo
+        # Get user wallet_address from database
+        user = await db.users.find_one({"_id": user_id})
+        user_wallet_address = user.get("wallet_address") if user else None
+        
+        if not user_wallet_address:
+            logger.warning(f"User {user_id} has no wallet_address in database, skipping on-chain transfer")
+        else:
+            logger.info(f"User {user_id} wallet_address: {user_wallet_address}")
+        
+        # Update user off-chain balance in Mongo
         balance = await db.token_balances.find_one({"user_id": user_id})
         
         if balance:
@@ -265,7 +335,19 @@ async def award_tokens_internal(
                 "last_updated": datetime.utcnow()
             })
         
-        # 🔹 2. Wyliczenie breakdown’u do historii
+        # Also update tokens_balance in users collection
+        await db.users.update_one(
+            {"_id": user_id},
+            {
+                "$inc": {
+                    "tokens_balance": tokens_earned,
+                    "total_earned": tokens_earned
+                },
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+        
+        # Wyliczenie breakdown'u do historii
         accuracy_points = text_accuracy * 50
         stability_points = emotional_stability * 25
         fluency_points = speech_fluency * 15
@@ -294,23 +376,33 @@ async def award_tokens_internal(
         
         await db.token_transactions.insert_one(transaction)
 
-        # 🔹 3. Wysłanie PRAY on-chain (demo: zawsze na jeden user wallet z .env)
+        # Send PRAY on-chain to user wallet from database
+        tx_hash = None
         try:
-            if tokens_earned > 0:
-                tx_hash = send_pray_to_user(tokens_earned)
-                # Możemy dopisać info o on-chain tx do transakcji
-                await db.token_transactions.update_one(
-                    {"_id": transaction["_id"]},
-                    {"$set": {"tx_hash": tx_hash, "on_chain": True}}
-                )
-                logger.info(
-                    f"On-chain: sent {tokens_earned} PRAY to demo user wallet (tx: {tx_hash})"
-                )
+            if tokens_earned > 0 and user_wallet_address:
+                tx_hash = send_pray_to_user_wallet(user_wallet_address, tokens_earned)
+                
+                if tx_hash:
+                    # Zapisz info o on-chain tx
+                    await db.token_transactions.update_one(
+                        {"_id": transaction["_id"]},
+                        {"$set": {
+                            "tx_hash": tx_hash, 
+                            "on_chain": True,
+                            "recipient_wallet": user_wallet_address
+                        }}
+                    )
+                    logger.info(
+                        f"On-chain: sent {tokens_earned} PRAY to {user_wallet_address} (tx: {tx_hash})"
+                    )
+            elif tokens_earned > 0:
+                logger.warning(f"User {user_id} has no wallet_address, tokens awarded off-chain only")
             else:
                 logger.info("No tokens_earned, skipping on-chain transfer")
+                
         except Exception as onchain_err:
-            # Nie blokujemy całej logiki przez błąd on-chain – logujemy i lecimy dalej
-            logger.error(f"Error sending on-chain PRAY: {onchain_err}")
+            # Don't block entire logic due to on-chain error - log and continue
+            logger.error(f"Error sending on-chain PRAY to {user_wallet_address}: {onchain_err}")
 
         logger.info(
             f"Awarded {tokens_earned} tokens to user {user_id} "

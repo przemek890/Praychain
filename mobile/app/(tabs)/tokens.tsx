@@ -34,7 +34,7 @@ export default function TokensScreen() {
   sending: blockchainSending, 
   walletAddress, 
   isWalletReady,
-  isBlockchainEnabled  // ✅ DODAJ
+  isBlockchainEnabled
 } = useWeb3({ 
   userWalletAddress: userData?.wallet_address 
 });
@@ -150,7 +150,6 @@ export default function TokensScreen() {
     return;
   }
 
-  // ✅ ZAKTUALIZOWANE SPRAWDZENIE
   if (!walletAddress) {
     setAmountError('Wallet address not found. Please contact support.');
     return;
@@ -165,27 +164,27 @@ export default function TokensScreen() {
     setDonating(true);
     setAmountError(null);
     
-    console.log('🎯 Starting donation process...');
+    console.log('Starting donation process...');
     console.log('Amount:', amount, 'PRAY');
     console.log('Charity:', selectedCharity.title);
     console.log('User ID:', userId);
     console.log('Wallet:', walletAddress);
 
-    console.log('📤 Step 1: Sending blockchain transaction...');
+    console.log('Step 1: Sending blockchain transaction...');
     const txHash = await sendPrayTokens(amount);
-    console.log('✅ Blockchain transaction successful:', txHash);
+    console.log('Blockchain transaction successful:', txHash);
 
-    console.log('💾 Step 2: Updating backend...');
+    console.log('Step 2: Updating backend...');
     await donateToCharity(userId, selectedCharity._id, amount);
-    console.log('✅ Backend updated successfully');
+    console.log('Backend updated successfully');
 
-    console.log('🔄 Step 3: Refreshing data...');
+    console.log('Step 3: Refreshing data...');
     await Promise.all([
       refreshTokens(),
       refreshCharities()
     ]);
     
-    console.log('✅ Donation completed - triggering UI refresh');
+    console.log('Donation completed - triggering UI refresh');
     triggerRefresh();
     
     setSelectedCharity(null);
@@ -193,10 +192,10 @@ export default function TokensScreen() {
     setAmountError(null);
     setSelectedMultiplier(null);
 
-    console.log('✨ Donation process completed successfully!');
+    console.log('Donation process completed successfully!');
     
   } catch (err: any) {
-    console.error('❌ Donation failed:', err);
+    console.error('Donation failed:', err);
     
     let errorMessage = 'Donation failed';
     
@@ -220,7 +219,6 @@ export default function TokensScreen() {
 
   const loading = tokensLoading || charitiesLoading || userDataLoading;
 
-  // ✅ NOWY ERROR SCREEN - tak jak w prayer.tsx
   if (!userId && !userDataLoading) {
     return (
       <View style={styles.container}>
@@ -259,7 +257,6 @@ export default function TokensScreen() {
     );
   }
 
-  // ✅ LOADING SCREEN
   if (loading) {
     return (
       <View style={styles.container}>
@@ -277,7 +274,6 @@ export default function TokensScreen() {
   }
 
 
-  // ✅ ERROR SCREEN
   if (error) {
     return (
       <View style={styles.container}>
@@ -565,7 +561,6 @@ export default function TokensScreen() {
           </View>
         </ScrollView>
 
-        {/* Modal bez zmian */}
         <Modal
           animationType="slide"
           transparent={true}
@@ -623,7 +618,6 @@ export default function TokensScreen() {
     );
   }
 
-  // ✅ DODAJ TO - główny widok listy charities
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -657,7 +651,6 @@ export default function TokensScreen() {
 }
 
 
-// ✅ CharityCard component - poza główną funkcją
 function CharityCard({ charity, onSelect, t }: { charity: CharityAction; onSelect: () => void; t: any }) {
   const progress = charity.goal_tokens 
     ? (charity.total_tokens_raised / charity.goal_tokens) * 100 
@@ -684,7 +677,6 @@ function CharityCard({ charity, onSelect, t }: { charity: CharityAction; onSelec
         )}
 
         <View style={styles.charityContent}>
-          {/* ✅ BADGE'Y - Category + Organization */}
           <View style={styles.badgesRow}>
             {/* Category Badge */}
             <View style={[styles.categoryBadge, { 
@@ -706,7 +698,6 @@ function CharityCard({ charity, onSelect, t }: { charity: CharityAction; onSelec
             </View>
           </View>
 
-          {/* ✅ Patron Badge - jeśli istnieje */}
           {charity.patron && (
             <View style={styles.patronBadge}>
               <Crown size={14} color="#f59e0b" strokeWidth={2.5} />
@@ -1453,7 +1444,6 @@ const styles = StyleSheet.create({
     color: '#92400e',
   },
 
-  // ✅ NOWE STYLE DLA BADGE'ÓW - HERO DETAIL
   heroBadgesRow: {
     flexDirection: 'row',
     gap: 8,

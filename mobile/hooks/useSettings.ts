@@ -9,13 +9,13 @@ interface SettingsData {
   walletChain: string | null;
 }
 
-// ✅ Helper do parsowania chainId z formatu "eip155:42220" lub "42220"
+// Helper for parsing chainId from format "eip155:42220" or "42220"
 const parseChainId = (chainId: string | number | null): string | null => {
   if (!chainId) return null;
   
   const chainIdStr = String(chainId);
   
-  // Jeśli jest w formacie "eip155:42220", wyciągnij sam numer
+  // If it's in the format "eip155:42220", extract the number
   if (chainIdStr.includes(':')) {
     return chainIdStr.split(':')[1];
   }
@@ -23,7 +23,7 @@ const parseChainId = (chainId: string | number | null): string | null => {
   return chainIdStr;
 };
 
-// ✅ Helper do mapowania chainId na nazwę sieci
+// Helper for mapping chainId to network name
 const getChainName = (chainId: string | number | null): string => {
   const parsedChainId = parseChainId(chainId);
   
@@ -33,7 +33,7 @@ const getChainName = (chainId: string | number | null): string => {
   if (parsedChainId === '42220' || parsedChainId === '0xa4ec') return 'Celo';
   if (parsedChainId === '44787' || parsedChainId === '0xaef3') return 'Celo Alfajores';
   
-  // Inne sieci
+  // Other networks
   if (parsedChainId === '1' || parsedChainId === '0x1') return 'Ethereum';
   if (parsedChainId === '137' || parsedChainId === '0x89') return 'Polygon';
   if (parsedChainId === '8453' || parsedChainId === '0x2105') return 'Base';
@@ -53,11 +53,11 @@ export function useSettings() {
     return emailAccount?.address || null;
   }, [user]);
 
-  // ✅ Zaktualizowana funkcja - parsuje chainId i zwraca czytelną nazwę
+  // Updated function - parses chainId and returns a readable name
   const getWalletInfo = useCallback((): { address: string | null; chain: string | null } => {
     if (!user?.linked_accounts) return { address: null, chain: null };
 
-    // Priorytet 1: Ethereum embedded
+    // Priority 1: Ethereum embedded
     const ethWallet = user.linked_accounts.find(
       (account: any) => 
         account.type === 'wallet' && 
@@ -66,14 +66,14 @@ export function useSettings() {
     );
     if (ethWallet?.address) {
       const chainName = getChainName(ethWallet.chain_id);
-      console.log('✅ Found ETH wallet:', ethWallet.address, 'Raw chain_id:', ethWallet.chain_id, 'Parsed:', chainName);
+      console.log('Found ETH wallet:', ethWallet.address, 'Raw chain_id:', ethWallet.chain_id, 'Parsed:', chainName);
       return { 
         address: ethWallet.address, 
         chain: chainName 
       };
     }
 
-    // Priorytet 2: Solana embedded
+    // Priority 2: Solana embedded
     const solWallet = user.linked_accounts.find(
       (account: any) => 
         account.type === 'wallet' && 
@@ -84,7 +84,7 @@ export function useSettings() {
       return { address: solWallet.address, chain: 'Solana' };
     }
 
-    // Priorytet 3: Cross-app
+    // Priority 3: Cross-app
     const crossAppAccount = user.linked_accounts.find(
       (account: any) => account.type === 'cross_app'
     );

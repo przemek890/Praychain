@@ -27,12 +27,12 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
 
     const inAuthGroup = segments[0] === 'login';
 
-    // ✅ Zapobiegnij wielokrotnym przekierowaniom
+    // Prevent multiple redirects
     if (hasNavigatedRef.current) return;
 
     if (user && inAuthGroup) {
-      // Użytkownik zalogowany próbuje dostać się do login
-      console.log('✅ User logged in, redirecting to tabs');
+      // User logged in trying to access login
+      console.log('User logged in, redirecting to tabs');
       hasNavigatedRef.current = true;
       setIsNavigating(true);
       
@@ -41,8 +41,8 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
         setTimeout(() => setIsNavigating(false), 100);
       }, 100);
     } else if (!user && !inAuthGroup && segments.length > 0) {
-      // Użytkownik niezalogowany próbuje dostać się do chronionej strony
-      console.log('❌ User not logged in, redirecting to login');
+      // User not logged in trying to access protected page
+      console.log('User not logged in, redirecting to login');
       hasNavigatedRef.current = true;
       setIsNavigating(true);
       
@@ -53,14 +53,14 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, isReady, segments]);
 
-  // ✅ Reset flagi po wylogowaniu
+  // Reset flag on logout
   useEffect(() => {
     if (!user) {
       hasNavigatedRef.current = false;
     }
   }, [user]);
 
-  // Pokaż loader podczas nawigacji lub gdy Privy nie jest gotowy
+  // Show loader during navigation or when Privy is not ready
   if (!isReady || isNavigating) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fafaf9' }}>
@@ -89,15 +89,15 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  // ✅ Sprawdź czy mamy wymagane zmienne środowiskowe
+  // Check for required environment variables
   useEffect(() => {
     if (!process.env.EXPO_PUBLIC_PRIVY_APP_ID) {
       setPrivyError('Missing EXPO_PUBLIC_PRIVY_APP_ID');
-      console.error('❌ EXPO_PUBLIC_PRIVY_APP_ID is not set');
+      console.error('EXPO_PUBLIC_PRIVY_APP_ID is not set');
     }
     if (!process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID) {
       setPrivyError('Missing EXPO_PUBLIC_PRIVY_CLIENT_ID');
-      console.error('❌ EXPO_PUBLIC_PRIVY_CLIENT_ID is not set');
+      console.error('EXPO_PUBLIC_PRIVY_CLIENT_ID is not set');
     }
   }, []);
 
@@ -105,7 +105,7 @@ export default function RootLayout() {
     return null;
   }
 
-  // ✅ Wyświetl błąd jeśli brakuje konfiguracji
+  // Display error if configuration is missing
   if (privyError) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>

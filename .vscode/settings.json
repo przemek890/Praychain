@@ -6,7 +6,6 @@
         "**/mongo_data": true,
         "**/.terraform": true,
         "**.expo": true,
-        // "**/terraform.tfstate": true,
         "**/terraform.tfstate.backup": true,
         "**/terraform.tfstate.*": true,
         "**/.terraform.lock.hcl": true,

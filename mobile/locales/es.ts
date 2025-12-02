@@ -310,7 +310,7 @@ export const es = {
     donateTokens: 'Donar tokens',
     donations: 'donaciones',
     noDonorsYet: 'Aún no hay donantes',
-    // ✅ DODAJ TE NOWE KLUCZE:
+    // ADD THESE NEW KEYS:
     campaignProgress: 'Progreso de campaña',
     raised: 'Recaudado',
     supporters: 'Partidarios',

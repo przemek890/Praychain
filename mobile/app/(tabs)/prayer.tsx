@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePrayerRecording } from '@/hooks/usePrayerRecording';
 import { Audio } from 'expo-av';
 import { useUserDataRefresh } from '@/contexts/UserDataContext';
-import { useUserData } from '@/hooks/useUserData'; // ✅ NOWE
+import { useUserData } from '@/hooks/useUserData';
 
 export default function PrayerScreen() {
   const { t } = useLanguage();
@@ -85,7 +85,6 @@ export default function PrayerScreen() {
     }
   }, [result, triggerRefresh]);
 
-  // ✅ ERROR SCREEN - bez zmian
   if (!userData && !userDataLoading) {
     return (
       <View style={styles.container}>
@@ -115,7 +114,6 @@ export default function PrayerScreen() {
     );
   }
 
-  // ✅ NOWY LOADING SCREEN - tak jak w tokens.tsx
   if (loading || userDataLoading) {
     return (
       <View style={styles.container}>
@@ -129,7 +127,6 @@ export default function PrayerScreen() {
     );
   }
 
-  // ✅ ERROR SCREEN
   if (error) {
     return (
       <View style={styles.container}>
@@ -159,7 +156,6 @@ export default function PrayerScreen() {
       <View style={styles.container}>
         <LinearGradient colors={['#78350f20', '#44403c30', '#78350f25']} style={styles.gradient}>
           <ScrollView style={styles.prayerDetailScroll} showsVerticalScrollIndicator={false}>
-            {/* ✅ NOWY HEADER - bez ikony serca, tytuł wyżej */}
             <Animated.View style={[styles.detailHeaderSection, { opacity: fadeAnim }]}>
               <Pressable onPress={resetPrayer} style={styles.backButton}>
                 <ArrowLeft size={24} color="#1c1917" strokeWidth={2.5} />
@@ -171,21 +167,19 @@ export default function PrayerScreen() {
               </View>
             </Animated.View>
 
-            {/* Prayer Text - zawsze widocne, pełny tekst */}
             <Animated.View style={[styles.stepCard, { opacity: fadeAnim }]}>
               <LinearGradient colors={['#ffffff', '#fafaf9']} style={styles.stepGradient}>
                 <View style={styles.prayerTextHeader}>
                   <BookOpen size={18} color="#92400e" />
                   <Text style={styles.prayerTextHeaderTitle}>{t.prayer.prayerText}</Text>
                 </View>
-                {/* ✅ USUNIĘTE numberOfLines - pełny tekst */}
                 <Text style={styles.prayerText}>
                   {selectedPrayer.text}
                 </Text>
               </LinearGradient>
             </Animated.View>
 
-            {/* Step 1: Record Prayer - ukrywa się po zakończeniu */}
+            {/* Record Prayer - hides after completion */}
             {!prayerTranscriptionId && (
               <View style={styles.stepCard}>
                 <LinearGradient colors={['#fff7ed', '#ffedd5']} style={styles.stepGradient}>
@@ -232,7 +226,7 @@ export default function PrayerScreen() {
               </View>
             )}
 
-            {/* Step 2: Verify with Bible Verse - pełny tekst captcha */}
+            {/* Verify with Bible Verse - full text captcha */}
             {prayerTranscriptionId && !result && captchaQuote && (
               <View style={styles.stepCard}>
                 <LinearGradient colors={['#fef3c7', '#fde68a']} style={styles.stepGradient}>
@@ -325,7 +319,7 @@ export default function PrayerScreen() {
                     </Text>
                   </View>
 
-                  {/* Voice Verification - 2 żółte kafelki */}
+                  {/* Voice Verification - 2 yellow tiles */}
                   <View style={styles.verificationSection}>
                     <Text style={styles.verificationTitle}>{t.prayer.performanceDetails}</Text>
 
@@ -657,7 +651,6 @@ const styles = StyleSheet.create({
   captchaQuoteText: { fontSize: 14, fontStyle: 'italic', color: '#1c1917', marginBottom: 6, lineHeight: 20 },
   captchaQuoteRef: { fontSize: 11, color: '#78716c', fontWeight: '500', textAlign: 'right' },
   
-  // Result styles - jeszcze bardziej zmniejszone
   resultGradient: { 
     padding: 12,
   },
@@ -700,7 +693,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   
-  // Tokens inline - białe tło i lżejsza ramka
   tokensInline: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -737,7 +729,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Metrics - jeszcze mniejsze
   metricsGrid: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
@@ -807,7 +798,7 @@ const styles = StyleSheet.create({
   processingContainer: { 
     padding: 30, 
     alignItems: 'center',
-    backgroundColor: 'transparent', // Przezroczyste tło
+    backgroundColor: 'transparent',
   },
   processingText: { 
     marginTop: 10, 
@@ -876,7 +867,6 @@ const styles = StyleSheet.create({
     color: '#1c1917',
   },
 
-  // ✅ NOWE STYLE
   centerContent: {
     flex: 1,
     justifyContent: 'center',
@@ -930,7 +920,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 
-  // ✅ NOWE STYLE dla głównego loadingu i błędów
   loadingTextMain: {
     marginTop: 12,
     fontSize: 14,

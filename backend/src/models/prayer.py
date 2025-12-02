@@ -18,7 +18,6 @@ class DualAnalysisResponse(BaseModel):
     captcha_passed: bool
     user_id: str
     message: str
-    # NEW: Voice verification details
     voice_verified: bool = False
     voice_similarity: float = 0.0
     is_human: bool = False

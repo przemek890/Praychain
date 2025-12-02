@@ -179,7 +179,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 
-  // Header
   headerSection: {
     paddingTop: 60,
     paddingHorizontal: 16,
@@ -252,14 +251,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
-  // Content
   content: {
     flex: 1,
     paddingHorizontal: 16,
     gap: 16,
   },
 
-  // Reference Card - kompaktowa, pomarańczowa
   referenceCard: {
     borderRadius: 16,
     padding: 20,
@@ -286,7 +283,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  // Verses Card - białe tło, czytelne
   versesCard: {
     backgroundColor: '#ffffff',
     borderRadius: 20,
@@ -326,8 +322,6 @@ const styles = StyleSheet.create({
     color: '#1c1917',
     letterSpacing: 0.1,
   },
-
-  // ✅ NOWE STYLE
   errorPromptCard: {
     borderRadius: 16,
     overflow: 'hidden',

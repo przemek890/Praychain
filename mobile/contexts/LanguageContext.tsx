@@ -28,7 +28,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Załaduj zapisany język przy starcie
   useEffect(() => {
     const loadLanguage = async () => {
       try {
@@ -45,7 +44,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     loadLanguage();
   }, []);
 
-  // Funkcja do zmiany języka z zapisem
   const setLanguage = async (lang: Language) => {
     try {
       console.log('Setting language to:', lang);
@@ -64,7 +62,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   };
 
   if (isLoading) {
-    return null; // lub loading screen
+    return null;
   }
 
   return (
