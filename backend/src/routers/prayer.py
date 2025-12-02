@@ -266,17 +266,27 @@ async def analyze_dual_transcription(request: DualAnalysisRequest, lang: str = Q
                 focus_score=focus_score
             )
             
+            # ❌ USUŃ TEN BLOK - już jest w award_tokens_internal
+            # await db.users.update_one(
+            #     {"_id": request.user_id},
+            #     {
+            #         "$inc": {
+            #             "tokens_balance": tokens_earned,
+            #             "total_earned": tokens_earned,
+            #             "prayers_count": 1
+            #         },
+            #         "$set": {
+            #             "updated_at": datetime.utcnow()
+            #         }
+            #     }
+            # )
+            
+            # ✅ Tylko prayers_count nie jest w award_tokens_internal
             await db.users.update_one(
                 {"_id": request.user_id},
                 {
-                    "$inc": {
-                        "tokens_balance": tokens_earned,
-                        "total_earned": tokens_earned,
-                        "prayers_count": 1
-                    },
-                    "$set": {
-                        "updated_at": datetime.utcnow()
-                    }
+                    "$inc": {"prayers_count": 1},
+                    "$set": {"updated_at": datetime.utcnow()}
                 }
             )
             
