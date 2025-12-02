@@ -64,7 +64,6 @@ export default function HomeScreen() {
     }
   }, [loading]);
 
-  // ✅ NOWY LOADING SCREEN - wyśrodkowany z gradientem
   if (loading) {
     return (
       <View style={styles.container}>
@@ -282,7 +281,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 60,
   },
-  // ✅ NOWE STYLE - wyśrodkowany loading
   centerContent: {
     flex: 1,
     justifyContent: 'center',
@@ -295,14 +293,6 @@ const styles = StyleSheet.create({
     color: '#78716c',
     fontWeight: '500',
   },
-  // ✅ USUNIĘTE stare style
-  // loadingContainer: {
-  //   flex: 1,
-  //   alignItems: 'center',
-  //   justifyContent: 'center',
-  //   backgroundColor: '#fafaf9',
-  //   gap: 12,
-  // },
   header: {
     paddingHorizontal: 16,
     marginBottom: 20,

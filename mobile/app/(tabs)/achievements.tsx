@@ -66,7 +66,7 @@ export default function AchievementsScreen() {
 }
 
 function AchievementCard({ achievement }: { achievement: Achievement }) {
-  const { t } = useLanguage(); // ✅ DODAJ
+  const { t } = useLanguage();
   const progressPercent = (achievement.progress / achievement.maxProgress) * 100;
 
   return (

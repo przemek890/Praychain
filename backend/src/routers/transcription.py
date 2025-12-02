@@ -52,7 +52,6 @@ async def transcribe_audio(
     try:
         logger.info(f"Transcribing {audio_type}: {file_path} (lang: {lang})")
         
-        # ✅ POPRAWIONE - wykrywanie lub wymuszanie języka
         if lang == "auto":
             segments, info = whisper_model.transcribe(
                 str(file_path), 

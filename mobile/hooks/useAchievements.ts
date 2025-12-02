@@ -14,13 +14,13 @@ export interface Achievement {
 }
 
 export function useAchievements() {
-  const { t } = useLanguage(); // ✅ DODAJ
+  const { t } = useLanguage();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAchievements();
-  }, [t]); // ✅ Dodaj zależność od t
+  }, [t]);
 
   const loadAchievements = () => {
     setLoading(true);

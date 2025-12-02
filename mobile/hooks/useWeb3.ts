@@ -6,15 +6,15 @@ import {
   PRAY_TOKEN_ADDRESS, 
   PRAY_TOKEN_ABI, 
   CHARITY_WALLET_ADDRESS,
-  BLOCKCHAIN_ENABLED,  // ✅ IMPORT FLAGI
-  logBlockchainStatus  // ✅ IMPORT LOGGERA
+  BLOCKCHAIN_ENABLED,  // Import flagi
+  logBlockchainStatus  // Import loggera
 } from '@/config/blockchain';
 
 interface UseWeb3Props {
   userWalletAddress?: string | null;
 }
 
-// ✅ HELPER - generuje fake transaction hash
+// HELPER - generuje fake transaction hash
 const generateFakeTransactionHash = (): string => {
   const chars = '0123456789abcdef';
   let hash = '0x';
@@ -32,7 +32,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
   const [isWalletReady, setIsWalletReady] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
-  // ✅ Log blockchain status on mount
+  // Log blockchain status on mount
   useEffect(() => {
     logBlockchainStatus();
   }, []);
@@ -91,7 +91,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
     return fakeTxHash;
   }, [walletAddress]);
 
-  // ✅ ZAKTUALIZOWANA FUNKCJA - sprawdza flagę
+  // ZAKTUALIZOWANA FUNKCJA - sprawdza flagę
   const sendPrayTokens = useCallback(async (amount: number): Promise<string> => {
     if (!isWalletReady || !walletAddress) {
       throw new Error('Wallet not ready. Please wait and try again.');
@@ -101,13 +101,13 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
     setError(null);
 
     try {
-      // ✅ SPRAWDŹ FLAGĘ - jeśli wyłączona, symuluj
+      // SPRAWDŹ FLAGĘ - jeśli wyłączona, symuluj
       if (!BLOCKCHAIN_ENABLED) {
         console.log('⚠️ BLOCKCHAIN_ENABLED = false');
         return await simulateTransaction(amount);
       }
 
-      // ✅ RZECZYWISTA TRANSAKCJA - tylko gdy BLOCKCHAIN_ENABLED = true
+      // RZECZYWISTA TRANSAKCJA - tylko gdy BLOCKCHAIN_ENABLED = true
       console.log('🟢 BLOCKCHAIN_ENABLED = true - executing real transaction');
       
       if (!embeddedWallet?.account) {
@@ -120,7 +120,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       console.log('To:', CHARITY_WALLET_ADDRESS);
       console.log('Network: Celo (chainId:', celo.id, ')');
 
-      // ✅ Sprawdź salda przed transakcją
+      // Sprawdź salda przed transakcją
       const [nativeBalance, prayBalance] = await Promise.all([
         publicClient.getBalance({ address: walletAddress as `0x${string}` }),
         publicClient.readContract({
@@ -137,12 +137,12 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       const amountInWei = parseUnits(amount.toString(), 18);
       console.log('Amount to send:', amountInWei.toString(), 'wei');
 
-      // ✅ Sprawdź czy jest wystarczająco PRAY
+      // Sprawdź czy jest wystarczająco PRAY
       if ((prayBalance as bigint) < amountInWei) {
         throw new Error(`Insufficient PRAY. You have ${formatUnits(prayBalance as bigint, 18)} PRAY.`);
       }
 
-      // ✅ Sprawdź czy jest wystarczająco CELO na gas
+      // Sprawdź czy jest wystarczająco CELO na gas
       if (nativeBalance === 0n) {
         throw new Error('No native CELO for gas. Please add CELO to your wallet.');
       }
@@ -155,7 +155,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
 
       console.log('📝 Encoded transaction data:', data);
 
-      // ✅ Pobierz provider
+      // Pobierz provider
       console.log('🔗 Getting provider from embedded wallet...');
       
       const provider = await embeddedWallet.getProvider();
@@ -166,7 +166,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
 
       console.log('✅ Provider obtained');
 
-      // ✅ Switch to Celo network
+      // Switch to Celo network
       try {
         console.log('🔄 Switching to Celo network (chainId:', celo.id, ')...');
         await provider.request({
@@ -192,7 +192,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
         }
       }
 
-      // ✅ Estimate gas for the transaction
+      // Estimate gas for the transaction
       console.log('⛽ Estimating gas...');
       const estimatedGas = await publicClient.estimateGas({
         account: walletAddress as `0x${string}`,
@@ -204,11 +204,11 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       const gasLimit = (estimatedGas * 120n) / 100n;
       console.log('⛽ Estimated gas:', estimatedGas.toString(), '| Using:', gasLimit.toString());
 
-      // ✅ Get current gas price
+      // Get current gas price
       const gasPrice = await publicClient.getGasPrice();
       console.log('⛽ Gas price:', gasPrice.toString());
 
-      // ✅ Przygotuj transakcję z wszystkimi parametrami
+      // Przygotuj transakcję z wszystkimi parametrami
       const txParams = {
         from: walletAddress,
         to: PRAY_TOKEN_ADDRESS,
@@ -223,7 +223,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       console.log('📤 Sending transaction...');
       console.log('Transaction params:', JSON.stringify(txParams, null, 2));
 
-      // ✅ Wyślij transakcję
+      // Wyślij transakcję
       const txHash = await provider.request({
         method: 'eth_sendTransaction',
         params: [txParams],
@@ -233,7 +233,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       console.log('Hash:', txHash);
       console.log(`🔗 View on explorer: https://celoscan.io/tx/${txHash}`);
 
-      // ✅ Czekaj na potwierdzenie
+      // Czekaj na potwierdzenie
       console.log('⏳ Waiting for confirmation...');
       
       const receipt = await publicClient.waitForTransactionReceipt({
@@ -281,7 +281,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       return '0';
     }
 
-    // ✅ W trybie symulacji zwróć "unknown"
+    // W trybie symulacji zwróć "unknown"
     if (!BLOCKCHAIN_ENABLED) {
       console.log('🟡 SIMULATION MODE - returning mock balance');
       return '∞'; // lub możesz zwrócić dowolną wartość
@@ -307,7 +307,7 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
       return '0';
     }
 
-    // ✅ W trybie symulacji zwróć "unknown"
+    // W trybie symulacji zwróć "unknown"
     if (!BLOCKCHAIN_ENABLED) {
       console.log('🟡 SIMULATION MODE - returning mock native balance');
       return '∞';
@@ -334,6 +334,6 @@ export function useWeb3({ userWalletAddress }: UseWeb3Props = {}) {
     walletAddress,
     isWalletReady,
     isFromDatabase: !!userWalletAddress,
-    isBlockchainEnabled: BLOCKCHAIN_ENABLED,  // ✅ EKSPORT FLAGI
+    isBlockchainEnabled: BLOCKCHAIN_ENABLED,
   };
 }

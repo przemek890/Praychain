@@ -152,7 +152,6 @@ async def get_user(user_id: str):
         "experience_to_next_level": level_data["experience_to_next_level"]
     }
 
-# ✅ POPRAWKA - wallet_address z request body
 @router.patch("/{user_id}/wallet")
 async def update_wallet_address(
     user_id: str,

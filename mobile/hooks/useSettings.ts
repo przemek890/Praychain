@@ -9,7 +9,7 @@ interface SettingsData {
   walletChain: string | null;
 }
 
-// ✅ Helper do parsowania chainId z formatu "eip155:42220" lub "42220"
+// Helper do parsowania chainId z formatu "eip155:42220" lub "42220"
 const parseChainId = (chainId: string | number | null): string | null => {
   if (!chainId) return null;
   
@@ -23,7 +23,7 @@ const parseChainId = (chainId: string | number | null): string | null => {
   return chainIdStr;
 };
 
-// ✅ Helper do mapowania chainId na nazwę sieci
+// Helper do mapowania chainId na nazwę sieci
 const getChainName = (chainId: string | number | null): string => {
   const parsedChainId = parseChainId(chainId);
   
@@ -53,7 +53,7 @@ export function useSettings() {
     return emailAccount?.address || null;
   }, [user]);
 
-  // ✅ Zaktualizowana funkcja - parsuje chainId i zwraca czytelną nazwę
+  // Zaktualizowana funkcja - parsuje chainId i zwraca czytelną nazwę
   const getWalletInfo = useCallback((): { address: string | null; chain: string | null } => {
     if (!user?.linked_accounts) return { address: null, chain: null };
 

@@ -135,7 +135,6 @@ async def donate_to_charity(request: DonationRequest):
             }
         )
         
-        # ✅ POPRAWKA: Opcjonalnie wyślij tokeny do skarbca (jeśli funkcja NIE jest async)
         tx_hash = None
         try:
             # Sprawdź czy funkcja jest async czy nie
