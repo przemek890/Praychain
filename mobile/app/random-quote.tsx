@@ -104,7 +104,7 @@ export default function RandomQuoteScreen() {
             </View>
           </Animated.View>
 
-          {/* Quote Card - zaraz pod headerem */}
+          {/* Quote Card*/}
           {quote && (
             <Animated.View style={[styles.contentSection, { opacity: fadeAnim }]}>
               <View style={styles.quoteCard}>
@@ -164,7 +164,6 @@ const styles = StyleSheet.create({
     color: '#78716c',
   },
 
-  // Header
   header: {
     paddingTop: 60,
     paddingHorizontal: 16,
@@ -226,7 +225,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Content Section - zaraz pod headerem
   contentSection: {
     paddingHorizontal: 16,
     paddingBottom: 40,
@@ -264,7 +262,6 @@ const styles = StyleSheet.create({
     color: '#92400e',
   },
 
-  // Actions
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -289,7 +286,6 @@ const styles = StyleSheet.create({
     color: '#dc2626',
   },
 
-  // Refresh Button - pod kartą
   refreshButtonBottom: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -312,7 +308,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
 
-  // Error State
   centerContent: {
     flex: 1,
     justifyContent: 'center',

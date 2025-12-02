@@ -11,7 +11,6 @@ class TokenBalance(BaseModel):
 
 
 class CharityDonation(BaseModel):
-    """Model dla dokumentu donacji w bazie danych"""
     id: str
     user_id: str
     charity_id: str

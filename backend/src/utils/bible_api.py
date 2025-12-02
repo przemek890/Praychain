@@ -16,12 +16,12 @@ class BibleAPIClient:
         }
         self.pl_bible = "bw"
         self._es_books_cache = None
-        logger.info("✅ Using bible-api.com (EN), www.biblia.info.pl (PL), biblia.my.to (ES)")
+        logger.info("Using bible-api.com (EN), www.biblia.info.pl (PL), biblia.my.to (ES)")
     
     def _get_polish_book_map(self) -> Dict[str, str]:
-        """Mapowanie angielskich nazw na skróty API biblia.info.pl"""
+        """Mapping of English names to biblia.info.pl API abbreviations"""
         return {
-            # Stary Testament
+            # Old Testament
             "Genesis": "rdz",
             "Exodus": "wj",
             "Leviticus": "kpl",
@@ -61,7 +61,7 @@ class BibleAPIClient:
             "Haggai": "ag",
             "Zechariah": "za",
             "Malachi": "ml",
-            # Nowy Testament
+            # New Testament
             "Matthew": "mt",
             "Mark": "mk",
             "Luke": "lk",
@@ -100,7 +100,7 @@ class BibleAPIClient:
                 response = await client.get(f"{self.base_urls['es']}/book")
                 response.raise_for_status()
                 self._es_books_cache = response.json()
-                logger.info(f"✅ Cached {len(self._es_books_cache)} Spanish books")
+                logger.info(f"Cached {len(self._es_books_cache)} Spanish books")
                 return self._es_books_cache
         except Exception as e:
             logger.error(f"Error fetching Spanish books: {e}")
@@ -139,7 +139,7 @@ class BibleAPIClient:
         return name_mapping.get(english_book, "GEN")
     
     async def get_random_verse(self, lang: str = "en") -> Dict:
-        """Pobierz losowy werset - rzuca wyjątek jeśli błąd"""
+        """Get random verse - throws exception on error"""
         if lang == "pl":
             safe_books_en = ["Genesis", "Exodus", "Psalms", "Proverbs", "Matthew", "John", "Romans"]
             english_book = random.choice(safe_books_en)
@@ -197,7 +197,6 @@ class BibleAPIClient:
                     "type": "bible_verse"
                 }
         
-        # English
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{self.base_urls['en']}/?random=verse",
@@ -286,7 +285,7 @@ class BibleAPIClient:
                 
                 book_name = next((b["name"] for b in es_books if b["id"] == es_book_id), book_id)
                 
-                logger.info(f"✅ Fetched {len(verses)} verses for {book_name} {chapter_num}")
+                logger.info(f"Fetched {len(verses)} verses for {book_name} {chapter_num}")
                 
                 return {
                     "book_name": book_name,
@@ -295,7 +294,6 @@ class BibleAPIClient:
                     "reference": f"{book_name} {chapter_num}"
                 }
             
-            # English
             reference = f"{book_id} {chapter_num}"
             response = await client.get(f"{self.base_urls['en']}/{reference}")
             response.raise_for_status()

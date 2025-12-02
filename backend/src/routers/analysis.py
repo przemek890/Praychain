@@ -69,14 +69,14 @@ def calculate_text_accuracy(transcribed_text: str, reference_text: str) -> float
     return round(accuracy_score, 2)
 
 def analyze_emotional_stability(emotions: Dict[str, float]) -> float:
-    """Stabilność emocjonalna - preferencja dla spokojnych emocji"""
+    """Emotional stability - preference for calm emotions"""
     calm_emotions = emotions.get("joy", 0) * 0.8
     volatile_emotions = emotions.get("anger", 0) + emotions.get("fear", 0) + emotions.get("disgust", 0)
     stability = max(0.0, min(1.0, calm_emotions - volatile_emotions + 0.5))
     return round(stability, 2)
 
 def analyze_speech_fluency(text: str) -> float:
-    """Płynność mowy - brak zacinania się, powtórzeń"""
+    """Speech fluency - absence of stuttering, repetitions"""
     words = text.split()
     if len(words) < 3:
         return 0.5
@@ -95,7 +95,7 @@ def calculate_prayer_focus_score(
     emotional_stability: float,
     speech_fluency: float
 ) -> float:
-    """Ogólny wynik skupienia podczas modlitwy"""
+    """Overall focus score during prayer"""
     focus = (text_accuracy * 0.5) + (emotional_stability * 0.3) + (speech_fluency * 0.2)
     return round(focus, 2)
 

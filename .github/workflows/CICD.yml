@@ -47,15 +47,15 @@ jobs:
 
       - name: Build, Tag and Push images to ECR
         run: |
-          echo "🔨 Building Docker images..."
+          echo "Building Docker images..."
 
           # Build
           docker build -t praychain-nginx:latest -f nginx/Dockerfile nginx/
-          echo "✅ nginx built"
+          echo "nginx built"
           docker build -t praychain-backend:latest -f backend/Dockerfile backend/
-          echo "✅ backend built"
+          echo "backend built"
           # docker build -t praychain-voice:latest -f voice-service/Dockerfile voice-service/
-          # echo "✅ voice-service built"
+          # echo "voice-service built"
 
           # Tag
           docker tag praychain-nginx:latest ${{ env.ECR_REGISTRY }}/praychain-nginx:latest
@@ -67,7 +67,7 @@ jobs:
           docker push ${{ env.ECR_REGISTRY }}/praychain-backend:latest
           # docker push ${{ env.ECR_REGISTRY }}/praychain-voice:latest
 
-          echo "✅ All images pushed to ECR!"
+          echo "All images pushed to ECR!"
 
   # ==================== CD - Deploy ====================
   cd:
@@ -111,7 +111,7 @@ jobs:
           # Inicjalizacja Terraform
           terraform init
 
-          # Sprawdź czy infrastruktura istnieje, jeśli nie - utwórz
+          # Check if infrastructure exists, if not - create
           terraform apply -auto-approve
 
       - name: Deploy to ECS
@@ -124,7 +124,7 @@ jobs:
 
       - name: Wait for ECS service to stabilize
         run: |
-          echo "⏳ Waiting for ECS service to stabilize..."
+          echo "Waiting for ECS service to stabilize..."
           aws ecs wait services-stable \
             --cluster ${{ env.ECS_CLUSTER }} \
             --services ${{ env.ECS_SERVICE }} \
@@ -159,7 +159,7 @@ jobs:
       - name: Update Cloudflare DNS Records
         run: |
           PUBLIC_IP="${{ steps.get-ip.outputs.public_ip }}"
-          echo "🌐 Updating DNS records to: $PUBLIC_IP"
+          echo "Updating DNS records to: $PUBLIC_IP"
 
           # Get record IDs
           ROOT_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?type=A&name=${{ env.DOMAIN }}" \
@@ -179,12 +179,12 @@ jobs:
             -H "Content-Type: application/json" \
             --data '{"type":"A","name":"www","content":"'"$PUBLIC_IP"'","ttl":1,"proxied":true}'
 
-          echo "✅ DNS records updated"
+          echo "DNS records updated"
 
       - name: Health Check
         run: |
           PUBLIC_IP="${{ steps.get-ip.outputs.public_ip }}"
-          echo "🏥 Running health check..."
+          echo "Running health check..."
 
           # Czekaj do 3 minut z retry co 10 sekund
           for i in {1..18}; do
@@ -192,7 +192,7 @@ jobs:
             RESPONSE=$(curl -s --connect-timeout 10 --max-time 30 "http://$PUBLIC_IP/health" 2>&1 || echo "FAILED")
             
             if echo "$RESPONSE" | grep -q '"status":"ok"'; then
-              echo "✅ Health check passed!"
+              echo "Health check passed!"
               exit 0
             fi
             
@@ -201,11 +201,11 @@ jobs:
             sleep 10
           done
 
-          echo "❌ Health check FAILED after 18 attempts!"
+          echo "Health check FAILED after 18 attempts!"
           exit 1
 
       - name: Deployment Summary
         run: |
-          echo "✅ Deployment completed!"
-          echo "🌐 IP: ${{ steps.get-ip.outputs.public_ip }}"
-          echo "🔗 https://${{ env.DOMAIN }}"
+          echo "Deployment completed!"
+          echo "IP: ${{ steps.get-ip.outputs.public_ip }}"
+          echo "https://${{ env.DOMAIN }}"

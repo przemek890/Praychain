@@ -35,7 +35,7 @@ export function useAchievements() {
         unlocked: true,
         color: '#fbbf24',
         percentUnlocked: 95,
-        emoji: '🙏',
+        emoji: '',
       },
       {
         id: '2',
@@ -46,7 +46,7 @@ export function useAchievements() {
         unlocked: false,
         color: '#f59e0b',
         percentUnlocked: 45,
-        emoji: '🔥',
+        emoji: '',
       },
       {
         id: '3',
@@ -57,7 +57,7 @@ export function useAchievements() {
         unlocked: false,
         color: '#d97706',
         percentUnlocked: 12,
-        emoji: '📿',
+        emoji: '',
       },
       {
         id: '4',

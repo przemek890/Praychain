@@ -1,10 +1,6 @@
-"""
-Struktura Biblii - kolejność książek i liczba rozdziałów
-"""
-
-# Sekwencja książek Biblii (kolejność kanoniczna)
+# Bible books sequence (canonical order)
 BIBLE_BOOKS_ORDER = [
-    # Stary Testament
+    # Old Testament
     "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
     "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel",
     "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles",
@@ -13,7 +9,7 @@ BIBLE_BOOKS_ORDER = [
     "Lamentations", "Ezekiel", "Daniel", "Hosea", "Joel",
     "Amos", "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk",
     "Zephaniah", "Haggai", "Zechariah", "Malachi",
-    # Nowy Testament
+    # New Testament
     "Matthew", "Mark", "Luke", "John", "Acts", "Romans",
     "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians",
     "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians",
@@ -22,9 +18,9 @@ BIBLE_BOOKS_ORDER = [
     "Jude", "Revelation"
 ]
 
-# Polskie nazwy książek Biblii
+# Polish Bible book names
 BIBLE_BOOKS_ORDER_PL = [
-    # Stary Testament
+    # Old Testament
     "Rodzaju", "Wyjścia", "Kapłańska", "Liczb", "Powtórzonego Prawa",
     "Jozuego", "Sędziów", "Rut", "1 Samuela", "2 Samuela",
     "1 Królewska", "2 Królewska", "1 Kronik", "2 Kronik",
@@ -33,7 +29,7 @@ BIBLE_BOOKS_ORDER_PL = [
     "Lamentacje Jeremiasza", "Ezechiela", "Daniela", "Ozeasza", "Joela",
     "Amosa", "Abdiasza", "Jonasza", "Micheasza", "Nahuma", "Habakuka",
     "Sofoniasza", "Aggeusza", "Zachariasza", "Malachiasza",
-    # Nowy Testament
+    # New Testament
     "Mateusza", "Marka", "Łukasza", "Jana", "Dzieje Apostolskie", "Rzymian",
     "1 Koryntian", "2 Koryntian", "Galacjan", "Efezjan",
     "Filipian", "Kolosan", "1 Tesaloniczan", "2 Tesaloniczan",
@@ -42,7 +38,7 @@ BIBLE_BOOKS_ORDER_PL = [
     "Judy", "Objawienie Jana"
 ]
 
-# Hiszpańskie nazwy książek Biblii
+# Spanish Bible book names
 BIBLE_BOOKS_ORDER_ES = [
     # Antiguo Testamento
     "Génesis", "Éxodo", "Levítico", "Números", "Deuteronomio",
@@ -62,9 +58,9 @@ BIBLE_BOOKS_ORDER_ES = [
     "Judas", "Apocalipsis"
 ]
 
-# Przybliżona liczba rozdziałów w każdej książce (po angielsku, polsku i hiszpańsku)
+# Approximate number of chapters per book (in English, Polish, and Spanish)
 CHAPTERS_PER_BOOK = {
-    # Angielskie nazwy
+    # English names
     "Genesis": 50, "Exodus": 40, "Leviticus": 27, "Numbers": 36, "Deuteronomy": 34,
     "Joshua": 24, "Judges": 21, "Ruth": 4, "1 Samuel": 31, "2 Samuel": 24,
     "1 Kings": 22, "2 Kings": 25, "1 Chronicles": 29, "2 Chronicles": 36,
@@ -80,7 +76,7 @@ CHAPTERS_PER_BOOK = {
     "James": 5, "1 Peter": 5, "2 Peter": 3, "1 John": 5, "2 John": 1, "3 John": 1,
     "Jude": 1, "Revelation": 22,
 
-    # Polskie nazwy
+    # Polish names
     "Rodzaju": 50, "Wyjścia": 40, "Kapłańska": 27, "Liczb": 36, "Powtórzonego Prawa": 34,
     "Jozuego": 24, "Sędziów": 21, "Rut": 4, "1 Samuela": 31, "2 Samuela": 24,
     "1 Królewska": 22, "2 Królewska": 25, "1 Kronik": 29, "2 Kronik": 36,
@@ -96,7 +92,7 @@ CHAPTERS_PER_BOOK = {
     "Jakuba": 5, "1 Piotra": 5, "2 Piotra": 3, "1 Jana": 5, "2 Jana": 1, "3 Jana": 1,
     "Judy": 1, "Objawienie Jana": 22,
 
-    # Hiszpańskie nazwy
+    # Spanish names
     "Génesis": 50, "Éxodo": 40, "Levítico": 27, "Números": 36, "Deuteronomio": 34,
     "Josué": 24, "Jueces": 21, "Rut": 4, "1 Samuel": 31, "2 Samuel": 24,
     "1 Reyes": 22, "2 Reyes": 25, "1 Crónicas": 29, "2 Crónicas": 36,

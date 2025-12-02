@@ -24,52 +24,50 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [🌟 Overview](#-overview)
-- [❓ Problem Statement](#-problem-statement)
-- [💡 Solution](#-solution)
-- [✨ Features](#-features)
-- [🏗️ Architecture](#%EF%B8%8F-architecture)
-- [🔗 Celo Integration](#-celo-integration)
-- [🚀 Quick Start](#-quick-start)
-- [📖 API Documentation](#-api-documentation)
-- [📱 Mobile App Setup](#-mobile-app-setup)
-- [🛠️ Tech Stack](#%EF%B8%8F-tech-stack)
-- [🗺️ Roadmap](#%EF%B8%8F-roadmap)
-- [👥 Team](#-team)
-- [📄 License](#-license)
+- [Overview](#-overview)
+- [Problem Statement](#-problem-statement)
+- [Solution](#-solution)
+- [Features](#-features)
+- [Architecture](#%EF%B8%8F-architecture)
+- [Celo Integration](#-celo-integration)
+- [Quick Start](#-quick-start)
+- [API Documentation](#-api-documentation)
+- [Mobile App Setup](#-mobile-app-setup)
+- [Tech Stack](#%EF%B8%8F-tech-stack)
+- [Roadmap](#%EF%B8%8F-roadmap)
+- [Team](#-team)
+- [License](#-license)
 
 ---
 
-## 🌟 Overview
+## Overview
 
 **PrayChain** is a revolutionary Web3 mobile application that bridges spirituality with blockchain technology. By combining the power of **prayer** with **DeFi mechanics** on the **Celo blockchain**, we create a unique ecosystem where users earn **$PRAY tokens** through mindful spiritual practices and can donate them to verified charitable causes.
 
 > _"Where faith meets finance for real-world impact"_
 
-### 🎯 Key Value Proposition
+### Key Value Proposition
 
 | For Users                                 | For Charities                               | For the Ecosystem                    |
 | ----------------------------------------- | ------------------------------------------- | ------------------------------------ |
-| ✅ Earn tokens through spiritual practice | ✅ Receive transparent, traceable donations | ✅ Drive real-world adoption of Celo |
-| ✅ Build healthy spiritual habits         | ✅ Access global donor community            | ✅ Showcase mobile-first DeFi        |
-| ✅ Contribute to meaningful causes        | ✅ Lower transaction fees on Celo           | ✅ Demonstrate regenerative finance  |
+| Earn tokens through spiritual practice | Receive transparent, traceable donations | Drive real-world adoption of Celo |
+| Build healthy spiritual habits         | Access global donor community            | Showcase mobile-first DeFi        |
+| Contribute to meaningful causes        | Lower transaction fees on Celo           | Demonstrate regenerative finance  |
 
 ---
 
-## ❓ Problem Statement
+## Problem Statement
 
-### The Challenge
-
-1. **💭 Spiritual Disconnect** - In our fast-paced digital world, people struggle to maintain consistent spiritual practices
-2. **💸 Charitable Giving Barriers** - Traditional donation systems lack transparency and have high fees
-3. **🔒 Web3 Complexity** - Blockchain adoption is hindered by poor UX and technical complexity
-4. **🌍 Impact Verification** - Donors rarely see the direct impact of their contributions
+1. **Spiritual Disconnect** - In our fast-paced digital world, people struggle to maintain consistent spiritual practices
+2. **Charitable Giving Barriers** - Traditional donation systems lack transparency and have high fees
+3. **Web3 Complexity** - Blockchain adoption is hindered by poor UX and technical complexity
+4. **Impact Verification** - Donors rarely see the direct impact of their contributions
 
 ---
 
-## 💡 Solution
+## Solution
 
 PrayChain addresses these challenges through an innovative **Pray-to-Earn** model:
 
@@ -78,28 +76,28 @@ PrayChain addresses these challenges through an innovative **Pray-to-Earn** mode
 │                        🙏 PRAYCHAIN FLOW                           │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│   📿 Pray         →    🤖 AI Analysis    →    💰 Earn $PRAY        │
-│   ─────────────        ──────────────         ──────────           │
-│   Record prayer        • Text accuracy        Tokens based on:     │
-│   via voice            • Emotion analysis     • Accuracy           │
-│                        • Focus detection      • Consistency        │
-│                        • Voice verification   • Daily streaks      │
+│       Pray        →      AI Analysis     →    Earn $PRAY            │
+│   ─────────────        ──────────────         ──────────            │
+│   Record prayer        • Text accuracy        Tokens based on:      │
+│   via voice            • Emotion analysis     • Accuracy            │
+│                        • Focus detection      • Consistency         │
+│                        • Voice verification   • Daily streaks       │
 │                                                                     │
 │                              ↓                                      │
 │                                                                     │
-│   🎁 Donate        ←    📊 Track Impact   ←    💎 Collect          │
-│   ─────────────        ──────────────         ──────────           │
-│   Support verified     Real-time stats on     Achievements &       │
-│   charities            donation usage         NFT badges           │
+│      Donate        →    Track Impact     →      Collect             │
+│   ─────────────        ──────────────         ──────────            │
+│   Support verified     Real-time stats on     Achievements &        │
+│   charities            donation usage         NFT badges            │
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## ✨ Features
+## Features
 
-### 🎙️ **Pray-to-Earn System**
+### **Pray-to-Earn System**
 
 - Voice recording with real-time transcription
 - AI-powered emotion analysis using Hugging Face models
@@ -107,71 +105,70 @@ PrayChain addresses these challenges through an innovative **Pray-to-Earn** mode
 - Anti-fraud voice verification system
 - Daily streaks and bonus multipliers
 
-### 📖 **Bible Integration**
+### **Bible Integration**
 
 - Daily scripture readings
 - Random inspirational quotes
 - Multi-language support (EN, PL, ES)
 - Structured Bible navigation
 
-### 🏆 **Gamification & Achievements**
+### **Gamification & Achievements**
 
 - Progressive leveling system
 - Unlockable achievements with NFT badges
 - Community leaderboards
 - Prayer streaks tracking
 
-### 💝 **Charitable Donations**
+### **Charitable Donations**
 
 - Curated list of verified charities
 - On-chain donation tracking
 - Category-based filtering (Health, Education, Environment, etc.)
 - Transparent fund allocation
 
-### 👥 **Community Features**
+### **Community Features**
 
 - Prayer request system
 - Top community members leaderboard
 - Anonymous prayer support
 - Social engagement metrics
 
-### 🔐 **Secure Authentication**
+### **Secure Authentication**
 
 - Privy-powered authentication
 - Embedded Celo wallet creation
-- Social login options (Email, Apple, Google)
 - Secure key management
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           PRAYCHAIN ARCHITECTURE                        │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
-│  ┌─────────────┐     ┌──────────────┐     ┌─────────────────────────┐  │
-│  │   Mobile    │     │   Backend    │     │      Blockchain         │  │
-│  │  (Expo/RN)  │────▶│  (FastAPI)   │────▶│    (Celo Network)       │  │
-│  └─────────────┘     └──────────────┘     └─────────────────────────┘  │
+│  ┌─────────────┐     ┌──────────────┐     ┌─────────────────────────┐   │
+│  │   Mobile    │     │   Backend    │     │      Blockchain         │   │
+│  │  (Expo/RN)  │────▶│  (FastAPI)   │────▶│    (Celo Network)      │   │
+│  └─────────────┘     └──────────────┘     └─────────────────────────┘   │
 │        │                    │                        │                  │
 │        │                    ▼                        ▼                  │
-│        │            ┌──────────────┐         ┌─────────────┐           │
-│        │            │   MongoDB    │         │ $PRAY Token │           │
-│        │            │   Database   │         │  (ERC-20)   │           │
-│        │            └──────────────┘         └─────────────┘           │
+│        │            ┌──────────────┐         ┌─────────────┐            │
+│        │            │   MongoDB    │         │ $PRAY Token │            │
+│        │            │   Database   │         │  (ERC-20)   │            │
+│        │            └──────────────┘         └─────────────┘            │
 │        │                                                                │
-│        │            ┌──────────────┐                                   │
+│        │            ┌──────────────┐                                    │
 │        └───────────▶│ Voice Service│ (Resemblyzer AI)                  │
-│                     │    (NLP)     │                                   │
-│                     └──────────────┘                                   │
+│                     │    (NLP)     │                                    │
+│                     └──────────────┘                                    │
 │                                                                         │
-│  ┌────────────────────────────────────────────────────────────────────┐│
-│  │                      EXTERNAL SERVICES                             ││
-│  │  • Hugging Face (Emotion Analysis)  • Privy (Auth & Wallets)      ││
-│  │  • Bible API (Scripture Data)       • Celo RPC (Blockchain)       ││
-│  └────────────────────────────────────────────────────────────────────┘│
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │                      EXTERNAL SERVICES                             │ │
+│  │  • Hugging Face (Emotion Analysis)  • Privy (Auth & Wallets)       │ │
+│  │  • Bible API (Scripture Data)       • Celo RPC (Blockchain)        │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -188,48 +185,37 @@ PrayChain addresses these challenges through an innovative **Pray-to-Earn** mode
 
 ---
 
-## 🔗 Celo Integration
+## Celo Integration
 
 ### Why Celo?
 
 | Feature                | Benefit for PrayChain                   |
 | ---------------------- | --------------------------------------- |
-| **⚡ Low Gas Fees**    | Micro-donations economically viable     |
-| **📱 Mobile-First**    | Perfect alignment with our mobile app   |
-| **🌱 Carbon Negative** | Aligns with regenerative finance values |
-| **🌍 Global Reach**    | Support for underbanked communities     |
-| **🔄 Fast Finality**   | Near-instant transaction confirmation   |
+| **Low Gas Fees**    | Micro-donations economically viable     |
+| **Mobile-First**    | Perfect alignment with our mobile app   |
+| **Carbon Negative** | Aligns with regenerative finance values |
+| **Global Reach**    | Support for underbanked communities     |
+| **Fast Finality**   | Near-instant transaction confirmation   |
 
 ### Smart Contract Details
 
 ```typescript
 // $PRAY Token Configuration
+
+// $PRAY token contract
 PRAY_TOKEN_ADDRESS: '0xF0341E12F7Af56925b7f74560E0bCAD298126Eb7'
-CHARITY_WALLET:     '0xa22fb84c98894aaaa4195005cd6b8dda932c3510'
+
+// Distribution wallet
+// During the testing phase, this address also serves as the destination for user-donated tokens to charities
+CHARITY_WALLET: '0xa22fb84c98894aaaa4195005cd6b8dda932c3510'
+
 NETWORK:            Celo Mainnet (Chain ID: 42220)
 TOKEN_STANDARD:     ERC-20
 ```
 
-### Token Economics
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│                    $PRAY TOKEN FLOW                            │
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│   Treasury    ───[Prayer Rewards]───▶    User Wallet          │
-│      │                                       │                 │
-│      │                                       │                 │
-│      ◀───[Charity Donations]─────────────────┘                │
-│      │                                                         │
-│      └───[Transparent Distribution]───▶  Verified Charities   │
-│                                                                │
-└────────────────────────────────────────────────────────────────┘
-```
-
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -260,7 +246,7 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -e .
 
 # Configure environment
-cp .env.example .env
+cp .env.spec .env
 # Edit .env with your credentials
 
 # Run with Docker (recommended)
@@ -278,7 +264,7 @@ cd mobile
 npm install
 
 # Configure environment
-cp .env.example .env
+cp .env.spec .env
 # Edit .env with your Privy App ID and API URL
 
 # Start Expo development server
@@ -292,22 +278,22 @@ npx expo start
 
 ```env
 # MongoDB
-MONGODB_URL=mongodb://localhost:27017
-MONGO_DB_NAME=praychain
+MONGODB_URL=
+MONGO_DB_NAME=
 
 # Hugging Face API
-HF_API_KEY=your_huggingface_api_key
+HF_API_KEY=
 
 # Celo Blockchain
-CELO_ENABLED=true
-CELO_RPC_URL=https://forno.celo.org
-CELO_CHAIN_ID=42220
-PRAY_CONTRACT_ADDRESS=0xF0341E12F7Af56925b7f74560E0bCAD298126Eb7
-TREASURY_PRIVATE_KEY=your_treasury_private_key
+CELO_ENABLED=
+CELO_RPC_URL=
+CELO_CHAIN_ID=
+PRAY_CONTRACT_ADDRESS=
+TREASURY_PRIVATE_KEY=
 
 # Voice Verification
-VOICE_VERIFICATION_ENABLED=false
-VOICE_SIMILARITY_THRESHOLD=0.85
+VOICE_VERIFICATION_ENABLED=
+VOICE_SIMILARITY_THRESHOLD=
 ```
 
 </details>
@@ -316,16 +302,16 @@ VOICE_SIMILARITY_THRESHOLD=0.85
 <summary><b>Mobile (.env)</b></summary>
 
 ```env
-EXPO_PUBLIC_API_URL=http://localhost:8000
-EXPO_PUBLIC_PRIVY_APP_ID=your_privy_app_id
-EXPO_PUBLIC_BLOCKCHAIN_ENABLED=true
+EXPO_PUBLIC_API_URL=
+EXPO_PUBLIC_PRIVY_APP_ID=
+EXPO_PUBLIC_BLOCKCHAIN_ENABLED=
 ```
 
 </details>
 
 ---
 
-## 📖 API Documentation
+## API Documentation
 
 Once the backend is running, access interactive API documentation:
 
@@ -337,26 +323,26 @@ Once the backend is running, access interactive API documentation:
 ### Key Endpoints
 
 ```
-🔐 Authentication
+Authentication
 POST   /api/users/register          - Register new user
 GET    /api/users/{user_id}         - Get user profile
 
-🙏 Prayer System
+Prayer System
 GET    /api/prayers                 - List all prayers
 POST   /api/transcription/upload    - Upload prayer recording
 POST   /api/analysis/analyze        - Analyze prayer quality
 
-💰 Tokens
+Tokens
 GET    /api/tokens/balance/{user_id} - Get token balance
 POST   /api/tokens/award             - Award tokens for prayer
 GET    /api/tokens/transactions      - Transaction history
 
-💝 Charity
+Charity
 GET    /api/charity/actions          - List charity campaigns
 POST   /api/charity/donate           - Make donation
 GET    /api/charity/donors/{id}      - Get campaign donors
 
-📖 Bible
+Bible
 GET    /api/bible/daily-reading      - Today's scripture
 GET    /api/bible/random-quote       - Random verse
 GET    /api/bible/structure          - Bible navigation
@@ -364,7 +350,7 @@ GET    /api/bible/structure          - Bible navigation
 
 ---
 
-## 📱 Mobile App Setup
+## Mobile App Setup
 
 ### iOS Development
 
@@ -408,7 +394,7 @@ npx expo run:android
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend (Mobile)
 
@@ -445,7 +431,7 @@ npx expo run:android
 
 ## 🗺️ Roadmap
 
-### Phase 1: MVP ✅ (Current)
+### Phase 1: MVP (Current)
 
 - [x] Core prayer recording & analysis
 - [x] $PRAY token integration on Celo
@@ -453,7 +439,7 @@ npx expo run:android
 - [x] User authentication with Privy
 - [x] Multi-language support
 
-### Phase 2: Enhancement 🚧 (Q1 2025)
+### Phase 2: Enhancement (Q1 2025)
 
 - [ ] Advanced voice verification (anti-AI detection)
 - [ ] NFT achievement badges
@@ -461,7 +447,7 @@ npx expo run:android
 - [ ] Social sharing features
 - [ ] Expanded charity partnerships
 
-### Phase 3: Scale 📋 (Q2 2025)
+### Phase 3: Scale (Q2 2025)
 
 - [ ] DAO governance for charity selection
 - [ ] Staking mechanisms
@@ -469,7 +455,7 @@ npx expo run:android
 - [ ] Institutional partnerships
 - [ ] Impact reporting dashboard
 
-### Phase 4: Ecosystem 🔮 (Q3-Q4 2025)
+### Phase 4: Ecosystem (Q3-Q4 2025)
 
 - [ ] PrayChain SDK for developers
 - [ ] White-label solutions for churches
@@ -478,37 +464,37 @@ npx expo run:android
 
 ---
 
-## 📊 Impact Metrics
+## Impact Metrics
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                    PRAYCHAIN METRICS                           │
+│                       PRAYCHAIN METRICS                        │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
-│   🙏 Prayers Recorded         📊 User Engagement              │
-│   ──────────────────          ─────────────────               │
-│   Track spiritual growth      Daily active users               │
-│   with detailed analytics     Session duration                 │
-│                               Retention rates                  │
+│       Prayers Recorded           User Engagement               │
+│     ──────────────────          ─────────────────              │
+│     Track spiritual growth      Daily active users             │
+│     with detailed analytics     Session duration               │
+│                                 Retention rates                │
 │                                                                │
-│   💰 Token Economics          💝 Charitable Impact             │
-│   ──────────────────          ──────────────────              │
-│   Distribution fairness       Total donations                  │
-│   Velocity & circulation      Charities supported              │
-│   Burn rate (future)          Lives impacted                   │
+│       Token Economics           Charitable Impact              │
+│     ──────────────────          ──────────────────             │
+│     Distribution fairness       Total donations                │
+│     Velocity & circulation      Charities supported            │
+│     Burn rate (future)          Lives impacted                 │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 👥 Team
+## Team
 
 <div align="center">
 
 | Role                     | Responsibility                                  |
 | ------------------------ | ----------------------------------------------- |
-| **DevOps / Web Developer / AI** | Infrastructure, CI/CD, AI model integration, Backend development |
+| **DevOps / Backend / AI** | Infrastructure, CI/CD, AI model integration, Backend development |
 | **Frontend / UI/UX / Blockchain** | Website & app UI, user experience, smart contracts, frontend blockchain integration |
 | **DevRel / Crypto** | Developer relations, community building, crypto education, content creation |
 
@@ -516,7 +502,7 @@ npx expo run:android
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Celo Foundation** - For building a mobile-first blockchain
 - **Privy** - For seamless Web3 authentication
@@ -525,13 +511,13 @@ npx expo run:android
 
 ---
 
-## 📄 License
+## License
 
 **© 2025 PrayChain. All Rights Reserved.**
 
 This repository is made available for **viewing and educational purposes only**.
 
-**⚠️ Restrictions:**
+**Restrictions:**
 
 - ❌ No permission to copy, modify, or distribute this code
 - ❌ No commercial or personal use without explicit written consent
@@ -554,6 +540,6 @@ For licensing inquiries, please contact the repository owner.
 
 _Transforming prayers into positive real-world impact_
 
-[🔝 Back to Top](#-praychain)
+[Back to Top](#-praychain)
 
 </div>

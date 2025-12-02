@@ -3,7 +3,7 @@ from typing import Optional
 import os
 
 class Settings(BaseSettings):
-    """Centralna konfiguracja aplikacji"""
+    """Central application configuration"""
     
     # MongoDB
     MONGODB_URL: str
@@ -21,10 +21,10 @@ class Settings(BaseSettings):
     # Celo Blockchain
     CELO_ENABLED: bool = False
     CELO_RPC_URL: Optional[str] = None
-    CELO_CHAIN_ID: int = 42220  # Mainnet domyślnie
+    CELO_CHAIN_ID: int = 42220  # Mainnet by default
     PRAY_CONTRACT_ADDRESS: Optional[str] = None
     TREASURY_PRIVATE_KEY: Optional[str] = None
-    # USER_PRIVATE_KEY usunięty - wallet_address pobieramy z bazy danych
+    # USER_PRIVATE_KEY removed - wallet_address is fetched from database
     
     # Voice Verification
     VOICE_VERIFICATION_ENABLED: bool = False
@@ -60,5 +60,5 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Utwórz folder uploadów
+# Create uploads folder
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

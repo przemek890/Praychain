@@ -138,7 +138,7 @@ export const usePrayerRecording = () => {
       );
       
       const validPrayers = prayersWithText.filter(p => p !== null) as Prayer[];
-      console.log(`✅ Loaded ${validPrayers.length} prayers in ${language}`);
+      console.log(`Loaded ${validPrayers.length} prayers in ${language}`);
       
       if (validPrayers.length === 0) {
         setError('Failed to load prayer details');
@@ -376,7 +376,7 @@ export const usePrayerRecording = () => {
 
   useEffect(() => {
     if (userId) {
-      console.log(`🌍 Language changed to ${language}, reloading prayers`);
+      console.log(`Language changed to ${language}, reloading prayers`);
       fetchPrayers();
       
       if (selectedPrayer) {

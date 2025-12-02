@@ -13,7 +13,7 @@ config.resolver.assetExts = config.resolver.assetExts.filter(ext => ext !== 'svg
 // Enable package exports for @noble/hashes
 config.resolver.unstable_enablePackageExports = true;
 
-// DODAJ ALIAS DLA uuid
+// ADD ALIAS FOR uuid
 config.resolver.extraNodeModules = {
   ...(config.resolver.extraNodeModules || {}),
   uuid: path.resolve(__dirname, 'node_modules/uuid'),

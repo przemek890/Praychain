@@ -333,7 +333,7 @@ export const pl = {
     donateTokens: 'Przekaż tokeny',
     donations: 'darowizny',
     noDonorsYet: 'Jeszcze brak darczyńców',
-    // ✅ DODAJ TE NOWE KLUCZE:
+    // ADD THESE NEW KEYS:
     campaignProgress: 'Postęp kampanii',
     raised: 'Zebrano',
     supporters: 'Wspierający',

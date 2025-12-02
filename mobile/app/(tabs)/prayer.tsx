@@ -179,7 +179,7 @@ export default function PrayerScreen() {
               </LinearGradient>
             </Animated.View>
 
-            {/* Record Prayer - ukrywa się po zakończeniu */}
+            {/* Record Prayer - hides after completion */}
             {!prayerTranscriptionId && (
               <View style={styles.stepCard}>
                 <LinearGradient colors={['#fff7ed', '#ffedd5']} style={styles.stepGradient}>
@@ -226,7 +226,7 @@ export default function PrayerScreen() {
               </View>
             )}
 
-            {/* Verify with Bible Verse - pełny tekst captcha */}
+            {/* Verify with Bible Verse - full text captcha */}
             {prayerTranscriptionId && !result && captchaQuote && (
               <View style={styles.stepCard}>
                 <LinearGradient colors={['#fef3c7', '#fde68a']} style={styles.stepGradient}>
@@ -319,7 +319,7 @@ export default function PrayerScreen() {
                     </Text>
                   </View>
 
-                  {/* Voice Verification - 2 żółte kafelki */}
+                  {/* Voice Verification - 2 yellow tiles */}
                   <View style={styles.verificationSection}>
                     <Text style={styles.verificationTitle}>{t.prayer.performanceDetails}</Text>
 
@@ -651,7 +651,6 @@ const styles = StyleSheet.create({
   captchaQuoteText: { fontSize: 14, fontStyle: 'italic', color: '#1c1917', marginBottom: 6, lineHeight: 20 },
   captchaQuoteRef: { fontSize: 11, color: '#78716c', fontWeight: '500', textAlign: 'right' },
   
-  // Result styles - jeszcze bardziej zmniejszone
   resultGradient: { 
     padding: 12,
   },
@@ -694,7 +693,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   
-  // Tokens inline - białe tło i lżejsza ramka
   tokensInline: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -731,7 +729,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Metrics - jeszcze mniejsze
   metricsGrid: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
@@ -801,7 +798,7 @@ const styles = StyleSheet.create({
   processingContainer: { 
     padding: 30, 
     alignItems: 'center',
-    backgroundColor: 'transparent', // Przezroczyste tło
+    backgroundColor: 'transparent',
   },
   processingText: { 
     marginTop: 10, 

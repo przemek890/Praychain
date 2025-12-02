@@ -15,9 +15,9 @@ async def connect_to_mongo():
         database = mongodb_client[settings.MONGO_DB_NAME]
         
         await mongodb_client.admin.command('ping')
-        logger.info("✅ MongoDB connection successful")
+        logger.info("MongoDB connection successful")
     except Exception as e:
-        logger.error(f"❌ MongoDB connection failed: {e}")
+        logger.error(f"MongoDB connection failed: {e}")
         raise
 
 async def close_mongo_connection():

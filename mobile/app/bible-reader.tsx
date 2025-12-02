@@ -39,7 +39,7 @@ export default function BibleReaderScreen() {
     setChapterModalVisible(false);
   };
 
-  // Pobiera nazwę księgi w wybranym języku
+  // Retrieves the book name in the selected language
   const getBookDisplayName = (bookId: string): string => {
     if (!bibleStructure?.books_with_names) {
       return bookId;
