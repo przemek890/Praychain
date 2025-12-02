@@ -21,10 +21,10 @@ class Settings(BaseSettings):
     # Celo Blockchain
     CELO_ENABLED: bool = False
     CELO_RPC_URL: Optional[str] = None
-    CELO_CHAIN_ID: int = 44787
+    CELO_CHAIN_ID: int = 42220  # Mainnet domyślnie
     PRAY_CONTRACT_ADDRESS: Optional[str] = None
     TREASURY_PRIVATE_KEY: Optional[str] = None
-    USER_PRIVATE_KEY: Optional[str] = None
+    # USER_PRIVATE_KEY usunięty - wallet_address pobieramy z bazy danych
     
     # Voice Verification
     VOICE_VERIFICATION_ENABLED: bool = False
