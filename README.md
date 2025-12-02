@@ -429,7 +429,7 @@ npx expo run:android
 
 ---
 
-## 🗺️ Roadmap
+## Roadmap
 
 ### Phase 1: MVP (Current)
 
