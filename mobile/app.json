@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/icon.png",
-      "bundleIdentifier": "com.praychain.app",
+      "bundleIdentifier": "com.przemek899.praychain.dev",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "PrayChain needs access to your microphone to record prayers.",
         "NSSpeechRecognitionUsageDescription": "PrayChain needs access to speech recognition to transcribe your prayers.",

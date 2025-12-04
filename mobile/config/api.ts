@@ -40,7 +40,7 @@ export const apiFetch = async (url: string, options: RequestInit = {}) => {
   const method = options.method || 'GET';
 
   const isFormData = options.body instanceof FormData;
-  const baseHeaders = isFormData ? {} : getAuthHeaders(url, method);
+  const baseHeaders = getAuthHeaders(url, options.method || 'GET');
   const headers: Record<string, string> = {
     ...baseHeaders as Record<string, string>,
     ...(options.headers as Record<string, string> || {}),
