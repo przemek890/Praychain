@@ -4,6 +4,7 @@
 
 ### Transforming Faith into Action on Celo Blockchain
 
+[![CI/CD](https://github.com/przemek890/Praychain/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/przemek890/Praychain/actions)
 [![Built on Celo](https://img.shields.io/badge/Built%20on-Celo-FCFF52?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIgZmlsbD0iIzM1RDI0QSIvPjwvc3ZnPg==)](https://celo.org)
 [![Expo](https://img.shields.io/badge/Expo-54.0.0-000020?style=for-the-badge&logo=expo)](https://expo.dev)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
