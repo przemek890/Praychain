@@ -28,19 +28,19 @@
 
 ## Table of Contents
 
-- [Overview](#-overview)
-- [Problem Statement](#-problem-statement)
-- [Solution](#-solution)
-- [Features](#-features)
-- [Architecture](#%EF%B8%8F-architecture)
-- [Celo Integration](#-celo-integration)
-- [Quick Start](#-quick-start)
-- [API Documentation](#-api-documentation)
-- [Mobile App Setup](#-mobile-app-setup)
-- [Tech Stack](#%EF%B8%8F-tech-stack)
-- [Roadmap](#%EF%B8%8F-roadmap)
-- [Team](#-team)
-- [License](#-license)
+- [Overview](#overview)
+- [Problem Statement](#problem-statement)
+- [Solution](#solution)
+- [Features](#features)
+- [Architecture](#%EF%B8%8Farchitecture)
+- [Celo Integration](#celo-integration)
+- [Quick Start](#quick-start)
+- [API Documentation](#api-documentation)
+- [Mobile App Setup](#mobile-app-setup)
+- [Tech Stack](#%EF%B8%8Ftech-stack)
+- [Roadmap](#%EF%B8%8Froadmap)
+- [Team](#team)
+- [License](#license)
 
 ---
 
