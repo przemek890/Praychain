@@ -38,7 +38,7 @@
 - [API Documentation](#api-documentation)
 - [Mobile App Setup](#mobile-app-setup)
 - [Tech Stack](#tech-stack)
-- [Roadmap](roadmap)
+- [Roadmap](#roadmap)
 - [Team](#team)
 - [License](#license)
 
